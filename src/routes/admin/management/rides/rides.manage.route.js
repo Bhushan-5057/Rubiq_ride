@@ -11,7 +11,7 @@ router.get("/get-all", authenticateAdmin, getAllRides);
 //delete all rides route can be added here
 router.delete("/delete-all", authenticateAdmin, deleteAllRides);
 
-//delete ride
+//delete rides
 router.delete("/:rideId", authenticateAdmin, deleteRide);
 
 
