@@ -3,7 +3,7 @@ import { getPassengerById, updatePassangerStatus } from "../../../../services/pa
 
 export async function updatePassengerStatusController(req, res, next) {
   try {
-    if (req.admin.role !== "admin") {
+    if (req.user.role !== "admin") {
       return res.status(403).json({ success: false, message: "Only admins can update passenger status" });
     }
 
@@ -25,7 +25,7 @@ export async function updatePassengerStatusController(req, res, next) {
 // -------------------- Get All Passengers --------------------
 export async function getAllPassengersController(req, res, next) {
   try {
-    if (req.admin.role !== "admin") {
+    if (req.user.role !== "admin") {
       return res
         .status(403)
         .json({ success: false, message: "Only admins can access this resource" });

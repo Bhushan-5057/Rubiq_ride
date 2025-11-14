@@ -1,16 +1,40 @@
 import { Driver } from "../../../models/driver/Driver.model.js";
+import { documentStatus, requiredFields, requiredDocs } from "../../../common/utlis.js"
 
+// shared helper: check if a required field is filled/valid
+const isFilled = (key, val) => {
+  if (key === "dateOfBirth") {
+    if (!val) return false;
+    const d = new Date(val);
+    return !isNaN(d.getTime());
+  }
+  if (typeof val === "string") return val.trim().length > 0;
+  return Boolean(val);
+};
 
 export async function verifyDriverDocuments(driverId, verificationData = {}) {
   const driver = await Driver.findById(driverId);
   if (!driver) throw new Error("Driver not found");
 
   const docs = driver.documents || {};
+
+  const maybeDocStatuses = verificationData.docStatuses && typeof verificationData.docStatuses === "object" ? verificationData.docStatuses : null;
+
+  let statusKeys = documentStatus;
+
+  if (!driver.documents) driver.documents = {};
+  if (maybeDocStatuses) {
+    for (const [k, v] of Object.entries(maybeDocStatuses)) {
+      if (statusKeys.includes(k) && v) driver.documents[k] = String(v).toLowerCase();
+    }
+  }
+  for (const k of statusKeys) {
+    if (verificationData[k]) driver.documents[k] = String(verificationData[k]).toLowerCase();
+  }
   const allDocsUploaded =
     docs.aadhaarFront &&
     docs.aadhaarBack &&
     docs.panFront &&
-    docs.panBack &&
     docs.licenseFront &&
     docs.licenseBack &&
     docs.rcFront &&
@@ -19,6 +43,18 @@ export async function verifyDriverDocuments(driverId, verificationData = {}) {
   if (verificationData.remarks) {
     driver.verificationRemarks = verificationData.remarks.trim();
   }
+
+  // After applying incoming statuses, derive state from current doc statuses
+  const cur = driver.documents || {};
+  const values = [
+    cur.aadhaarStatus,
+    cur.panStatus,
+    cur.licenseStatus,
+    cur.rcStatus,
+    cur.insuranceStatus,
+  ];
+  const anyRejected = values.some((v) => v === "rejected");
+  const allApproved = values.every((v) => v === "approved");
 
   if (verificationData.approvalStatus) {
     const status = verificationData.approvalStatus.toLowerCase();
@@ -31,7 +67,7 @@ export async function verifyDriverDocuments(driverId, verificationData = {}) {
     driver.documentsVerified = status === "approved";
     driver.status = status === "approved" ? "active" : "suspended";
 
-    if (status === "approved" && !driver.verificationRemarks) {
+    if (status === "approved") {
       driver.verificationRemarks = "All documents verified successfully.";
     }
 
@@ -39,18 +75,42 @@ export async function verifyDriverDocuments(driverId, verificationData = {}) {
       driver.verificationRemarks = "Some documents are invalid or missing.";
     }
   } else {
-    if (allDocsUploaded) {
-      driver.approvalStatus = "fullfiled";
-      driver.documentsVerified = false; 
-      driver.status = "pending";
-      driver.verificationRemarks ||= "All documents uploaded; awaiting admin review.";
-    } else {
-      driver.approvalStatus = "incompleted";
+    // Infer state from document statuses
+    if (anyRejected) {
+      driver.approvalStatus = "rejected";
       driver.documentsVerified = false;
       driver.status = "suspended";
-      driver.verificationRemarks ||= "Incomplete or missing documents.";
+      driver.verificationRemarks ||= "Some documents are invalid or missing.";
+    } else if (allApproved) {
+      driver.approvalStatus = "approved";
+      driver.documentsVerified = true;
+      driver.status = "active";
+      driver.verificationRemarks = "All documents verified successfully.";
+    } else {
+      driver.approvalStatus = "pending";
+      driver.documentsVerified = false;
+      driver.status = "suspended";
+      driver.verificationRemarks ||= allDocsUploaded
+        ? "All documents uploaded; awaiting admin review."
+        : "Incomplete or missing documents.";
     }
   }
+
+  const allFieldsFilled = requiredFields.every((field) => isFilled(field, driver[field]));
+  const dStatuses = driver.documents || {};
+  const allDocsUploadedStrict = requiredDocs.every((docKey) => Boolean(dStatuses[docKey]));
+  const allDocsApprovedStrict = [
+    dStatuses.aadhaarStatus,
+    dStatuses.panStatus,
+    dStatuses.licenseStatus,
+    dStatuses.rcStatus,
+    dStatuses.insuranceStatus,
+  ].every((v) => v === "approved");
+  console.log("All fields filled:", allFieldsFilled);
+  console.log("All docs uploaded (strict):", allDocsUploadedStrict);
+  console.log("All docs approved (strict):", allDocsApprovedStrict);
+  driver.profileCompleted = allFieldsFilled && allDocsUploadedStrict && allDocsApprovedStrict;
+  console.log("Profile completion status:", driver.profileCompleted);
 
   driver.updatedAt = new Date();
   await driver.save();
@@ -61,10 +121,8 @@ export async function verifyDriverDocuments(driverId, verificationData = {}) {
       driver.approvalStatus === "approved"
         ? "Driver approved successfully."
         : driver.approvalStatus === "rejected"
-        ? "Driver verification failed."
-        : driver.approvalStatus === "fullfiled"
-        ? "Driver has completed profile; waiting for admin review."
-        : "Driver documents incomplete.",
+          ? "Driver verification failed."
+          : "Driver verification updated; awaiting admin review.",
     driver: {
       id: driver._id,
       name: driver.name,
@@ -72,6 +130,7 @@ export async function verifyDriverDocuments(driverId, verificationData = {}) {
       documentsVerified: driver.documentsVerified,
       status: driver.status,
       remarks: driver.verificationRemarks,
+      documents: driver.documents,
     },
   };
 }

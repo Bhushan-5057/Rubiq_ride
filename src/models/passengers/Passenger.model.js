@@ -9,7 +9,7 @@ const passengerSchema = new mongoose.Schema(
     otpVerified: { type: Boolean, default: false },
     name: { type: String, trim: true },
     profileImage: { type: String },
-    dateOfBirth: { type: Date },
+   dateOfBirth: { type: Date },
     email: {
       type: String,
       unique: true,
@@ -26,19 +26,7 @@ const passengerSchema = new mongoose.Schema(
     lastLogoutAt: { type: Date },
     profileCompleted: { type: Boolean, default: false },
     status: { type: String, enum: ["active", "suspended"], default: "active" },
-    location: {
-      type: {
-        type: String,
-        enum: ["Point"],
-        default: "Point",
-      },
-      coordinates: {
-        type: [Number],
-        index: "2dsphere",
-      },
-    },
   },
-
   { timestamps: true }
 );
 

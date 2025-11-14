@@ -4,7 +4,7 @@ import { deleteDriver, verifyDriverDocuments } from "../../../services/driver/in
 export async function deleteDriverController(req, res, next) {
   try {
     const { driverId } = req.params;
-    const authenticatedDriverId = req.driver._id.toString(); 
+    const authenticatedDriverId = req.user._id.toString(); 
 
     
     if (authenticatedDriverId !== driverId) {
@@ -27,16 +27,9 @@ export async function deleteDriverController(req, res, next) {
 // -------------------- VERIFY DRIVER DOCUMENTS --------------------
 export async function verifyDriverDocumentsController(req, res, next) {
   try {
-    const isAdmin = true;
-
-    if (!isAdmin) {
-      return res.status(403).json({ success: false, message: "Only admins can verify documents" });
-    }
-
     const { driverId } = req.params;
-    const { remarks, approvalStatus } = req.body;
-
-    const result = await verifyDriverDocuments(driverId, { remarks, approvalStatus });
+    // Allow passing remarks, approvalStatus, and optional per-document statuses in one call
+    const result = await verifyDriverDocuments(driverId, req.body || {});
     res.status(200).json(result);
   } catch (err) {
     next(err);

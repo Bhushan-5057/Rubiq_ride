@@ -71,7 +71,7 @@ export async function authenticateDriver(req, res, next) {
     if (!driver)
       return res.status(404).json({ success: false, message: "Driver not found" });
 
-   req.driver  = driver;       
+    req.driver = driver;       
     next();
   } catch (err) {
     console.error("Driver Auth Error:", err.message);
@@ -95,7 +95,7 @@ export async function authenticatePassenger(req, res, next) {
       return res.status(404).json({ success: false, message: "Passenger not found" });
 
 
-    req.passenger = passenger;        
+    req.passanger = passenger;        
     next();
   } catch (err) {
     console.error("Passenger Auth Error:", err.message);

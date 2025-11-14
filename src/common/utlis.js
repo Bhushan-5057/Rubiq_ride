@@ -13,7 +13,7 @@ export const OTP_EXPIRY_MINUTES = 5;
 export const { TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_PHONE_NUMBER, NODE_ENV } =
   process.env;
 
- export const client = twilio(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN);
+export const client = twilio(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN);
 
 
 // Fields that can be updated dynamically
@@ -35,9 +35,11 @@ export const requiredFields = [
   "email",
   "vehicleNumber",
   "licenseNumber",
+  "dateOfBirth",
   "gender",
   "vehicleType",
   "city",
+  "profileImage",
 ];
 
 // Document fields required
@@ -45,14 +47,22 @@ export const requiredDocs = [
   "aadhaarFront",
   "aadhaarBack",
   "panFront",
-  "panBack",
   "licenseFront",
   "licenseBack",
   "rcFront",
   "rcBack",
+  "insurance",
 ];
 
-export const passengerfields = ["name", "email", "gender", "contactNumber",   "dateOfBirth", ,"profileImage"];
+export const documentStatus = [
+  "aadhaarStatus",
+  "panStatus",
+  "licenseStatus",
+  "rcStatus",
+  "insuranceStatus"
+];
+
+export const passengerfields = ["name", "email", "gender", "contactNumber", "dateOfBirth", , "profileImage"];
 
 
 //genrate otken for passenger 

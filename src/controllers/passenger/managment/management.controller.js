@@ -6,15 +6,15 @@ import {
 // -------------------- Delete Passenger --------------------
 export async function deletePassengerController(req, res, next) {
   try {
-    const passengerId = req.params.passengerId || req.passenger?._id;
+    const passengerId = req.params.passengerId || req.user?._id;
 
-    if (!req.passenger) {
+    if (!req.user) {
       return res
         .status(401)
         .json({ success: false, message: "Not authenticated" });
     }
 
-    if (req.passenger._id.toString() !== passengerId.toString()) {
+    if (req.user._id.toString() !== passengerId.toString()) {
       return res
         .status(403)
         .json({

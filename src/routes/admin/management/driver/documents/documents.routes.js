@@ -1,5 +1,5 @@
 import { Router } from "express";
-import {  authenticateAdmin } from "../../../../../middleware/auth.middleware.js";
+import { authenticateAdmin } from "../../../../../middleware/auth.middleware.js";
 import { verifyDriverDocumentsController } from "../../../../../controllers/driver/managment/management.controller.js";
 
 

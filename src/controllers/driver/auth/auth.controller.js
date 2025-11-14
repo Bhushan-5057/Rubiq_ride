@@ -45,9 +45,6 @@ export async function loginController(req, res, next) {
     if (!driver) {
       return res.status(401).json({ success: false, message: "Invalid credentials" });
     }
-    if (driver.status === "suspended") {
-      return res.status(403).json({ success: false, message: "Account suspended" });
-    }
 
     const isMatch = await driver.comparePassword(password);
     if (!isMatch) return res.status(401).json({ success: false, message: "Invalid credentials" });

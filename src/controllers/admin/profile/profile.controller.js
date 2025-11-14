@@ -3,7 +3,7 @@ export async function profileController(req, res, next) {
     res.json({
       success: true,
       message: "Admin profile fetched successfully",
-      user: req.admin, 
+      user: req.user, 
     });
   } catch (err) {
     next(err);

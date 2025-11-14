@@ -83,7 +83,7 @@ export async function otpLoginController(req, res, next) {
 // -------------------- Logout --------------------
 export async function logoutController(req, res, next) {
   try {
-    const result = await logout(req.passenger.id);
+    const result = await logout(req.user.id);
     res.json({ success: true, ...result });
   } catch (err) {
     next(err);

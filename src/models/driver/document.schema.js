@@ -9,28 +9,18 @@ const documentSchema = new mongoose.Schema(
     aadhaarStatus: { type: String, enum: statusEnum, default: "incomplete" },
 
     panFront: { type: String },
-    panBack: { type: String },
-    panStatus: {
-      type: String,
-      enum: ["incomplete", "pending", "approved", "rejected"],
-      default: "incomplete",
-    },
+    panStatus: { type: String, enum: statusEnum, default: "incomplete", },
 
     licenseFront: { type: String },
     licenseBack: { type: String },
-    licenseStatus: {
-      type: String,
-      enum: ["incomplete", "pending", "approved", "rejected"],
-      default: "incomplete",
-    },
+    licenseStatus: { type: String, enum: statusEnum, default: "incomplete", },
 
     rcFront: { type: String },
     rcBack: { type: String },
-    rcStatus: {
-      type: String,
-      enum: ["incomplete", "pending", "approved", "rejected"],
-      default: "incomplete",
-    },
+    rcStatus: { type: String, enum: statusEnum, default: "incomplete", },
+
+    insurance: { type: String },
+    insuranceStatus: { type: String, enum: statusEnum, default: "incomplete", },
   },
   { _id: false }
 );

@@ -1,5 +1,4 @@
-import { login } from "../../../services/admin/auth/auth.service.js";
-import { logout } from "../../../services/admin/profile/profile.service.js";
+import { login, logout } from "../../../services/admin.service.js";
 import { handleValidation } from "../../../validations/comman.validation.js";
 
 
@@ -28,7 +27,7 @@ export async function logoutController(req, res, next) {
       throw err;
     }
 
-    const result = await logout(req.admin.id, token);
+    const result = await logout(req.user.id, token);
     res.json({ success: true, ...result });
   } catch (err) {
     next(err);
