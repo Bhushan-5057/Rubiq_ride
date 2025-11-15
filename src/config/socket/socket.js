@@ -1,14 +1,10 @@
 import { Server } from "socket.io";
 
-
-let ioInstance; 
+let ioInstance;
 
 export const initSocket = (server) => {
   const io = new Server(server, {
-    cors: {
-      origin: "*", 
-      methods: ["GET", "POST"],
-    },
+    cors: { origin: "*", methods: ["GET", "POST"] },
   });
 
   io.on("connection", (socket) => {
@@ -30,10 +26,7 @@ export const initSocket = (server) => {
   return io;
 };
 
-
 export const getIO = () => {
-  if (!ioInstance) {
-    throw new Error("Socket.io not initialized!");
-  }
+  if (!ioInstance) throw new Error("Socket.io not initialized!");
   return ioInstance;
 };
