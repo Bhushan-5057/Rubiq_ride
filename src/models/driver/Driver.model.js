@@ -24,13 +24,14 @@ const driverSchema = new mongoose.Schema(
       enum: ["pending", "approved", "rejected", "incompleted", "fullfiled"],
       default: "pending",
     },
+    documentsVerified: { type: Boolean, default: false },
+    verificationRemarks: { type: String },
     profileCompleted: { type: Boolean, default: false },
     status: { type: String, enum: ["active", "suspended"], default: "active" },
     location: {
       type: {
         type: String,
         enum: ["Point"],
-        default: "Point",
       },
       coordinates: {
         type: [Number], // [lng, lat]
@@ -45,14 +46,28 @@ const driverSchema = new mongoose.Schema(
   { timestamps: true }
 );
 driverSchema.pre("save", function (next) {
+  // When latitude/longitude change, keep location in sync as a valid GeoJSON Point
   if (this.isModified("latitude") || this.isModified("longitude")) {
     if (this.longitude !== undefined && this.latitude !== undefined) {
       this.location = {
         type: "Point",
         coordinates: [this.longitude, this.latitude],
       };
+    } else {
+      // If one of them is missing, clear location so MongoDB doesn't see an invalid geo value
+      this.location = undefined;
     }
   }
+
+  // Extra safety: if location exists but coordinates are missing or invalid, unset it
+  if (
+    this.location &&
+    (!Array.isArray(this.location.coordinates) ||
+      this.location.coordinates.length !== 2)
+  ) {
+    this.location = undefined;
+  }
+
   next();
 });
 
