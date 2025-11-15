@@ -48,7 +48,7 @@ app.use((err, req, res, next) => {
   try {
     await connectDB();
     server.listen(PORT, async () => {
-      console.log(`🚀 Server running on port ${PORT}`);
+      console.log(`Server running on port ${PORT}`);
       try {
         await seedAdmin();
           console.log('Admin account verification completed successfully.');

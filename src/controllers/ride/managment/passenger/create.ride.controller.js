@@ -1,14 +1,22 @@
+import { getIO } from "../../../../config/socket/socket.js";
 import { createRideService } from "../../../../services/ride/managment/passenger/create.service.js";
 
 export const createRide = async (req, res) => {
   try {
-    const passengerId = req.passenger._id; 
+    const passengerId = req.passenger._id;   // <-- correct line
+
     const { pickup, drop } = req.body;
 
-    const { ride, nearbyDrivers } = await createRideService({ passengerId, pickup, drop });
+    const { ride, nearbyDrivers } = await createRideService({
+      passengerId,
+      pickup,
+      drop,
+    });
+
+    const io = getIO();
 
     nearbyDrivers.forEach((driver) => {
-      req.io.to(driver._id.toString()).emit("rideRequest", {
+      io.to(driver._id.toString()).emit("rideRequest", {
         rideId: ride._id,
         pickup,
         drop,
@@ -17,7 +25,7 @@ export const createRide = async (req, res) => {
     });
 
     res.status(201).json({ success: true, ride });
-  } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+  } catch (e) {
+    res.status(500).json({ success: false, message: e.message });
   }
 };
