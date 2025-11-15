@@ -1,5 +1,20 @@
+import { deleteAllRidesService, deleteRideService, getAllRidesService,getSingleRideService } from "../../../../../services/ride/managment/admin/all-rides/getAllRides.service.js";
 
-import { deleteAllRidesService, deleteRideService, getAllRidesService } from "../../../../../services/ride/managment/admin/all-rides/getAllRides.service.js";
+export const getRideById = async (req, res) => {
+  try {
+    const { rideId } = req.params;
+    if (!rideId) throw new Error("Ride ID is required");  
+    const rides = await getSingleRideService(rideId);
+    res.status(200).json({
+      success: true,
+      rides,
+    });
+  } catch (err) {
+    res.status(400).json({ success: false, message: err.message });
+  }
+
+}
+
 
 export const getAllRides = async (req, res) => {
   try {

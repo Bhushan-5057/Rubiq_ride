@@ -31,6 +31,5 @@ $maxDistance: 5000,
 },
 });
 
-
 return { ride, nearbyDrivers };
 }

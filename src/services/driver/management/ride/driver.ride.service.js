@@ -19,6 +19,8 @@ export async function updateDriverLocationService(driver, lat, lng) {
     vehicleType: driver.vehicleType,
     vehicleNumber: driver.vehicleNumber,
     coordinates: driver.location?.coordinates ,
+    latitude: driver.latitude,
+    longitude: driver.longitude,
     updatedAt: driver.updatedAt,
   };
 }

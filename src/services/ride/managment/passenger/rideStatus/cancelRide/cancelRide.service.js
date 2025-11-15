@@ -1,4 +1,76 @@
+import { getDistance } from "geolib";
 import { Ride } from "../../../../../../models/ride/ride.model.js";
+
+
+export async function updateRideService({ rideId, passengerId, pickup, drop }) {
+  if (!rideId || !passengerId) {
+    throw new Error("Ride ID and Passenger ID are required");
+  }
+
+  const ride = await Ride.findOne({ _id: rideId, passenger: passengerId });
+
+  if (!ride) {
+    throw new Error("Ride not found or unauthorized access");
+  }
+
+  if (ride.status === "cancelled") {
+    throw new Error("Cannot update a cancelled ride");
+  }
+
+  if (ride.status === "completed") {
+    throw new Error("Cannot update a completed ride");
+  }
+
+  if (!pickup && !drop) {
+    throw new Error("Nothing to update. Provide pickup and/or drop details");
+  }
+
+  // Build new pickup/drop structures using lng/lat like createRideService
+  if (pickup) {
+    ride.pickup = {
+      address: pickup.address,
+      coordinates: [pickup.lng, pickup.lat],
+    };
+  }
+
+  if (drop) {
+    ride.drop = {
+      address: drop.address,
+      coordinates: [drop.lng, drop.lat],
+    };
+  }
+
+  // Recalculate distance and fareEstimate if we have both pickup and drop coordinates
+  const pickupCoords = pickup
+    ? [pickup.lng, pickup.lat]
+    : ride.pickup?.coordinates;
+
+  const dropCoords = drop
+    ? [drop.lng, drop.lat]
+    : ride.drop?.coordinates;
+
+  if (
+    Array.isArray(pickupCoords) &&
+    pickupCoords.length === 2 &&
+    Array.isArray(dropCoords) &&
+    dropCoords.length === 2
+  ) {
+    const distanceInKm =
+      getDistance(
+        { latitude: pickupCoords[1], longitude: pickupCoords[0] },
+        { latitude: dropCoords[1], longitude: dropCoords[0] }
+      ) / 1000;
+
+    const fareEstimate = Math.round(50 + distanceInKm * 10);
+
+    ride.distance = distanceInKm;
+    ride.fareEstimate = fareEstimate;
+  }
+
+  await ride.save();
+
+  return ride;
+}
 
 
 export async function cancelRideService(passengerId, rideId) {
