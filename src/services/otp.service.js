@@ -11,13 +11,6 @@ export async function sendOtp(contactNumber, userType = "passenger") {
   const expiry = new Date(Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000);
 
   const Model = userType === "driver" ? Driver : Passenger;
-
-  await Model.findOneAndUpdate(
-    { contactNumber },
-    { otp, otpExpiry: expiry, otpVerified: false },
-    { upsert: true, new: true }
-  );
-
   console.log(`[OTP SERVICE] OTP for ${userType} (${contactNumber}): ${otp}`);
 
  const messageBody = otpMessageTemplate("RUBIQRIDE", otp, userType);
@@ -33,6 +26,14 @@ export async function sendOtp(contactNumber, userType = "passenger") {
       `[TWILIO] Message sent to ${contactNumber}, SID: ${message.sid}`
     );
 
+    const updateOptions = { upsert: true, new: true };
+
+    await Model.findOneAndUpdate(
+      { contactNumber },
+      { otp, otpExpiry: expiry, otpVerified: false },
+      updateOptions
+    );
+
     return { success: true, otp: NODE_ENV === "development" ? otp : undefined };
   } catch (err) {
     console.error("[TWILIO ERROR]", err);
@@ -42,10 +43,12 @@ export async function sendOtp(contactNumber, userType = "passenger") {
 
 // -------------------- Verify OTP --------------------
 export async function verifyOtp(contactNumber, otp, userType = "passenger") {
+  console.log("contactNumber", contactNumber, "otp", otp, "userType", userType);
   contactNumber = normalizeNumber(contactNumber);
   const Model = userType === "driver" ? Driver : Passenger;
-
+console.log("Model", Model);
   const user = await Model.findOne({ contactNumber }).select("+otp +otpExpiry");
+  console.log("user", user);
   if (!user || !user.otp) return false;
   if (user.otp !== otp) return false;
   if (user.otpExpiry < new Date()) return false;

@@ -34,9 +34,9 @@ export async function verifyDriverDocumentsController(req, res, next) {
     }
 
     const { driverId } = req.params;
-    const { remarks, approvalStatus } = req.body;
+    const verificationData = req.body;
 
-    const result = await verifyDriverDocuments(driverId, { remarks, approvalStatus });
+    const result = await verifyDriverDocuments(driverId, verificationData);
     res.status(200).json(result);
   } catch (err) {
     next(err);

@@ -35,9 +35,11 @@ export const requiredFields = [
   "email",
   "vehicleNumber",
   "licenseNumber",
+  "dateOfBirth",
   "gender",
   "vehicleType",
   "city",
+  "profileImage",
 ];
 
 // Document fields required
@@ -45,11 +47,19 @@ export const requiredDocs = [
   "aadhaarFront",
   "aadhaarBack",
   "panFront",
-  "panBack",
   "licenseFront",
   "licenseBack",
   "rcFront",
   "rcBack",
+  "insurance",
+];
+
+export const documentStatus = [
+  "aadhaarStatus",
+  "panStatus",
+  "licenseStatus",
+  "rcStatus",
+  "insuranceStatus"
 ];
 
 export const passengerfields = ["name", "email", "gender", "contactNumber",   "dateOfBirth", ,"profileImage"];
