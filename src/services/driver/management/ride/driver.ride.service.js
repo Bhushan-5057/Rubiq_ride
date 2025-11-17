@@ -1,3 +1,4 @@
+
 export async function updateDriverLocationService(driver, lat, lng) {
 
   if (!driver?._id) {
@@ -18,7 +19,7 @@ export async function updateDriverLocationService(driver, lat, lng) {
     name: driver.name,
     vehicleType: driver.vehicleType,
     vehicleNumber: driver.vehicleNumber,
-    coordinates: driver.location?.coordinates ,
+    coordinates: driver.location?.coordinates,
     latitude: driver.latitude,
     longitude: driver.longitude,
     updatedAt: driver.updatedAt,

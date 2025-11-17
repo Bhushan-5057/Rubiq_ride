@@ -1,5 +1,6 @@
 import { getDistance } from "geolib";
 import { Ride } from "../../../../../../models/ride/ride.model.js";
+import { getIO } from "../../../../../../config/socket/socket.js";
 
 
 export async function updateRideService({ rideId, passengerId, pickup, drop }) {
@@ -69,6 +70,28 @@ export async function updateRideService({ rideId, passengerId, pickup, drop }) {
 
   await ride.save();
 
+  const io = getIO();
+
+  io.to(passengerId.toString()).emit("rideUpdated", {
+    rideId: ride._id,
+    status: ride.status,
+    pickup: ride.pickup,
+    drop: ride.drop,
+    distance: ride.distance,
+    fareEstimate: ride.fareEstimate,
+  });
+
+  if (ride.driver) {
+    io.to(ride.driver.toString()).emit("rideUpdated", {
+      rideId: ride._id,
+      status: ride.status,
+      pickup: ride.pickup,
+      drop: ride.drop,
+      distance: ride.distance,
+      fareEstimate: ride.fareEstimate,
+    });
+  }
+
   return ride;
 }
 
@@ -99,8 +122,18 @@ export async function cancelRideService(passengerId, rideId) {
   ride.status = "cancelled";
   await ride.save();
 
- 
+  const io = getIO();
+
+  io.to(passengerId.toString()).emit("rideCancelled", {
+    rideId: ride._id,
+    status: ride.status,
+  });
+
   if (ride.driver) {
+    io.to(ride.driver.toString()).emit("rideCancelled", {
+      rideId: ride._id,
+      status: ride.status,
+    });
   }
 
   return ride;

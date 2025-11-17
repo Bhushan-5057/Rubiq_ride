@@ -8,7 +8,7 @@ export async function sendOtpController(req, res, next) {
     handleValidation(req);
     const { contactNumber } = req.body;
     const result = await sendDriverOtp(contactNumber);
-    res.json({ success: true,  message: "OTP sent successfully", ...result });
+    res.json({ success: true, message: "OTP sent successfully", ...result });
   } catch (err) {
     next(err);
   }
@@ -60,6 +60,3 @@ export async function loginController(req, res, next) {
     next(err);
   }
 }
-
-
-//

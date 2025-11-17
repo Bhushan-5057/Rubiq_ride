@@ -1,5 +1,5 @@
 import { getIO } from "../../../../config/socket/socket.js";
-import { acceptRideService } from "../../../../services/ride/managment/driver/accept.service.js";
+import { acceptRideService, rejectRideService } from "../../../../services/ride/managment/driver/accept.service.js";
 
 export const acceptRide = async (req, res) => {
   try {
@@ -27,4 +27,21 @@ export const acceptRide = async (req, res) => {
   } catch (e) {
     res.status(400).json({ success: false, message: e.message });
   }
-};
+}; 
+
+export const rejectRide = async (req, res) => {
+    try {
+        const driverId = req.driver._id;
+        const { rideId } = req.body;
+        const ride = await rejectRideService({ rideId, driverId });
+
+        const io = getIO();
+
+        io.to(ride.passenger.toString()).emit("rideRejected", {
+            rideId: ride._id,
+        });
+        res.json({ success: true, ride });
+    } catch (e) {
+        res.status(400).json({ success: false, message: e.message });
+    }
+}
