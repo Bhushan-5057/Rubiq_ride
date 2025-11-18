@@ -17,7 +17,7 @@ export async function updateProfile(passenger, data = {}) {
     passenger.documents = { ...passenger.documents, ...data.documents };
   }
 
-  passenger.profileCompleted = Boolean(passenger.name && passenger.email && passenger.gender);
+  passenger.profileCompleted = Boolean(passenger.name && passenger.email && passenger.gender); 
 
   await passenger.save();
 
@@ -25,7 +25,8 @@ export async function updateProfile(passenger, data = {}) {
   delete result.__v;
 
   return { passenger: result };
-}
+}  
+
 
 
 // -------------------- Logout --------------------

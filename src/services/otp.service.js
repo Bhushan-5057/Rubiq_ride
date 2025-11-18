@@ -1,8 +1,7 @@
 import { Passenger } from "../models/passengers/Passenger.model.js";
 import { Driver } from "../models/driver/Driver.model.js";
-import { otpMessageTemplate } from "../common/messageTemplates.js";
 import { normalizeNumber } from "../helpers/helper.js";
-import { client, generateOTP, NODE_ENV, OTP_EXPIRY_MINUTES, TWILIO_PHONE_NUMBER } from "../common/utlis.js";
+import { generateOTP, OTP_EXPIRY_MINUTES } from "../common/utlis.js";
 
 // -------------------- Send OTP --------------------
 export async function sendOtp(contactNumber, userType = "passenger") {
@@ -11,21 +10,20 @@ export async function sendOtp(contactNumber, userType = "passenger") {
   const expiry = new Date(Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000);
 
   const Model = userType === "driver" ? Driver : Passenger;
-  console.log(`[OTP SERVICE] OTP for ${userType} (${contactNumber}): ${otp}`);
+  console.log(`[OTP SERVICE] OTP for ${userType} (${contactNumber}): ${otp}`); 
 
- const messageBody = otpMessageTemplate("RUBIQRIDE", otp, userType);
+  //  const messageBody = otpMessageTemplate("RUBIQRIDE", otp, userType);
 
   try {
-    const message = await client.messages.create({
-      body: messageBody,
-      from: TWILIO_PHONE_NUMBER,
-      to: contactNumber,
-    });
+    // const message = await client.messages.create({
+    //   body: messageBody,
+    //   from: TWILIO_PHONE_NUMBER,
+    //   to: contactNumber,
+    // });
 
-    console.log(
-      `[TWILIO] Message sent to ${contactNumber}, SID: ${message.sid}`
-    );
-
+    // console.log(
+    //   `[TWILIO] Message sent to ${contactNumber}, SID: ${message.sid}`
+    // );    
     const updateOptions = { upsert: true, new: true };
 
     await Model.findOneAndUpdate(
@@ -34,10 +32,11 @@ export async function sendOtp(contactNumber, userType = "passenger") {
       updateOptions
     );
 
-    return { success: true, otp: NODE_ENV === "development" ? otp : undefined };
+    // For testing (and limited Twilio access), always return the OTP directly
+    return { success: true, otp };
   } catch (err) {
-    console.error("[TWILIO ERROR]", err);
-    throw new Error(`Twilio SMS failed: ${err.message}`);
+    console.error("[OTP SERVICE] Error while saving OTP", err);
+    throw new Error(`OTP processing failed: ${err.message}`);
   }
 }
 

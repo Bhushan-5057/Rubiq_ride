@@ -1,40 +1,44 @@
 import { getDistance } from "geolib";
 import { Driver } from "../../../../models/driver/Driver.model.js";
 import { Ride } from "../../../../models/ride/ride.model.js";
+import { Passenger } from "../../../../models/passengers/Passenger.model.js";
 
 export async function createRideService({ passengerId, pickup, drop }) {
-const distanceInKm = getDistance(
-{ latitude: pickup.lat, longitude: pickup.lng },
-{ latitude: drop.lat, longitude: drop.lng }
-) / 1000;
+  const distanceInKm = getDistance(
+    { latitude: pickup.lat, longitude: pickup.lng },
+    { latitude: drop.lat, longitude: drop.lng }
+  ) / 1000;
 
-const fareEstimate = Math.round(50 + distanceInKm * 10); 
+  const fareEstimate = Math.round(50 + distanceInKm * 10); 
 
-function fourDigitNumber() {
+  function fourDigitNumber() {
     return Math.floor(1000 + Math.random() * 9000);
-}
+  }
 
-let otpForStartRide =fourDigitNumber();
+  let otpForStartRide = fourDigitNumber();
 
-const ride = await Ride.create({
-passenger: passengerId,
-pickup: { address: pickup.address, coordinates: [pickup.lng, pickup.lat] },
-drop: { address: drop.address, coordinates: [drop.lng, drop.lat] },
-otpForStartRide,
-distance: distanceInKm,
-fareEstimate,
-});
+  const ride = await Ride.create({
+    passenger: passengerId,
+    pickup: { address: pickup.address, coordinates: [pickup.lng, pickup.lat] },
+    drop: { address: drop.address, coordinates: [drop.lng, drop.lat] },
+    otpForStartRide,
+    distance: distanceInKm,
+    fareEstimate,
+  });
 
+  await Passenger.findByIdAndUpdate(passengerId, {
+    location: { type: "Point", coordinates: [pickup.lng, pickup.lat] },
+  });
 
-const nearbyDrivers = await Driver.find({
-status: "active",
-location: {
-$near: {
-$geometry: { type: "Point", coordinates: [pickup.lng, pickup.lat] },
-$maxDistance: 5000,
-},
-},
-});
+  const nearbyDrivers = await Driver.find({
+    status: "active",
+    location: {
+      $near: {
+        $geometry: { type: "Point", coordinates: [pickup.lng, pickup.lat] },
+        $maxDistance: 5000,
+      },
+    },
+  });
 
-return { ride, nearbyDrivers };
+  return { ride, nearbyDrivers };
 }

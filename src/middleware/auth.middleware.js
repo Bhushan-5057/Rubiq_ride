@@ -61,13 +61,13 @@ export async function authenticateDriver(req, res, next) {
   try {
     const authHeader = req.headers.authorization || "";
     const token = authHeader.startsWith("Bearer ") ? authHeader.split(" ")[1] : null;
-
+    
     if (!token)
       return res.status(401).json({ success: false, message: "Missing token" });
-
+    
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     const driver = await Driver.findOne({ _id: decoded.sub , status:"active" });
-
+    
     if (!driver)
       return res.status(404).json({ success: false, message: "Driver not found" });
 

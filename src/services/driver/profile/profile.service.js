@@ -1,4 +1,4 @@
-import { requiredFields, updatableFields, documentStatus, requiredDocs } from "../../../common/utlis.js";
+import { requiredFields, updatableFields, documentStatus, requiredDocs,requiredDocsNumber } from "../../../common/utlis.js";
 
 export async function updateProfile(driver, data = {}) {
   console.log("driver in service:", driver);
@@ -11,6 +11,19 @@ export async function updateProfile(driver, data = {}) {
 
   updatableFields.forEach((field) => {
     if (data[field] !== undefined) driver[field] = data[field];
+  });
+
+  // Map plain number fields from body into documents subdocument
+  const numberDocFields = requiredDocsNumber;
+
+  if (!driver.documents) {
+    driver.documents = {};
+  }
+
+  numberDocFields.forEach((field) => {
+    if (data[field] !== undefined) {
+      driver.documents[field] = data[field];
+    }
   });
 
   if (data.documents && typeof data.documents === "object") {
