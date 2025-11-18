@@ -1,7 +1,6 @@
 import mongoose from "mongoose";
 import documentSchema from "../driver/document.schema.js";
 
-
 const driverSchema = new mongoose.Schema(
   {
     contactNumber: { type: String, unique: true, required: true },
@@ -45,6 +44,7 @@ const driverSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
 driverSchema.pre("save", function (next) {
   // When latitude/longitude change, keep location in sync as a valid GeoJSON Point
   if (this.isModified("latitude") || this.isModified("longitude")) {
@@ -54,12 +54,10 @@ driverSchema.pre("save", function (next) {
         coordinates: [this.longitude, this.latitude],
       };
     } else {
-      // If one of them is missing, clear location so MongoDB doesn't see an invalid geo value
       this.location = undefined;
     }
   }
 
-  // Extra safety: if location exists but coordinates are missing or invalid, unset it
   if (
     this.location &&
     (!Array.isArray(this.location.coordinates) ||

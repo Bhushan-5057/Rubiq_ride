@@ -3,7 +3,7 @@ import { createRideService } from "../../../../services/ride/managment/passenger
 
 export const createRide = async (req, res) => {
   try {
-    const passengerId = req.passenger._id;   // <-- correct line
+    const passengerId = req.passenger._id;
 
     const { pickup, drop } = req.body;
 

@@ -8,6 +8,7 @@ export async function sendDriverOtp(contactNumber) {
 }
 
 export async function otpLogin(payload) {
+  console.log("payload", payload);
   let {
     contactNumber,
     otp,

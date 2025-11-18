@@ -13,7 +13,6 @@ export const getRideStatus = async (req, res) => {
   }
 };
 
-
 //get all rides for passenger
 export const getPassengerRides = async (req, res) => {
   try {
