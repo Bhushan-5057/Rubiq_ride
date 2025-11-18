@@ -31,15 +31,15 @@ export async function verifyDriverDocuments(driverId, verificationData = {}) {
   for (const k of statusKeys) {
     if (verificationData[k]) driver.documents[k] = String(verificationData[k]).toLowerCase();
   }
-  const allDocsUploaded =
-    docs.aadhaarFront &&
-    docs.aadhaarBack &&
-    docs.panFront &&
-    docs.licenseFront &&
-    docs.licenseBack &&
-    docs.rcFront &&
-    docs.rcBack &&
-    docs.insurance;
+  // const allDocsUploaded =
+  //   docs.aadhaarFront &&
+  //   docs.aadhaarBack &&
+  //   docs.panFront &&
+  //   docs.licenseFront &&
+  //   docs.licenseBack &&
+  //   docs.rcFront &&
+  //   docs.rcBack &&
+  //   docs.insurance;
   if (verificationData.remarks) {
     driver.verificationRemarks = verificationData.remarks.trim();
   }

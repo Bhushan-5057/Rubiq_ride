@@ -19,3 +19,18 @@ export async function registerController(req, res, next) {
     next(err);
   }
 }
+
+
+
+//get all admin 
+export async function getAdminProfileController(req, res, next) {
+  try {
+    res.status(200).json({
+      success: true,
+      message: "Admin fetched successfully",
+      data: req.admin, 
+    });
+  } catch (err) {
+    next(err);
+  }
+}
