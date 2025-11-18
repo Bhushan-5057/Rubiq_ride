@@ -8,14 +8,19 @@ const distanceInKm = getDistance(
 { latitude: drop.lat, longitude: drop.lng }
 ) / 1000;
 
+const fareEstimate = Math.round(50 + distanceInKm * 10); 
 
-const fareEstimate = Math.round(50 + distanceInKm * 10);
+function fourDigitNumber() {
+    return Math.floor(1000 + Math.random() * 9000);
+}
 
+let otpForStartRide =fourDigitNumber();
 
 const ride = await Ride.create({
 passenger: passengerId,
 pickup: { address: pickup.address, coordinates: [pickup.lng, pickup.lat] },
 drop: { address: drop.address, coordinates: [drop.lng, drop.lat] },
+otpForStartRide,
 distance: distanceInKm,
 fareEstimate,
 });

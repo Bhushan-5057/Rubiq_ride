@@ -6,7 +6,7 @@ import { verifyDriverDocumentsController } from "../../../../../controllers/driv
 
 const router = Router();
 
-router.patch("/verify/:driverId", authenticateAdmin, verifyDriverDocumentsController);
+router.put("/verify/:driverId", authenticateAdmin, verifyDriverDocumentsController);
 
 
 export default router;
