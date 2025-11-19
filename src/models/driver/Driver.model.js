@@ -10,7 +10,6 @@ const driverSchema = new mongoose.Schema(
     profileImage: { type: String },
     name: { type: String, trim: true },
     email: { type: String, unique: true, sparse: true },
-    licenseNumber: { type: String, unique: true, sparse: true },
     vehicleNumber: { type: String, unique: true, sparse: true },
     dateOfBirth: { type: Date },
     gender: { type: String, enum: ["male", "female", "other"], default: null },

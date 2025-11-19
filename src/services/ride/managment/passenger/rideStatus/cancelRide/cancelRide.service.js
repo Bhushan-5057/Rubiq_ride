@@ -3,7 +3,7 @@ import { Ride } from "../../../../../../models/ride/ride.model.js";
 import { getIO } from "../../../../../../config/socket/socket.js";
 
 
-export async function updateRideService({ rideId, passengerId, pickup, drop }) {
+export async function updateRideService({ rideId, passengerId,drop }) {
   if (!rideId || !passengerId) {
     throw new Error("Ride ID and Passenger ID are required");
   }
@@ -22,16 +22,8 @@ export async function updateRideService({ rideId, passengerId, pickup, drop }) {
     throw new Error("Cannot update a completed ride");
   }
 
-  if (!pickup && !drop) {
+  if (!drop) {
     throw new Error("Nothing to update. Provide pickup and/or drop details");
-  }
-
-  // Build new pickup/drop structures using lng/lat like createRideService
-  if (pickup) {
-    ride.pickup = {
-      address: pickup.address,
-      coordinates: [pickup.lng, pickup.lat],
-    };
   }
 
   if (drop) {
@@ -41,20 +33,17 @@ export async function updateRideService({ rideId, passengerId, pickup, drop }) {
     };
   }
 
-  // Recalculate distance and fareEstimate if we have both pickup and drop coordinates
-  const pickupCoords = pickup
-    ? [pickup.lng, pickup.lat]
-    : ride.pickup?.coordinates;
-
   const dropCoords = drop
     ? [drop.lng, drop.lat]
     : ride.drop?.coordinates;
 
+  const pickupCoords = ride.pickup?.coordinates;
+
   if (
-    Array.isArray(pickupCoords) &&
-    pickupCoords.length === 2 &&
     Array.isArray(dropCoords) &&
-    dropCoords.length === 2
+    dropCoords.length === 2 &&
+    Array.isArray(pickupCoords) &&
+    pickupCoords.length === 2
   ) {
     const distanceInKm =
       getDistance(

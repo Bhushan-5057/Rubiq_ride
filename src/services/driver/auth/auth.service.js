@@ -47,8 +47,6 @@ export async function otpLogin(payload) {
       profileCompleted: false,
     });
   } else {
-    if (driver.status === "suspended") throw new Error("Account suspended");
-
     driver.otpVerified = true;
 
     const fields = {

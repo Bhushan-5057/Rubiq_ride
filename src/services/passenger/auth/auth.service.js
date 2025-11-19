@@ -44,7 +44,6 @@ export async function otpLogin({ contactNumber, otp, name, email, gender }) {
       profileCompleted: false,
     });
   } else {
-    if (passenger.status === "suspended") throw new Error("Account suspended");
     passenger.otpVerified = true;
 
     if (name && !passenger.name) passenger.name = name;

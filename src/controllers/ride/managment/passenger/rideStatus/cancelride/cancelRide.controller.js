@@ -5,9 +5,9 @@ export const updateRide = async (req, res) => {
   try {
     const { rideId } = req.params;
     const passengerId = req.passenger._id;
-    const { pickup, drop } = req.body;
+    const { drop } = req.body;
 
-    const ride = await updateRideService({ rideId, passengerId, pickup, drop });
+    const ride = await updateRideService({ rideId, passengerId, drop });
 
     res.status(200).json({
       success: true,
@@ -21,7 +21,7 @@ export const updateRide = async (req, res) => {
 
 export const cancelRide = async (req, res) => {
   try {
-    const passengerId = req.passenger._id; 
+    const passengerId = req.passenger._id;
     const { rideId } = req.params;
 
     const ride = await cancelRideService(passengerId, rideId);

@@ -14,9 +14,10 @@ const rideSchema = new mongoose.Schema(
     },
     distance: Number,
     fareEstimate: Number,
+    otpForStartRide: { type: Number, required: true },
     status: {
       type: String,
-      enum: ["pending", "accepted","completed", "cancelled"],
+      enum: ["pending", "accepted","ongoing","completed", "cancelled"],
       default: "pending",
     },
   },
