@@ -17,6 +17,7 @@ export async function sendOtp(contactNumber, userType = "passenger") {
 
   try {
     const message = await client.messages.create({
+     messagingServiceSid: process.env.TWILIO_MESSAGING_SERVICE_SID, 
       body: messageBody,
       from: TWILIO_PHONE_NUMBER,
       to: contactNumber,

@@ -20,9 +20,9 @@ const server = http.createServer(app);
 export const io = initSocket(server);
 
 const allowedOrigins = [
-  "http://localhost:5173", // React local
-  "http://localhost:3000", // Alt React local
-  process.env.FRONTEND_URL, // Production
+  "http://localhost:5173", 
+  "http://localhost:3000",
+  process.env.FRONTEND_URL, 
 ].filter(Boolean);
 
 // Middleware

@@ -31,20 +31,11 @@ export async function verifyDriverDocuments(driverId, verificationData = {}) {
   for (const k of statusKeys) {
     if (verificationData[k]) driver.documents[k] = String(verificationData[k]).toLowerCase();
   }
-  // const allDocsUploaded =
-  //   docs.aadhaarFront &&
-  //   docs.aadhaarBack &&
-  //   docs.panFront &&
-  //   docs.licenseFront &&
-  //   docs.licenseBack &&
-  //   docs.rcFront &&
-  //   docs.rcBack &&
-  //   docs.insurance;
+
   if (verificationData.remarks) {
     driver.verificationRemarks = verificationData.remarks.trim();
   }
 
-  // After applying incoming statuses, derive state from current doc statuses
   const cur = driver.documents || {};
   const values = [
     cur.aadhaarStatus,
@@ -56,7 +47,6 @@ export async function verifyDriverDocuments(driverId, verificationData = {}) {
   const anyRejected = values.some((v) => v === "rejected");
   const allApproved = values.every((v) => v === "approved");
 
-  // Always infer approvalStatus from document statuses; admin must not send approvalStatus
   if (anyRejected) {
     driver.approvalStatus = "rejected";
     driver.documentsVerified = false;
