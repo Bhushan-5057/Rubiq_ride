@@ -9,7 +9,7 @@ export async function seedAdmin() {
     const password = process.env.ADMIN_PASSWORD ;
     const name = process.env.ADMIN_NAME ;
 
-    const existingAdmin = await Admin.findOne({ email });
+    const existingAdmin = await Admin.findOne({ email,name });
     if (existingAdmin) {
       console.log(`Admin already exists: ${email}`);
       return;
