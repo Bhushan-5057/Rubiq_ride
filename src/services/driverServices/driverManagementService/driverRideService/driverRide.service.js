@@ -1,4 +1,26 @@
+import { Ride } from "../../../../models/ride/ride.model.js";
 
+//service to get ride by id for driver
+export async function getRideByIdService(rideId, driverId) {
+  const ride = await Ride.findById(rideId);
+
+  if (!ride) {
+    throw new Error("Ride not found");
+  }
+  if (ride.driver.toString() !== driverId.toString()) {
+
+    throw new Error("You are not assigned to this ride");
+  }
+  return ride;
+}
+
+//service to get all rides for driver
+export async function getAllRidesForDriverService(driverId) {
+  const rides = await Ride.find({ driver: driverId }).sort({ createdAt: -1 });
+  return rides.map((ride) => ride);
+}
+
+//service to update driver location
 export async function updateDriverLocationService(driver, lat, lng) {
 
   if (!driver?._id) {
@@ -24,4 +46,6 @@ export async function updateDriverLocationService(driver, lat, lng) {
     longitude: driver.longitude,
     updatedAt: driver.updatedAt,
   };
-}
+} 
+
+

@@ -42,7 +42,7 @@ export async function otpLogin(payload) {
       vehicleType,
       city,
       otpVerified: true,
-      status: "active",
+      status: "pending",
       profileCompleted: false,
     });
   } else {

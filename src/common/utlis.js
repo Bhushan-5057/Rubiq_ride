@@ -1,4 +1,5 @@
 // import twilio from "twilio";
+import jwt from "jsonwebtoken";
 
 // Function to generate a 6-digit OTP
 export function generateOTP() {
@@ -75,5 +76,29 @@ export const passengerfields = ["name", "email", "gender", "contactNumber",   "d
 export function generateToken(passenger) {
   const payload = { id: passenger._id };
   return jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: "7d" });
+} 
+
+export function toRadians(degrees) {
+  return (degrees * Math.PI) / 180;
 }
 
+export function getDistanceInMeters([lat1, lng1], [lat2, lng2]) {
+  const R = 6371000;
+  const phi1 = toRadians(lat1);
+  const phi2 = toRadians(lat2);
+  const dPhi = toRadians(lat2 - lat1);
+  const dLambda = toRadians(lng2 - lng1);
+
+  const a =
+    Math.sin(dPhi / 2) * Math.sin(dPhi / 2) +
+    Math.cos(phi1) * Math.cos(phi2) *
+      Math.sin(dLambda / 2) * Math.sin(dLambda / 2);
+
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
+
+export function areCoordinatesClose(coord1, coord2, thresholdMeters = 100) {
+  const distance = getDistanceInMeters(coord1, coord2);
+  return distance <= thresholdMeters;
+}

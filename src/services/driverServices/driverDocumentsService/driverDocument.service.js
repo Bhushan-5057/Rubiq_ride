@@ -31,69 +31,61 @@ export async function verifyDriverDocuments(driverId, verificationData = {}) {
   for (const k of statusKeys) {
     if (verificationData[k]) driver.documents[k] = String(verificationData[k]).toLowerCase();
   }
-  const allDocsUploaded =
-    docs.aadhaarFront &&
-    docs.aadhaarBack &&
-    docs.panFront &&
-    docs.licenseFront &&
-    docs.licenseBack &&
-    docs.rcFront &&
-    docs.rcBack &&
-    docs.insurance;
+
   if (verificationData.remarks) {
     driver.verificationRemarks = verificationData.remarks.trim();
   }
 
   // After applying incoming statuses, derive state from current doc statuses
-  const cur = driver.documents || {};
+  const current = driver.documents || {};
   const values = [
-    cur.aadhaarStatus,
-    cur.panStatus,
-    cur.licenseStatus,
-    cur.rcStatus,
-    cur.insuranceStatus,
+    current.aadhaarStatus,
+    current.panStatus,
+    current.licenseStatus,
+    current.rcStatus,
+    current.insuranceStatus,
   ];
-  const anyRejected = values.some((v) => v === "rejected");
-  const allApproved = values.every((v) => v === "approved");
 
-  // Always infer approvalStatus from document statuses; admin must not send approvalStatus
+  const anyNotUploaded = values.some((v) => !v || v === "not_uploaded");
+  const anyRejected = values.some((v) => v === "rejected");
+  const allApproved = values.length > 0 && values.every((v) => v === "approved");
+
   if (anyRejected) {
     driver.approvalStatus = "rejected";
+    driver.activationStatus = "not_ready";
     driver.documentsVerified = false;
-    driver.status = "suspended";
+    driver.status = "pending";
 
     const trimmedRemark = verificationData.remarks && verificationData.remarks.trim();
     if (!trimmedRemark) {
       throw new Error("Remarks are required when rejecting documents.");
     }
     driver.verificationRemarks = trimmedRemark;
+  } else if (anyNotUploaded) {
+    driver.approvalStatus = "incompleted";
+    driver.activationStatus = "not_ready";
+    driver.documentsVerified = false;
+    driver.status = "pending";
+    driver.verificationRemarks = "Documents are still not uploaded.";
   } else if (allApproved) {
     driver.approvalStatus = "approved";
+    driver.activationStatus = "ready";
     driver.documentsVerified = true;
     driver.status = "active";
     driver.verificationRemarks = "All documents verified successfully.";
   } else {
     driver.approvalStatus = "pending";
+    driver.activationStatus = "not_ready";
     driver.documentsVerified = false;
-    driver.status = "suspended";
+    driver.status = "pending";
     driver.verificationRemarks = "All documents uploaded; awaiting admin review.";
   }
 
   const allFieldsFilled = requiredFields.every((field) => isFilled(field, driver[field]));
   const dStatuses = driver.documents || {};
   const allDocsUploadedStrict = requiredDocs.every((docKey) => Boolean(dStatuses[docKey]));
-  const allDocsApprovedStrict = [
-    dStatuses.aadhaarStatus,
-    dStatuses.panStatus,
-    dStatuses.licenseStatus,
-    dStatuses.rcStatus,
-    dStatuses.insuranceStatus,
-  ].every((v) => v === "approved");
-  console.log("All fields filled:", allFieldsFilled);
-  console.log("All docs uploaded (strict):", allDocsUploadedStrict);
-  console.log("All docs approved (strict):", allDocsApprovedStrict);
-  driver.profileCompleted = allFieldsFilled && allDocsUploadedStrict && allDocsApprovedStrict;
-  console.log("Profile completion status:", driver.profileCompleted);
+
+  driver.profileCompleted = allFieldsFilled && allDocsUploadedStrict;
 
   driver.updatedAt = new Date();
   await driver.save();

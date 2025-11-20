@@ -1,5 +1,5 @@
 import mongoose from "mongoose";
-import { Passenger } from "../../../models/passengers/Passenger.model.js";
+import { Passenger } from "../../../models/passengers/passenger.model.js";
 
 // -------------------- Get All Passengers --------------------
 export async function getAllPassenger() {
@@ -11,6 +11,7 @@ export async function getAllPassenger() {
 export async function getPassengerById(passengerId) {
   const passenger = await Passenger.findById(passengerId);
   if (!passenger) throw new Error("Passenger not found");
+
   return passenger;
 }
 

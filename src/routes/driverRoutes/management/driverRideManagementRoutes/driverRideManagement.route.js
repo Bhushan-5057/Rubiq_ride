@@ -1,8 +1,15 @@
 import express from "express";
-import { updateDriverLocation,acceptRide, rejectRide,startRide,completeRide } from "../../../../controllers/ride/driver/driverRide.controller.js";
+import { updateDriverLocation,acceptRide, rejectRide,startRide,completeRide ,getAllRidesForDriver,getRideById} from "../../../../controllers/ride/driver/driverRide.controller.js";
 import { authenticateDriver } from "../../../../middleware/auth.middleware.js";
 
 const router = express.Router();
+
+//driver get all rides
+router.get("/rides",authenticateDriver, getAllRidesForDriver);
+
+//driver get ride by id
+router.get("/:rideId",authenticateDriver, getRideById);
+
 //driver update location
 router.post("/update-location",authenticateDriver, updateDriverLocation);
 

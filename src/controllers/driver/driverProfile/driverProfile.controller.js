@@ -53,6 +53,7 @@ export async function updateProfileController(req, res, next) {
     }
 
     const driver = await updateProfile(req.driver, data);
+    console.log("Updated driver profile:", driver);
 
     res.status(200).json({
       success: true,

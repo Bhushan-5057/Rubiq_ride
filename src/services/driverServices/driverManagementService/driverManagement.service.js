@@ -5,7 +5,7 @@ import { normalizeNumber } from "../../../helpers/helper.js";
 
 
 export async function updateDriverStatus(driverId, newStatus) {
-  if (!["active", "suspended"].includes(newStatus))
+  if (!["active","pending" ,"suspended"].includes(newStatus))
     throw new Error("Invalid status value");
 
   const driver = await Driver.findById(driverId);
@@ -19,7 +19,6 @@ export async function updateDriverStatus(driverId, newStatus) {
     driver: driver,
   };
 }
-
 
 
 export async function getAllDrivers() {

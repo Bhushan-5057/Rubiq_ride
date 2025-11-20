@@ -1,14 +1,36 @@
 import { getIO } from "../../../config/socket/socket.js";
-import { acceptRideService, rejectRideService, startRideService,completeRideService } from "../../../services/rideServices/driverRideService/driverRideService.service.js";
-import { updateDriverLocationService } from "../../../services/driverServices/driverManagementService/driverRideService/driverRide.service.js";
-import { Ride } from "../../../models/ride/ride.model.js"; 
+import { acceptRideService, rejectRideService, startRideService, completeRideService } from "../../../services/rideServices/driverRideService/driverRideService.service.js";
+import { updateDriverLocationService ,getAllRidesForDriverService,getRideByIdService} from "../../../services/driverServices/driverManagementService/driverRideService/driverRide.service.js";
+import { Ride } from "../../../models/ride/ride.model.js";
 
+//controller to get ride by id for driver
+export const getRideById = async (req, res) => {
+  try {
+    const driverId = req.driver._id;
+    const { rideId } = req.params;
+    const ride = await getRideByIdService(rideId, driverId);
+    res.status(200).json({ success: true, ride });
+  } catch (e) {
+    res.status(400).json({ success: false, message: e.message });
+  }
+};
+
+//controller to get all rides for driver
+export const getAllRidesForDriver = async (req, res) => {
+  try {
+    const driverId = req.driver._id;
+    const rides = await getAllRidesForDriverService(driverId);
+    res.status(200).json({ success: true, rides });
+  } catch (e) {
+    res.status(400).json({ success: false, message: e.message });
+  }
+}
 
 //controller for driver to accept ride
 export const acceptRide = async (req, res) => {
   try {
-    const driverId = req.driver._id; 
-    const { rideId } = req.body;    
+    const driverId = req.driver._id;
+    const { rideId } = req.body;
 
     const ride = await acceptRideService({ rideId, driverId });
 
@@ -31,60 +53,71 @@ export const acceptRide = async (req, res) => {
   } catch (e) {
     res.status(400).json({ success: false, message: e.message });
   }
-}; 
+};
 
 //controller for driver to start ride
 export const startRide = async (req, res) => {
-    try {
-        const driverId = req.driver._id;
-        const { rideId, otpForStartRide } = req.body;
-        console.log("Received OTP:", otpForStartRide);
-        console.log("Ride ID:", rideId);
-        const ride = await startRideService({ rideId, driverId, otpForStartRide });
-        const io = getIO();
-        io.to(ride.passenger.toString()).emit("rideStarted", {
-            rideId: ride._id,
-        });
-        res.json({ success: true, ride });
-    } catch (e) {
-        res.status(400).json({ success: false, message: e.message });
-    }
-} 
+  try {
+    const driverId = req.driver._id;
+    const { rideId, otpForStartRide, driverLocationCoordinates } = req.body;
+    console.log("Received OTP:", otpForStartRide);
+    console.log("Ride ID:", rideId);
+    const ride = await startRideService({
+      rideId,
+      driverId,
+      otpForStartRide,
+      driverLocationCoordinates,
+    });
+    const io = getIO();
+    io.to(ride.passenger.toString()).emit("rideStarted", {
+      rideId: ride._id,
+    });
+    res.json({ success: true, ride });
+  } catch (e) {
+    res.status(400).json({ success: false, message: e.message });
+  }
+}
 
+//controller for driver to complete ride
 export const completeRide = async (req, res) => {
-    try {
-        const driverId = req.driver._id;
-        const { rideId } = req.body;
-        const ride = await completeRideService({ rideId, driverId }); 
-        const io = getIO();
-        io.to(ride.passenger.toString()).emit("rideCompleted", {
-            rideId: ride._id,
-        });
-        res.json({ success: true, ride });
-    } catch (e) {
-        res.status(400).json({ success: false, message: e.message });
-    }
+  try {
+    const driverId = req.driver._id;
+    const { rideId, driverLocationCoordinates } = req.body;
+    const ride = await completeRideService({
+      rideId,
+      driverId,
+      driverLocationCoordinates,
+    });
+    const io = getIO();
+    io.to(ride.passenger.toString()).emit("rideCompleted", {
+      rideId: ride._id,
+    });
+    res.json({ success: true, ride });
+  } catch (e) {
+    res.status(400).json({ success: false, message: e.message });
+  }
 
 }
 
 //controller for driver to reject ride
 export const rejectRide = async (req, res) => {
-    try {
-        const driverId = req.driver._id;
-        const { rideId } = req.body;
-        const ride = await rejectRideService({ rideId, driverId });
+  try {
+    const driverId = req.driver._id;
+    const { rideId } = req.body;
+    const ride = await rejectRideService({ rideId, driverId });
 
-        const io = getIO();
+    const io = getIO();
 
-        io.to(ride.passenger.toString()).emit("rideRejected", {
-            rideId: ride._id,
-        });
-        res.json({ success: true, ride });
-    } catch (e) {
-        res.status(400).json({ success: false, message: e.message });
-    }
-} 
+    io.to(ride.passenger.toString()).emit("rideRejected", {
+      rideId: ride._id,
+    });
+    res.json({ success: true, ride });
+  } catch (e) {
+    res.status(400).json({ success: false, message: e.message });
+  }
+}
 
+//controller to update driver location
 export const updateDriverLocation = async (req, res) => {
   try {
     const { lat, lng } = req.body;

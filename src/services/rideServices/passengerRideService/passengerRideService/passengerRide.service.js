@@ -11,7 +11,7 @@ export async function createRideService({ passengerId, pickup, drop }) {
     { latitude: drop.lat, longitude: drop.lng }
   ) / 1000;
 
-  const fareEstimate = Math.round(50 + distanceInKm * 10); 
+  const fareEstimate = Math.round(50 + distanceInKm * 10);
 
   function fourDigitNumber() {
     return Math.floor(1000 + Math.random() * 9000);
@@ -34,6 +34,7 @@ export async function createRideService({ passengerId, pickup, drop }) {
 
   const nearbyDrivers = await Driver.find({
     status: "active",
+    activationStatus: "ready",
     location: {
       $near: {
         $geometry: { type: "Point", coordinates: [pickup.lng, pickup.lat] },
@@ -45,7 +46,7 @@ export async function createRideService({ passengerId, pickup, drop }) {
   return { ride, nearbyDrivers };
 }
 
-export async function updateRideService({ rideId, passengerId,drop }) {
+export async function updateRideService({ rideId, passengerId, drop }) {
   if (!rideId || !passengerId) {
     throw new Error("Ride ID and Passenger ID are required");
   }
@@ -116,6 +117,10 @@ export async function cancelRideService(passengerId, rideId) {
 
   if (ride.passenger.toString() !== passengerId.toString()) {
     throw new Error("You are not authorized to cancel this ride");
+  }
+
+  if (ride.status === "ongoing") {
+    throw new Error("Cannot cancel an ongoing ride");
   }
 
   if (ride.status === "cancelled") {
