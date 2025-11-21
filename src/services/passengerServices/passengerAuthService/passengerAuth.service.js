@@ -52,7 +52,7 @@ export async function otpLogin({ contactNumber, otp, name, email, gender }) {
     await passenger.save();
   }
 
-  const profileCompleted = Boolean(passenger.name && passenger.email && passenger.gender);
+  const profileCompleted = Boolean(passenger.name || passenger.email || passenger.gender);
   if (profileCompleted !== passenger.profileCompleted) {
     passenger.profileCompleted = profileCompleted;
     await passenger.save();

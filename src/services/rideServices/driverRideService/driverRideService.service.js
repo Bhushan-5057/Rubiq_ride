@@ -1,5 +1,8 @@
 import { Ride } from "../../../models/ride/ride.model.js";
+import { Driver } from "../../../models/driver/driver.model.js";
+import { Passenger } from "../../../models/passengers/passenger.model.js";
 import { areCoordinatesClose } from "../../../common/utlis.js";
+
 
 //service for driver to accept ride
 export async function acceptRideService({ rideId, driverId }) {
@@ -56,6 +59,7 @@ await ride.save();
 return ride;
 } 
 
+//service for driver to complete ride
 export async function completeRideService({ rideId, driverId, driverLocationCoordinates }) {
 const ride = await Ride.findById(rideId);
 
@@ -88,6 +92,18 @@ ride.status = "completed";
 ride.completedAt = new Date();
 
 await ride.save(); 
+
+if (ride.driver) {
+  await Driver.findByIdAndUpdate(ride.driver, {
+    $inc: { rideCount: 1 },
+  });
+}
+
+if (ride.passenger) {
+  await Passenger.findByIdAndUpdate(ride.passenger, {
+    $inc: { "rideCount.completed": 1, "rideCount.ended": 1 },
+  });
+}
 
 return ride;
 

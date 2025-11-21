@@ -16,9 +16,9 @@ export async function updateProfile(passenger, data = {}) {
     passenger.documents = { ...passenger.documents, ...data.documents };
   }
 
-  passenger.profileCompleted = Boolean(passenger.name && passenger.email && passenger.gender); 
+  passenger.profileCompleted = Boolean(passenger.name || passenger.email || passenger.gender);  
 
-  await passenger.save();
+  await passenger.save(); 
 
   const result = passenger.toObject ? passenger.toObject() : passenger;
   delete result.__v;

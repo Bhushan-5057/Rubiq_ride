@@ -1,4 +1,4 @@
-import { getPassengerRidesService, getRideStatusService } from "../../../../services/rideServices/passengerRideService/passengerRideStatusService/getRideStatus.service.js";
+import { getPassengerAllRideService, getRideStatusService } from "../../../../services/rideServices/passengerRideService/passengerRideStatusService/getRideStatus.service.js";
 
 export const getRideStatus = async (req, res) => {
   try {
@@ -17,7 +17,7 @@ export const getRideStatus = async (req, res) => {
 export const getPassengerRides = async (req, res) => {
   try {
     const passengerId = req.passenger._id; 
-    const rides = await getPassengerRidesService(passengerId);
+    const rides = await getPassengerAllRideService(passengerId);
 
     res.status(200).json({ success: true, rides });
   } catch (err) {

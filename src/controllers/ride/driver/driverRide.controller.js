@@ -2,6 +2,7 @@ import { getIO } from "../../../config/socket/socket.js";
 import { acceptRideService, rejectRideService, startRideService, completeRideService } from "../../../services/rideServices/driverRideService/driverRideService.service.js";
 import { updateDriverLocationService ,getAllRidesForDriverService,getRideByIdService} from "../../../services/driverServices/driverManagementService/driverRideService/driverRide.service.js";
 import { Ride } from "../../../models/ride/ride.model.js";
+import { Passenger } from "../../../models/passengers/passenger.model.js";
 
 //controller to get ride by id for driver
 export const getRideById = async (req, res) => {
@@ -36,7 +37,7 @@ export const acceptRide = async (req, res) => {
 
     const io = getIO();
 
-    io.to(ride.passenger.toString()).emit("rideAccepted", {
+    io.to(ride.passenger.toString()).emit("driver_assigned", {
       rideId: ride._id,
       driver: {
         id: driverId,
@@ -69,7 +70,7 @@ export const startRide = async (req, res) => {
       driverLocationCoordinates,
     });
     const io = getIO();
-    io.to(ride.passenger.toString()).emit("rideStarted", {
+    io.to(ride.passenger.toString()).emit("ride_started", {
       rideId: ride._id,
     });
     res.json({ success: true, ride });
@@ -89,7 +90,7 @@ export const completeRide = async (req, res) => {
       driverLocationCoordinates,
     });
     const io = getIO();
-    io.to(ride.passenger.toString()).emit("rideCompleted", {
+    io.to(ride.passenger.toString()).emit("ride_ended", {
       rideId: ride._id,
     });
     res.json({ success: true, ride });
@@ -156,5 +157,111 @@ export const updateDriverLocation = async (req, res) => {
     });
   } catch (err) {
     res.status(400).json({ success: false, message: err.message });
+  }
+};
+
+//controller for driver to notify passenger that driver is on the way
+export const driverOnTheWay = async (req, res) => {
+  try {
+    const driverId = req.driver._id;
+    const { rideId } = req.body;
+
+    const ride = await Ride.findById(rideId);
+
+    if (!ride || !ride.driver || ride.driver.toString() !== driverId.toString()) {
+      return res.status(404).json({ success: false, message: "Ride not found" });
+    }
+
+    const io = getIO();
+
+    io.to(ride.passenger.toString()).emit("driver_on_the_way", {
+      rideId: ride._id,
+      driver: {
+        id: driverId,
+        name: req.driver.name,
+        vehicleType: req.driver.vehicleType,
+        vehicleNumber: req.driver.vehicleNumber,
+      },
+    });
+
+    res.status(200).json({ success: true, message: "Notified passenger that driver is on the way" });
+  } catch (e) {
+    res.status(400).json({ success: false, message: e.message });
+  }
+};
+
+//controller for driver to notify passenger that driver has arrived
+export const driverArrived = async (req, res) => {
+  try {
+    const driverId = req.driver._id;
+    const { rideId } = req.body;
+
+    const ride = await Ride.findById(rideId);
+
+    if (!ride || !ride.driver || ride.driver.toString() !== driverId.toString()) {
+      return res.status(404).json({ success: false, message: "Ride not found" });
+    }
+
+    const io = getIO();
+
+    io.to(ride.passenger.toString()).emit("driver_arrived", {
+      rideId: ride._id,
+      driver: {
+        id: driverId,
+        name: req.driver.name,
+        vehicleType: req.driver.vehicleType,
+        vehicleNumber: req.driver.vehicleNumber,
+      },
+    });
+
+    res.status(200).json({ success: true, message: "Notified passenger that driver has arrived" });
+  } catch (e) {
+    res.status(400).json({ success: false, message: e.message });
+  }
+};
+
+//controller for driver to give feedback to passenger
+export const givePassengerFeedback = async (req, res) => {
+  try {
+    const driverId = req.driver._id;
+    const { rideId, rating, comment } = req.body;
+
+    if (![1, 2, 3, 4, 5].includes(Number(rating))) {
+      return res.status(400).json({ success: false, message: "Invalid rating" });
+    }
+
+    const ride = await Ride.findById(rideId);
+
+    if (!ride || !ride.driver || ride.driver.toString() !== driverId.toString()) {
+      return res.status(404).json({ success: false, message: "Ride not found" });
+    }
+
+    if (!ride.passenger) {
+      return res.status(400).json({ success: false, message: "Passenger not associated with this ride" });
+    }
+
+    const io = getIO();
+
+    await Passenger.findByIdAndUpdate(ride.passenger, {
+      $push: {
+        feedbacks: {
+          rating: Number(rating),
+          comment,
+          driver: driverId,
+          ride: rideId,
+        },
+      },
+    });
+
+    io.to(ride.passenger.toString()).emit("passenger_feedback_received", {
+      rideId,
+      rating: Number(rating),
+      comment,
+      driverId,
+    });
+
+    res.status(200).json({ success: true, message: "Feedback submitted successfully" });
+  } catch (e) {
+    res.status(400).json({ success: false, message: e.message });
   }
 };

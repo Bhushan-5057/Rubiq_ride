@@ -9,15 +9,13 @@ export function generateOTP() {
 // OTP expiry time in minutes
 export const OTP_EXPIRY_MINUTES = 5;
 
-
 // //twilo credentials
 // export const { TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_PHONE_NUMBER, NODE_ENV } =
 //   process.env;
 
 //  export const client = twilio(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN);
 
-
-// Fields that can be updated dynamically
+// Fields that can be updated dynamically in Driver Profile
 export const updatableFields = [
   "name",
   "email",
@@ -29,7 +27,7 @@ export const updatableFields = [
   "profileImage",
 ];
 
-// Fields required to mark profile as complete
+// Fields required to mark profile as complete for driver 
 export const requiredFields = [
   "name",
   "email",
@@ -41,7 +39,7 @@ export const requiredFields = [
   "profileImage",
 ];
 
-// Document fields required
+// Document fields required for driver verification
 export const requiredDocs = [
   "aadhaarFront",
   "aadhaarBack",
@@ -51,9 +49,10 @@ export const requiredDocs = [
   "rcFront",
   "rcBack",
   "insurance",
-]; 
+];
 
-export const requiredDocsNumber=[
+// Document numbers required for driver verification
+export const requiredDocsNumber = [
   "aadhaarNumber",
   "panNumber",
   "licenseNumber",
@@ -61,6 +60,7 @@ export const requiredDocsNumber=[
   "insuranceNumber",
 ]
 
+// Document status fields for driver verification
 export const documentStatus = [
   "aadhaarStatus",
   "panStatus",
@@ -69,15 +69,16 @@ export const documentStatus = [
   "insuranceStatus"
 ];
 
-export const passengerfields = ["name", "email", "gender", "contactNumber",   "dateOfBirth", ,"profileImage"];
-
+// Fields that can be updated dynamically in Passenger Profile
+export const passengerfields = ["name", "email", "gender", "contactNumber", "dateOfBirth", "profileImage"];
 
 //genrate otken for passenger 
 export function generateToken(passenger) {
   const payload = { id: passenger._id };
   return jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: "7d" });
-} 
+}
 
+// Haversine formula to calculate distance between two coordinates
 export function toRadians(degrees) {
   return (degrees * Math.PI) / 180;
 }
@@ -92,7 +93,7 @@ export function getDistanceInMeters([lat1, lng1], [lat2, lng2]) {
   const a =
     Math.sin(dPhi / 2) * Math.sin(dPhi / 2) +
     Math.cos(phi1) * Math.cos(phi2) *
-      Math.sin(dLambda / 2) * Math.sin(dLambda / 2);
+    Math.sin(dLambda / 2) * Math.sin(dLambda / 2);
 
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   return R * c;

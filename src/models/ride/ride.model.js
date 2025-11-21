@@ -12,6 +12,7 @@ const rideSchema = new mongoose.Schema(
       address: String,
       coordinates: { type: [Number], index: "2dsphere" },
     },
+    vehicleType: { type: String, enum: ["bike", "auto", "cab"], required: true },
     distance: Number,
     fareEstimate: Number,
     otpForStartRide: { type: Number, required: true },

@@ -11,7 +11,7 @@ const driverSchema = new mongoose.Schema(
     name: { type: String, trim: true },
     email: { type: String, unique: true, sparse: true },
     vehicleNumber: { type: String, unique: true, sparse: true },
-    dateOfBirth: { type: Date },
+    dateOfBirth: { type: String },
     gender: { type: String, enum: ["male", "female", "other"], default: null },
     vehicleType: { type: String, enum: ["cab", "bike", "auto"], default: null },
     city: { type: String, trim: true },
@@ -41,6 +41,17 @@ const driverSchema = new mongoose.Schema(
     // these are for direct lat/lng update (optional)
     latitude: Number,
     longitude: Number,
+    rideCount: { type: Number, default: 0 },
+
+    feedbacks: [
+      {
+        rating: { type: Number, enum: [1, 2, 3, 4, 5], required: true },
+        comment: { type: String },
+        passenger: { type: mongoose.Schema.Types.ObjectId, ref: "Passenger" },
+        ride: { type: mongoose.Schema.Types.ObjectId, ref: "Ride" },
+        createdAt: { type: Date, default: Date.now },
+      },
+    ],
   },
   { timestamps: true }
 );

@@ -2,8 +2,8 @@
 import { getDistance } from "geolib";
 import { Ride } from "../../../../models/ride/ride.model.js";
 import { Driver } from "../../../../models/driver/driver.model.js";
-import { io } from "../../../../server.js";
 
+//service to get ride status for passenger
 export async function getRideStatusService({ rideId, passengerId }) {
   const ride = await Ride.findOne({ _id: rideId, passenger: passengerId }).lean();
 
@@ -61,18 +61,44 @@ export async function getRideStatusService({ rideId, passengerId }) {
   };
 }
 
+//get single ride details for passenger
+export async function getPassengerRideService({ rideId, passengerId }) {
+  if (!rideId || !passengerId) {
+    throw new Error("Ride ID and Passenger ID are required");
+  }
+  const ride = await Ride.findOne({ _id: rideId, passenger: passengerId })
+    .populate("driver", "name vehicleNumber vehicleType contactNumber")
+    .lean();
+  if (!ride) {
+    throw new Error("Ride not found or unauthorized access");
+  }
+  return {
+    rideId: ride._id,
+    status: ride.status,
+    fareEstimate: ride.fareEstimate,
+    pickup: ride.pickup,
+    drop: ride.drop,  
+    driver: ride.driver
+      ? {
+          id: ride.driver._id,  
+          name: ride.driver.name,
+          vehicleNumber: ride.driver.vehicleNumber,
+          vehicleType: ride.driver.vehicleType,
+          contactNumber: ride.driver.contactNumber,
+        }
+      : null,
+    createdAt: ride.createdAt,
+    updatedAt: ride.updatedAt,
+  };
+}
 
 //get all rides for passenger
-
-export async function getPassengerRidesService(passengerId) {
+export async function getPassengerAllRideService(passengerId) {
   if (!passengerId) throw new Error("Passenger ID is required");
 
   const rides = await Ride.find({ passenger: passengerId })
     .populate("driver", "name vehicleNumber vehicleType contactNumber")
     .sort({ createdAt: -1 });
-
-  // Optionally, emit an event notifying passenger that their rides were fetched
-  io.to(passengerId.toString()).emit("ridesFetched", rides);
 
   return rides.map((ride) => ({
     rideId: ride._id,

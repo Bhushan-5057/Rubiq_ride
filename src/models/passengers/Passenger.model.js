@@ -9,7 +9,7 @@ const passengerSchema = new mongoose.Schema(
     otpVerified: { type: Boolean, default: false },
     name: { type: String, trim: true },
     profileImage: { type: String },
-    dateOfBirth: { type: Date },
+    dateOfBirth: { type: String },
     email: {
       type: String,
       unique: true,
@@ -37,6 +37,21 @@ const passengerSchema = new mongoose.Schema(
         index: "2dsphere",
       },
     },
+    rideCount: {
+      created: { type: Number, default: 0 },
+      cancelled: { type: Number, default: 0 },
+      completed: { type: Number, default: 0 },
+      ended: { type: Number, default: 0 },
+    },
+    feedbacks: [
+      {
+        rating: { type: Number, enum: [1, 2, 3, 4, 5], required: true },
+        comment: { type: String },
+        driver: { type: mongoose.Schema.Types.ObjectId, ref: "Driver" },
+        ride: { type: mongoose.Schema.Types.ObjectId, ref: "Ride" },
+        createdAt: { type: Date, default: Date.now },
+      },
+    ],
   },
 
   { timestamps: true }

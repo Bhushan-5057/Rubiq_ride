@@ -1,17 +1,13 @@
 import { Ride } from "../../../../models/ride/ride.model.js";
-import { getDistance } from "geolib";
 import { Driver } from "../../../../models/driver/driver.model.js";
 import { Passenger } from "../../../../models/passengers/passenger.model.js";
+import { calculateFare } from "../../../../helpers/rideHelpers.js";
 
 
-
-export async function createRideService({ passengerId, pickup, drop }) {
-  const distanceInKm = getDistance(
-    { latitude: pickup.lat, longitude: pickup.lng },
-    { latitude: drop.lat, longitude: drop.lng }
-  ) / 1000;
-
-  const fareEstimate = Math.round(50 + distanceInKm * 10);
+// Service to create a new ride
+export async function createRideService({ passengerId, pickup, drop, vehicleType }) {
+  const fareDetails = calculateFare(pickup, drop, vehicleType);
+  const { distanceInKm, totalFare } = fareDetails;
 
   function fourDigitNumber() {
     return Math.floor(1000 + Math.random() * 9000);
@@ -25,16 +21,19 @@ export async function createRideService({ passengerId, pickup, drop }) {
     drop: { address: drop.address, coordinates: [drop.lng, drop.lat] },
     otpForStartRide,
     distance: distanceInKm,
-    fareEstimate,
+    fareEstimate: totalFare,
+    vehicleType: fareDetails.vehicleType,
   });
 
   await Passenger.findByIdAndUpdate(passengerId, {
     location: { type: "Point", coordinates: [pickup.lng, pickup.lat] },
+    $inc: { "rideCount.created": 1 },
   });
 
   const nearbyDrivers = await Driver.find({
     status: "active",
     activationStatus: "ready",
+    vehicleType: vehicleType,
     location: {
       $near: {
         $geometry: { type: "Point", coordinates: [pickup.lng, pickup.lat] },
@@ -46,6 +45,7 @@ export async function createRideService({ passengerId, pickup, drop }) {
   return { ride, nearbyDrivers };
 }
 
+// Service to update an existing ride
 export async function updateRideService({ rideId, passengerId, drop }) {
   if (!rideId || !passengerId) {
     throw new Error("Ride ID and Passenger ID are required");
@@ -88,22 +88,31 @@ export async function updateRideService({ rideId, passengerId, drop }) {
     Array.isArray(pickupCoords) &&
     pickupCoords.length === 2
   ) {
-    const distanceInKm =
-      getDistance(
-        { latitude: pickupCoords[1], longitude: pickupCoords[0] },
-        { latitude: dropCoords[1], longitude: dropCoords[0] }
-      ) / 1000;
+    const pickupPoint = {
+      lat: pickupCoords[1],
+      lng: pickupCoords[0],
+    };
 
-    const fareEstimate = Math.round(50 + distanceInKm * 10);
+    const dropPoint = {
+      lat: dropCoords[1],
+      lng: dropCoords[0],
+    };
 
-    ride.distance = distanceInKm;
-    ride.fareEstimate = fareEstimate;
+    const fareDetails = calculateFare(
+      pickupPoint,
+      dropPoint,
+      ride.vehicleType
+    );
+
+    ride.distance = fareDetails.distanceInKm;
+    ride.fareEstimate = fareDetails.totalFare;
   }
 
   await ride.save();
   return ride;
 }
 
+// Service to cancel a ride
 export async function cancelRideService(passengerId, rideId) {
   if (!passengerId || !rideId) {
     throw new Error("Passenger ID and Ride ID are required");
@@ -133,5 +142,9 @@ export async function cancelRideService(passengerId, rideId) {
 
   ride.status = "cancelled";
   await ride.save();
+
+  await Passenger.findByIdAndUpdate(passengerId, {
+    $inc: { "rideCount.cancelled": 1 },
+  });
   return ride;
 }
