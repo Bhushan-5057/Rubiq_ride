@@ -4,7 +4,6 @@ import { verifyOtp } from "../../../services/otpService/otp.service.js";
 import { normalizeNumber, signToken } from "../../../helpers/helper.js";
 
 
-
 // -------------------- Register Passenger --------------------
 export async function registerPassenger({ name, email, password, contactNumber, gender }) {
   const query = [{ email }];

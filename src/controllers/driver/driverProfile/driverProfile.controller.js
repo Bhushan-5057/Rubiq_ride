@@ -1,7 +1,7 @@
 import { uploadToCloudinary } from "../../../helpers/cloudinary.helper.js";
 import { upload } from "../../../middleware/upload.middleware.js";
-import { getDriverProfileStatus } from "../../../services/driverServices/driverManagementService/driverManagement.service.js";
-import { updateProfile } from "../../../services/driverServices/driverProfileService/driverProfile.service.js";
+import { getDriverProfileStatus } from "../../../services/adminServices/driverManagementService/driverManagement.service.js";
+import { updateProfile, getProfile } from "../../../services/driverServices/driverProfileService/driverProfile.service.js";
 
 // -------------------- PROFILE --------------------
 export async function profileController(req, res, next) {
@@ -10,10 +10,12 @@ export async function profileController(req, res, next) {
       return res.status(401).json({ success: false, message: "Unauthorized" });
     }
 
+    const driver = await getProfile(req.driver);
+
     res.json({
       success: true,
       message: "Captain profile fetched successfully",
-      driver: req.driver, 
+      driver,
     });
   } catch (err) {
     next(err);
@@ -21,7 +23,6 @@ export async function profileController(req, res, next) {
 }
 
 // -------------------- UPDATE PROFILE --------------------
-
 export async function updateProfileController(req, res, next) {
   try {
     // Handle multer file parsing
@@ -64,8 +65,6 @@ export async function updateProfileController(req, res, next) {
     next(err);
   }
 }
-
-
 
 // -------------------- CHECK DRIVER PROFILE STATUS --------------------
 export const checkDriverProfileStatusController = async (req, res) => {

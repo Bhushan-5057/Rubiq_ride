@@ -1,4 +1,4 @@
-import { Ride } from "../../../../models/ride/ride.model.js";
+import { Ride } from "../../../models/ride/ride.model.js";
 
 //service to get ride by id for driver
 export async function getRideByIdService(rideId, driverId) {
@@ -46,6 +46,4 @@ export async function updateDriverLocationService(driver, lat, lng) {
     longitude: driver.longitude,
     updatedAt: driver.updatedAt,
   };
-} 
-
-
+}

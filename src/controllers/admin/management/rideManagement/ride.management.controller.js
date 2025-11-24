@@ -1,6 +1,5 @@
 import { deleteAllRidesService, deleteRideService, getAllRidesService,getSingleRideService } 
-from "../../../../services/rideServices/adminRideServices/getRidesForAdmin.service.js"; 
-
+from "../../../../services/rideServices/adminRideServices/adminRide.service.js"; 
 
 export const getRideById = async (req, res) => {
   try {

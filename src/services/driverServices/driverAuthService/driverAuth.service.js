@@ -1,11 +1,15 @@
 import { sendOtp, verifyOtp } from "../../../services/otpService/otp.service.js";
 import { Driver } from "../../../models/driver/driver.model.js";
 import { normalizeNumber, signToken } from "../../../helpers/helper.js";
+import { requiredFields } from "../../../common/utlis.js";
 
+
+//send driver otp
 export async function sendDriverOtp(contactNumber) {
   return await sendOtp(contactNumber,"driver");
 }
 
+//driver otp login
 export async function otpLogin(payload) {
   console.log("payload", payload);
   let {
@@ -65,18 +69,6 @@ export async function otpLogin(payload) {
 
     await driver.save();
   }
-
-  // ✅ compute profile completion correctly
-  const requiredFields = [
-    driver.name,
-    driver.email,
-    driver.vehicleNumber,
-    driver.licenseNumber,
-    driver.vehicleType,
-    driver.city,
-    driver.gender,
-    driver.dateOfBirth,
-  ];
 
   driver.profileCompleted = requiredFields.every(Boolean);
   await driver.save();

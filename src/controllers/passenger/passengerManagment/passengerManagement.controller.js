@@ -1,7 +1,7 @@
 import {
   deletePassenger,
   getPassengerProfileStatus,
-} from "../../../services/passengerServices/passengerManagementService/passengerManagement.service.js";
+} from "../../../services/adminServices/passengerManagementByAdmin/passengerManagement.service.js";
 
 
 // -------------------- Delete Passenger --------------------

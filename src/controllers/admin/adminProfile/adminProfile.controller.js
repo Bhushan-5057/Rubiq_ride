@@ -1,11 +1,34 @@
+import { getProfile, updateProfile } from "../../../services/adminServices/adminProfileService/adminProfile.service.js";
+
+//get profile controller
 export async function profileController(req, res, next) {
   try {
+    const adminId = req.admin._id;
+    const adminProfile = await getProfile(adminId);
     res.json({
       success: true,
       message: "Admin profile fetched successfully",
-      user: req.admin, 
+      user: adminProfile,
     });
-  } catch (err) {
+  }
+  catch (err) {
+    next(err);
+  }
+}
+
+//update profile controller
+export async function updateProfileController(req, res, next) {
+  try {
+    const adminId = req.admin._id;
+    const updateData = req.body;
+    const updatedAdmin = await updateProfile(adminId, updateData);
+    res.json({
+      success: true,
+      message: "Admin profile updated successfully",
+      user: updatedAdmin,
+    });
+  }
+  catch (err) {
     next(err);
   }
 }

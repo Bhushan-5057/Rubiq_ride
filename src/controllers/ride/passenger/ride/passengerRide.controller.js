@@ -1,8 +1,9 @@
 import { createRideService,cancelRideService, updateRideService } 
-from "../../../../services/rideServices/passengerRideService/passengerRideService/passengerRide.service.js";
+from "../../../../services/rideServices/passengerRideService/passengerRide.service.js";
 import { getIO } from "../../../../config/socket/socket.js";
 import { Ride } from "../../../../models/ride/ride.model.js";
 import { Driver } from "../../../../models/driver/driver.model.js";
+
 
 //controller to create a new ride for passenger
 export const createRide = async (req, res) => {

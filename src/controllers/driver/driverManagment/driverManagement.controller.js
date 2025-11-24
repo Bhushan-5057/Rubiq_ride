@@ -1,5 +1,5 @@
-import { deleteDriver} from "../../../services/driverServices/driverManagementService/driverManagement.service.js";  
-import {verifyDriverDocuments} from "../../../services/driverServices/driverDocumentsService/driverDocument.service.js";
+import { deleteDriver} from "../../../services/adminServices/driverManagementService/driverManagement.service.js";  
+
 
 // -------------------- DELETE DRIVER --------------------
 export async function deleteDriverController(req, res, next) {
@@ -22,21 +22,4 @@ export async function deleteDriverController(req, res, next) {
   }
 }
 
-// -------------------- VERIFY DRIVER DOCUMENTS --------------------
-export async function verifyDriverDocumentsController(req, res, next) {
-  try {
-    const isAdmin = true;
 
-    if (!isAdmin) {
-      return res.status(403).json({ success: false, message: "Only admins can verify documents" });
-    }
-
-    const { driverId } = req.params;
-    const verificationData = req.body;
-
-    const result = await verifyDriverDocuments(driverId, verificationData);
-    res.status(200).json(result);
-  } catch (err) {
-    next(err);
-  }
-}

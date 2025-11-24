@@ -1,7 +1,7 @@
 
 import { getDistance } from "geolib";
-import { Ride } from "../../../../models/ride/ride.model.js";
-import { Driver } from "../../../../models/driver/driver.model.js";
+import { Ride } from "../../../models/ride/ride.model.js";
+import { Driver } from "../../../models/driver/driver.model.js";
 
 //service to get ride status for passenger
 export async function getRideStatusService({ rideId, passengerId }) {

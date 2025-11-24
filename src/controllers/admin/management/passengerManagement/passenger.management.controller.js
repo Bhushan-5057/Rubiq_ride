@@ -1,5 +1,4 @@
-import { Passenger } from "../../../../models/passengers/Passenger.model.js";
-import { getPassengerById, updatePassangerStatus } from "../../../../services/passengerServices/passengerManagementService/passengerManagement.service.js";
+import { getPassengerById,getAllPassenger, updatePassangerStatus, } from "../../../../services/adminServices/index.js";
 
 
 export async function updatePassengerStatusController(req, res, next) {
@@ -22,24 +21,11 @@ export async function updatePassengerStatusController(req, res, next) {
   }
 }
 
-
 // -------------------- Get All Passengers --------------------
 export async function getAllPassengersController(req, res, next) {
   try {
-    if (req.admin.role !== "admin") {
-      return res
-        .status(403)
-        .json({ success: false, message: "Only admins can access this resource" });
-    }
-
-    const passengers = await Passenger.find().sort({ createdAt: -1 });
-    const sanitizedPassengers = passengers.map(p => p);
-
-    res.json({
-      success: true,
-      message: "All passengers fetched successfully",
-      passengers: sanitizedPassengers,
-    });
+    const passengers = await getAllPassenger();
+    res.json({ success: true, passengers });
   } catch (err) {
     next(err);
   }

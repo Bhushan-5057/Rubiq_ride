@@ -1,5 +1,21 @@
 import { requiredFields, updatableFields, documentStatus, requiredDocs,requiredDocsNumber } from "../../../common/utlis.js";
 
+
+// Service to get driver profile 
+export async function getProfile(driver) {
+  if (!driver) throw new Error("Driver not found");
+
+  const result = driver.toObject ? driver.toObject() : driver;
+
+  delete result.password;
+  delete result.otp;
+  delete result.otpExpiry;
+  delete result.__v;
+
+  return result;
+}
+
+// Service to update driver profile
 export async function updateProfile(driver, data = {}) {
   console.log("driver in service:", driver);
   if (!driver) throw new Error("Driver not found");
@@ -81,3 +97,4 @@ export async function updateProfile(driver, data = {}) {
 
   return result;
 }
+

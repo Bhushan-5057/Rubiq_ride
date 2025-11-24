@@ -1,4 +1,5 @@
-import { getAllDrivers, getDriverById, updateDriverStatus } from "../../../../services/driverServices/driverManagementService/driverManagement.service.js";
+import { getAllDrivers, getDriverById, updateDriverStatus } from "../../../../services/adminServices/driverManagementService/driverManagement.service.js";
+import { verifyDriverDocuments } from "../../../../services/adminServices/driverManagementByAdmin/driverDocument.service.js";
 
 // -------------------- ADMIN: UPDATE STATUS --------------------
 export async function updateStatusController(req, res, next) {
@@ -49,4 +50,23 @@ export async function getDriverByIdController(req, res, next) {
     });
   }
 } 
+
+// -------------------- VERIFY DRIVER DOCUMENTS --------------------
+export async function verifyDriverDocumentsController(req, res, next) {
+  try {
+    const isAdmin = true;
+
+    if (!isAdmin) {
+      return res.status(403).json({ success: false, message: "Only admins can verify documents" });
+    }
+
+    const { driverId } = req.params;
+    const verificationData = req.body;
+
+    const result = await verifyDriverDocuments(driverId, verificationData);
+    res.status(200).json(result);
+  } catch (err) {
+    next(err);
+  }
+}
 

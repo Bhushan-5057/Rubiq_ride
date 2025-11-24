@@ -1,4 +1,4 @@
-import { getPassengerAllRideService, getRideStatusService } from "../../../../services/rideServices/passengerRideService/passengerRideStatusService/getRideStatus.service.js";
+import { getPassengerAllRideService, getRideStatusService } from "../../../../services/passengerServices/index.js";
 
 export const getRideStatus = async (req, res) => {
   try {

@@ -1,6 +1,6 @@
 import { getIO } from "../../../config/socket/socket.js";
-import { acceptRideService, rejectRideService, startRideService, completeRideService } from "../../../services/rideServices/driverRideService/driverRideService.service.js";
-import { updateDriverLocationService ,getAllRidesForDriverService,getRideByIdService} from "../../../services/driverServices/driverManagementService/driverRideService/driverRide.service.js";
+import { acceptRideService, rejectRideService, startRideService, completeRideService } from"../../../services/rideServices/index.js";
+import { updateDriverLocationService ,getAllRidesForDriverService,getRideByIdService} from "../../../services/driverServices/index.js";
 import { Ride } from "../../../models/ride/ride.model.js";
 import { Passenger } from "../../../models/passengers/passenger.model.js";
 

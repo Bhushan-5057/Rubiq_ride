@@ -1,7 +1,7 @@
-import { Ride } from "../../../../models/ride/ride.model.js";
-import { Driver } from "../../../../models/driver/driver.model.js";
-import { Passenger } from "../../../../models/passengers/passenger.model.js";
-import { calculateFare } from "../../../../helpers/rideHelpers.js";
+import { Ride } from "../../../models/ride/ride.model.js";
+import { Driver } from "../../../models/driver/driver.model.js";
+import { Passenger } from "../../../models/passengers/passenger.model.js";
+import { calculateFare } from "../../../helpers/rideHelpers.js";
 
 
 // Service to create a new ride

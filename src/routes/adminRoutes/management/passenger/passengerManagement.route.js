@@ -9,7 +9,6 @@ const router = Router();
 //admin get all passengers
 router.get("/get-all", authenticateAdmin, getAllPassengersController);
 
-
 //admin update passenger status
 router.get("/get/:passengerId", authenticateAdmin, getPassengerByIdController);
 

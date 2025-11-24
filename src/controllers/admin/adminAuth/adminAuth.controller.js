@@ -1,9 +1,28 @@
-import { login } from "../../../services/adminServices/adminAuthService/adminAuth.service.js";
-import { logout } from "../../../services/adminServices/adminAuthService/adminAuth.service.js";
+import { login,logout,register } from "../../../services/adminServices/adminAuthService/adminAuth.service.js";
 import { handleValidation } from "../../../validations/comman.validation.js";
 
+//register controller
+export async function registerController(req, res, next) {
+  try {
+    const { newAdmin, token } = await register(req.body);
 
+    const adminData = newAdmin._doc ? { ...newAdmin._doc } : { ...newAdmin };
+    delete adminData.password;
 
+    res.status(201).json({
+      success: true,
+      message: "Admin registered successfully",
+      data: {
+        admin: adminData,
+        token,
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+//login controller
 export async function loginController(req, res, next) {
   try {
     handleValidation(req);

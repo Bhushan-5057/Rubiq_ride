@@ -1,0 +1,5 @@
+export * from "./admin/Admin.model.js"
+export * from "./passenger/passenger.model.js"
+export * from "./driver/driver.model.js"
+export * from "./ride/ride.model.js"
+export * from "./driver/driverDocument.model.js"
