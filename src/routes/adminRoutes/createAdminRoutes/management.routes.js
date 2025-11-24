@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { authenticateAdmin } from "../../../middleware/auth.middleware.js";
 import { validateRegister } from "../../../validations/admin.validation.js";
-import { registerController } from "../../../controllers/admin/management/adminManagement/admin.management.controller.js";
+import { deleteAdminController, getAllAdminsController, registerController, updateAdminController } from "../../../controllers/admin/management/adminManagement/admin.management.controller.js";
 
 
 const router = Router();
