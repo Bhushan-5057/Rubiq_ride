@@ -10,7 +10,7 @@ export async function updatePassengerStatusController(req, res, next) {
     const { passengerId } = req.params; 
     const { status } = req.body; 
 
-    if (!["active", "suspended"].includes(status)) {
+    if (!["active","deactive", "suspended"].includes(status)) {
       return res.status(400).json({ success: false, message: "Invalid status value" });
     }
 

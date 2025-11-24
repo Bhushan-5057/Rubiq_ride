@@ -3,7 +3,6 @@ import { Driver } from "../../../models/driver/driver.model.js";
 import { Passenger } from "../../../models/passengers/passenger.model.js";
 import { areCoordinatesClose } from "../../../common/utlis.js";
 
-
 //service for driver to accept ride
 export async function acceptRideService({ rideId, driverId }) {
 const ride = await Ride.findOneAndUpdate(
@@ -118,4 +117,99 @@ export async function rejectRideService({ rideId, driverId }) {
     );
     if (!ride) throw new Error("Ride not found or cannot be rejected");
     return ride;
+}
+
+//service for driver to notify passenger that driver is on the way
+export async function driverOnTheWayService({ rideId, driverId, driverLocationCoordinates }) {
+
+  const ride = await Ride.findById(rideId);
+
+  if (!ride) {
+    throw new Error("Ride not found");
+  }
+
+  if (!ride.driver || ride.driver.toString() !== driverId.toString()) {
+    throw new Error("You are not assigned to this ride");
+  }
+
+  if (ride.status !== "accepted") {
+    throw new Error(`Driver cannot be marked on the way in current status: ${ride.status}`);
+  }
+
+  if (driverLocationCoordinates && driverLocationCoordinates.length === 2) {
+
+    if (!ride.pickup || !ride.pickup.coordinates || ride.pickup.coordinates.length !== 2) {
+      throw new Error("Ride pickup location is not available");
+    }
+
+    if (!areCoordinatesClose(driverLocationCoordinates, ride.pickup.coordinates)) {
+      throw new Error("Driver is too far from the passenger pickup location");
+    }
+  }
+
+  return ride;
+}
+
+//service for driver to notify passenger that driver has arrived at pickup
+export async function driverArrivedService({ rideId, driverId, driverLocationCoordinates }) {
+
+  const ride = await Ride.findById(rideId);
+
+  if (!ride) {
+    throw new Error("Ride not found");
+  }
+
+  if (!ride.driver || ride.driver.toString() !== driverId.toString()) {
+    throw new Error("You are not assigned to this ride");
+  }
+
+  if (!driverLocationCoordinates || driverLocationCoordinates.length !== 2) {
+    throw new Error("Driver location is required to mark arrival");
+  }
+
+  if (!ride.pickup || !ride.pickup.coordinates || ride.pickup.coordinates.length !== 2) {
+    throw new Error("Ride pickup location is not available");
+  }
+
+  if (!areCoordinatesClose(driverLocationCoordinates, ride.pickup.coordinates)) {
+    throw new Error("Driver is not at the passenger pickup location");
+  }
+
+  return ride;
+}
+
+//service for driver to give feedback to passenger
+export async function givePassengerFeedbackService({ rideId, driverId, rating, comment }) {
+
+  const ride = await Ride.findById(rideId);
+
+  if (!ride || !ride.driver || ride.driver.toString() !== driverId.toString()) {
+    throw new Error("Ride not found");
+  }
+
+  if (!ride.passenger) {
+    throw new Error("Passenger not associated with this ride");
+  }
+
+  if (ride.status !== "completed") {
+    throw new Error("Feedback can only be given for completed rides");
+  }
+
+  await Passenger.findByIdAndUpdate(ride.passenger, {
+    $push: {
+      feedbacks: {
+        rating: Number(rating),
+        comment,
+        driver: driverId,
+        ride: rideId,
+      },
+    },
+  });
+
+  return {
+    rideId,
+    passengerId: ride.passenger,
+    rating: Number(rating),
+    comment,
+  };
 }

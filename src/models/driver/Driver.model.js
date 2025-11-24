@@ -33,7 +33,7 @@ const driverSchema = new mongoose.Schema(
         enum: ["Point"],
       },
       coordinates: {
-        type: [Number], // [lng, lat]
+        type: [Number], // [lat, lng]
         default: undefined,
       },
     },
@@ -41,8 +41,11 @@ const driverSchema = new mongoose.Schema(
     // these are for direct lat/lng update (optional)
     latitude: Number,
     longitude: Number,
-    rideCount: { type: Number, default: 0 },
-
+    rideCount: {
+      accepted: { type: Number, default: 0 },
+      completed: { type: Number, default: 0 },
+      rejected: { type: Number, default: 0 },
+    },
     feedbacks: [
       {
         rating: { type: Number, enum: [1, 2, 3, 4, 5], required: true },
@@ -62,7 +65,7 @@ driverSchema.pre("save", function (next) {
     if (this.longitude !== undefined && this.latitude !== undefined) {
       this.location = {
         type: "Point",
-        coordinates: [this.longitude, this.latitude],
+        coordinates: [this.latitude, this.longitude],
       };
     } else {
       this.location = undefined;

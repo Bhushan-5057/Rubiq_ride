@@ -1,23 +1,29 @@
-
 import { Router } from "express";
 import { authenticatePassenger } from "../../../../middleware/auth.middleware.js";
-import { createRide,cancelRide, updateRide  } from "../../../../controllers/ride/passenger/ride/passengerRide.controller.js";
+import { createRide,cancelRide, updateRide,giveDriverFeedback,endRide  } from "../../../../controllers/ride/passenger/ride/passengerRide.controller.js";
 import { getPassengerRides, getRideStatus } from "../../../../controllers/ride/passenger/rideStatus/getRideStatus.controller.js";
 
 const router = Router()
-//passenger create ride
-router.post("/create", authenticatePassenger, createRide);
 
-//get ride history for passenger can be added here
+//get ride history for passenger route  
 router.get("/all", authenticatePassenger, getPassengerRides);
 
-//update ride for passenger
-router.put("/:rideId", authenticatePassenger, updateRide);
+//passenger create ride route
+router.post("/create", authenticatePassenger, createRide);
 
-//get ride creation route can be added here
+//get ride creation route  
 router.get("/:rideId/status", authenticatePassenger, getRideStatus);
 
-//ride cancellation route can be added here
+//passenger update ride route
+router.put("/:rideId", authenticatePassenger, updateRide);
+
+//passenger ride cancellation route 
 router.post("/:rideId/cancel", authenticatePassenger, cancelRide);
+
+//passenger end ride route
+router.post("/end-ride", authenticatePassenger, endRide);
+
+//passenger give feedback to driver route
+router.post("/give-driver-feedback", authenticatePassenger, giveDriverFeedback);
 
 export default router;

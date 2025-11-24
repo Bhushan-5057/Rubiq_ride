@@ -29,6 +29,9 @@ export async function loginController(req, res, next) {
     if (passenger.status === "suspended")
       return res.status(403).json({ success: false, message: "Account suspended" });
 
+    if( passenger.status === "deactive")
+      return  res.status(403).json({ success: false, message: "Account deactive. Please contact support." });
+    
     const isMatch = await passenger.comparePassword(password);
     if (!isMatch) return res.status(401).json({ success: false, message: "Invalid credentials" });
 

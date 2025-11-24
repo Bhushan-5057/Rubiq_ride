@@ -25,7 +25,7 @@ const passengerSchema = new mongoose.Schema(
     password: { type: String, select: false },
     lastLogoutAt: { type: Date },
     profileCompleted: { type: Boolean, default: false },
-    status: { type: String, enum: ["active", "suspended"], default: "active" },
+    status: { type: String, enum: ["active", "deactive", "suspended"], default: "active" },
     location: {
       type: {
         type: String,

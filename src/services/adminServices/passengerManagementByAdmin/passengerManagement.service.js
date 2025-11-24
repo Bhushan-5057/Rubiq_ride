@@ -26,18 +26,18 @@ export async function deletePassenger(passengerId) {
   const passenger = await Passenger.findById(passengerId);
   if (!passenger) throw new Error("Passenger not found");
 
-  passenger.status = "suspended";
+  passenger.status = "deactive";
   await passenger.save();
 
   return {
-    message: "Passenger account suspended successfully",
+    message: "Passenger account deactive successfully",
     passenger: passenger,
   };
 }
 
 // -------------------- Update Passenger Status --------------------
 export async function updatePassangerStatus(passengerId, newStatus) {
-  if (!["active", "suspended"].includes(newStatus))
+  if (!["active","deactive", "suspended"].includes(newStatus))
     throw new Error("Invalid status value");
 
   const passenger = await Passenger.findById(passengerId);

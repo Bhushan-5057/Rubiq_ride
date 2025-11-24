@@ -1,8 +1,7 @@
 import { getIO } from "../../../config/socket/socket.js";
-import { acceptRideService, rejectRideService, startRideService, completeRideService } from"../../../services/rideServices/index.js";
-import { updateDriverLocationService ,getAllRidesForDriverService,getRideByIdService} from "../../../services/driverServices/index.js";
+import { acceptRideService, rejectRideService, startRideService, completeRideService, driverOnTheWayService, driverArrivedService, givePassengerFeedbackService } from "../../../services/rideServices/index.js";
+import { updateDriverLocationService, getAllRidesForDriverService, getRideByIdService } from "../../../services/driverServices/index.js";
 import { Ride } from "../../../models/ride/ride.model.js";
-import { Passenger } from "../../../models/passengers/passenger.model.js";
 
 //controller to get ride by id for driver
 export const getRideById = async (req, res) => {
@@ -164,13 +163,13 @@ export const updateDriverLocation = async (req, res) => {
 export const driverOnTheWay = async (req, res) => {
   try {
     const driverId = req.driver._id;
-    const { rideId } = req.body;
+    const { rideId, driverLocationCoordinates } = req.body;
 
-    const ride = await Ride.findById(rideId);
-
-    if (!ride || !ride.driver || ride.driver.toString() !== driverId.toString()) {
-      return res.status(404).json({ success: false, message: "Ride not found" });
-    }
+    const ride = await driverOnTheWayService({
+      rideId,
+      driverId,
+      driverLocationCoordinates,
+    });
 
     const io = getIO();
 
@@ -194,13 +193,13 @@ export const driverOnTheWay = async (req, res) => {
 export const driverArrived = async (req, res) => {
   try {
     const driverId = req.driver._id;
-    const { rideId } = req.body;
+    const { rideId, driverLocationCoordinates } = req.body;
 
-    const ride = await Ride.findById(rideId);
-
-    if (!ride || !ride.driver || ride.driver.toString() !== driverId.toString()) {
-      return res.status(404).json({ success: false, message: "Ride not found" });
-    }
+    const ride = await driverArrivedService({
+      rideId,
+      driverId,
+      driverLocationCoordinates,
+    });
 
     const io = getIO();
 
@@ -230,37 +229,23 @@ export const givePassengerFeedback = async (req, res) => {
       return res.status(400).json({ success: false, message: "Invalid rating" });
     }
 
-    const ride = await Ride.findById(rideId);
-
-    if (!ride || !ride.driver || ride.driver.toString() !== driverId.toString()) {
-      return res.status(404).json({ success: false, message: "Ride not found" });
-    }
-
-    if (!ride.passenger) {
-      return res.status(400).json({ success: false, message: "Passenger not associated with this ride" });
-    }
+    const result = await givePassengerFeedbackService({
+      rideId,
+      driverId,
+      rating,
+      comment,
+    });
 
     const io = getIO();
 
-    await Passenger.findByIdAndUpdate(ride.passenger, {
-      $push: {
-        feedbacks: {
-          rating: Number(rating),
-          comment,
-          driver: driverId,
-          ride: rideId,
-        },
-      },
-    });
-
-    io.to(ride.passenger.toString()).emit("passenger_feedback_received", {
-      rideId,
-      rating: Number(rating),
-      comment,
+    io.to(result.passengerId.toString()).emit("passenger_feedback_received", {
+      rideId: result.rideId,
+      rating: result.rating,
+      comment: result.comment,
       driverId,
     });
 
-    res.status(200).json({ success: true, message: "Feedback submitted successfully" });
+    res.status(200).json({ success: true, message: "Passenger Feedback submitted successfully" });
   } catch (e) {
     res.status(400).json({ success: false, message: e.message });
   }

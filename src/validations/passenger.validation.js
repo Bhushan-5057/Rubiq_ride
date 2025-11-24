@@ -64,6 +64,6 @@ export const getPassengerQueryValidation = [
   query("city").optional().isString().trim(),
   query("status")
     .optional()
-    .isIn(["active", "inactive", "suspended"])
+    .isIn(["active", "deactive", "suspended"])
     .withMessage("Invalid status filter"),
 ];

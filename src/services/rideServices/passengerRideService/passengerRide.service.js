@@ -2,6 +2,7 @@ import { Ride } from "../../../models/ride/ride.model.js";
 import { Driver } from "../../../models/driver/driver.model.js";
 import { Passenger } from "../../../models/passengers/passenger.model.js";
 import { calculateFare } from "../../../helpers/rideHelpers.js";
+import { areCoordinatesClose } from "../../../common/utlis.js";
 
 
 // Service to create a new ride
@@ -17,8 +18,8 @@ export async function createRideService({ passengerId, pickup, drop, vehicleType
 
   const ride = await Ride.create({
     passenger: passengerId,
-    pickup: { address: pickup.address, coordinates: [pickup.lng, pickup.lat] },
-    drop: { address: drop.address, coordinates: [drop.lng, drop.lat] },
+    pickup: { address: pickup.address, coordinates: [pickup.lat, pickup.lng] },
+    drop: { address: drop.address, coordinates: [drop.lat, drop.lng] },
     otpForStartRide,
     distance: distanceInKm,
     fareEstimate: totalFare,
@@ -26,7 +27,7 @@ export async function createRideService({ passengerId, pickup, drop, vehicleType
   });
 
   await Passenger.findByIdAndUpdate(passengerId, {
-    location: { type: "Point", coordinates: [pickup.lng, pickup.lat] },
+    location: { type: "Point", coordinates: [pickup.lat, pickup.lng] },
     $inc: { "rideCount.created": 1 },
   });
 
@@ -36,7 +37,7 @@ export async function createRideService({ passengerId, pickup, drop, vehicleType
     vehicleType: vehicleType,
     location: {
       $near: {
-        $geometry: { type: "Point", coordinates: [pickup.lng, pickup.lat] },
+        $geometry: { type: "Point", coordinates: [pickup.lat, pickup.lng] },
         $maxDistance: 5000,
       },
     },
@@ -72,12 +73,12 @@ export async function updateRideService({ rideId, passengerId, drop }) {
   if (drop) {
     ride.drop = {
       address: drop.address,
-      coordinates: [drop.lng, drop.lat],
+      coordinates: [drop.lat, drop.lng],
     };
   }
 
   const dropCoords = drop
-    ? [drop.lng, drop.lat]
+    ? [drop.lat, drop.lng]
     : ride.drop?.coordinates;
 
   const pickupCoords = ride.pickup?.coordinates;
@@ -89,13 +90,13 @@ export async function updateRideService({ rideId, passengerId, drop }) {
     pickupCoords.length === 2
   ) {
     const pickupPoint = {
-      lat: pickupCoords[1],
-      lng: pickupCoords[0],
+      lat: pickupCoords[0],
+      lng: pickupCoords[1],
     };
 
     const dropPoint = {
-      lat: dropCoords[1],
-      lng: dropCoords[0],
+      lat: dropCoords[0],
+      lng: dropCoords[1],
     };
 
     const fareDetails = calculateFare(
@@ -147,4 +148,87 @@ export async function cancelRideService(passengerId, rideId) {
     $inc: { "rideCount.cancelled": 1 },
   });
   return ride;
+} 
+
+// Service to end a ride for passenger (based on passenger's current location)
+export async function endRideService({ rideId, passengerId, passengerLocationCoordinates }) {
+  if (!rideId || !passengerId) {
+    throw new Error("Ride ID and Passenger ID are required");
+  }
+
+  const ride = await Ride.findOne({ _id: rideId, passenger: passengerId });
+
+  if (!ride) {
+    throw new Error("Ride not found or unauthorized access");
+  }
+
+  if (ride.status !== "ongoing") {
+    throw new Error("Only ongoing rides can be ended");
+  }
+
+  if (!passengerLocationCoordinates || passengerLocationCoordinates.length !== 2) {
+    throw new Error("Passenger location is required to end the ride");
+  }
+
+  if (!ride.drop || !ride.drop.coordinates || ride.drop.coordinates.length !== 2) {
+    throw new Error("Ride drop location is not available");
+  }
+
+  if (!areCoordinatesClose(passengerLocationCoordinates, ride.drop.coordinates)) {
+    throw new Error("Passenger is not at the drop location");
+  }
+
+  ride.status = "completed";
+  ride.completedAt = new Date();
+
+  await ride.save();
+
+  if (ride.driver) {
+    await Driver.findByIdAndUpdate(ride.driver, {
+      $inc: { rideCount: 1 },
+    });
+  }
+
+  if (ride.passenger) {
+    await Passenger.findByIdAndUpdate(ride.passenger, {
+      $inc: { "rideCount.completed": 1, "rideCount.ended": 1 },
+    });
+  }
+
+  return ride;
+} 
+
+// Service for passenger to give feedback to driver
+export async function giveDriverFeedbackService({ rideId, passengerId, rating, comment }) {
+  const ride = await Ride.findById(rideId);
+
+  if (!ride || !ride.passenger || ride.passenger.toString() !== passengerId.toString()) {
+    throw new Error("Ride not found");
+  }
+
+  if (!ride.driver) {
+    throw new Error("Driver not associated with this ride");
+  }
+
+  if (ride.status !== "completed") {
+    throw new Error("Feedback can only be given for completed rides");
+  }
+
+  await Driver.findByIdAndUpdate(ride.driver, {
+    $push: {
+      feedbacks: {
+        rating: Number(rating),
+        comment,
+        passenger: passengerId,
+        ride: rideId,
+      },
+    },
+  });
+
+  return {
+    rideId,
+    driverId: ride.driver,
+    rating: Number(rating),
+    comment,
+  };
 }
