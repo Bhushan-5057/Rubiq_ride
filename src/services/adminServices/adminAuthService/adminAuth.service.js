@@ -1,7 +1,7 @@
 import { adminToken } from "../../../helpers/helper.js";
 import { Admin } from "../../../models/admin/Admin.model.js";
 
-export async function register({ email, password, name, contactNumber, gender, role }) {
+export async function register({ email, password, name, contactNumber, gender }) {
   const existingAdmin = await Admin.findOne({ email });
 
   if (existingAdmin) {
@@ -16,7 +16,7 @@ export async function register({ email, password, name, contactNumber, gender, r
     name,
     contactNumber,
     gender,
-    role,
+    role: "admin",
   });
 
   const token = adminToken(newAdmin);

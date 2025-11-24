@@ -5,8 +5,12 @@ import { logoutController } from "../../../controllers/admin/adminAuth/adminAuth
 
 const router = Router();
 
+
+
 router.get("/profile",authenticateAdmin , profileController);
 
 router.post("/logout", authenticateAdmin, logoutController);
+
+
 
 export default router;
