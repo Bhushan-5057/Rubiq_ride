@@ -54,4 +54,6 @@ passengerSchema.methods.comparePassword = async function (password) {
   return bcrypt.compare(password, this.password);
 };
 
-export const Passenger = mongoose.model("Passenger", passengerSchema);
+export const Passenger =
+  mongoose.models.Passenger || mongoose.model("Passenger", passengerSchema);
+

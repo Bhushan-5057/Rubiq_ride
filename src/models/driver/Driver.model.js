@@ -1,5 +1,5 @@
 import mongoose from "mongoose";
-import documentSchema from "../driver/document.schema.js";
+import documentSchema from "./driverDocument.model.js";
 
 const driverSchema = new mongoose.Schema(
   {
