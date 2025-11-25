@@ -16,8 +16,6 @@ export async function getRealDistance(pickup, drop) {
       },
     }
   );
-
-  console.log(JSON.stringify(response.data, null, 2));
   const element = response.data.rows[0].elements[0];
 
 if (!element || element.status !== "OK") {

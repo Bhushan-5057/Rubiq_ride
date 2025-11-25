@@ -34,7 +34,6 @@ export async function getAllDriversController(req, res, next) {
 export async function getDriverByIdController(req, res, next) {
   try {
     const driverId = req.params.id; // from route /get/:id
-    console.log("Fetching driver by ID:", driverId);
 
     const driver = await getDriverById(driverId);
 

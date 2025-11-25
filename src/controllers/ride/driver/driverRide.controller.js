@@ -60,8 +60,6 @@ export const startRide = async (req, res) => {
   try {
     const driverId = req.driver._id;
     const { rideId, otpForStartRide, driverLocationCoordinates } = req.body;
-    console.log("Received OTP:", otpForStartRide);
-    console.log("Ride ID:", rideId);
     const ride = await startRideService({
       rideId,
       driverId,

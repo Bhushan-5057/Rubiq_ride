@@ -1,7 +1,6 @@
 import { Ride } from "../../../models/ride/ride.model.js";
 
 export async function getSingleRideService(rideId) {
-  console.log("Ride ID in service:", rideId);
   if (!rideId) throw new Error("Ride ID is required");
   const ride = await Ride.findById(rideId)
     .populate("passenger", "name contactNumber email")

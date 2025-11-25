@@ -1,6 +1,6 @@
-
 import mongoose from "mongoose";
 import  {Driver}  from "../../../models/driver/driver.model.js";
+import { Ride } from "../../../models/ride/ride.model.js";
 import { normalizeNumber } from "../../../helpers/helper.js";
 
 //service to update driver status by admin
@@ -23,7 +23,45 @@ export async function updateDriverStatus(driverId, newStatus) {
 //service to get all drivers for admin
 export async function getAllDrivers() {
   const drivers = await Driver.find().sort({ createdAt: -1 });
-  return drivers.map((driver) => driver);
+
+  if (!drivers.length) return [];
+
+  const driverIds = drivers.map((d) => d._id);
+
+  // Aggregate earnings and completed rides per driver in one query
+  const earningsByDriver = await Ride.aggregate([
+    {
+      $match: {
+        driver: { $in: driverIds },
+        status: "completed",
+      },
+    },
+    {
+      $group: {
+        _id: "$driver",
+        totalEarnings: {
+          $sum: { $ifNull: ["$fareEstimate", 0] },
+        },
+        totalCompletedRides: { $sum: 1 },
+      },
+    },
+  ]);
+
+  const earningsMap = new Map(
+    earningsByDriver.map((e) => [e._id.toString(), e])
+  );
+
+  return drivers.map((driver) => {
+    const d = driver.toObject();
+    const earnings = earningsMap.get(driver._id.toString());
+
+    return {
+      ...d,
+      totalEarnings: earnings?.totalEarnings || 0,
+      totalCompletedRides: earnings?.totalCompletedRides || 0,
+      rideCount: d.rideCount,
+    };
+  });
 }
 
 //service to get driver by id for admin
@@ -34,7 +72,26 @@ export async function getDriverById(driverId) {
 
   const driver = await Driver.findById(driverId);
   if (!driver) throw new Error("Driver not found");
-  return driver;
+
+  // Calculate earnings and total completed rides for this driver
+  const completedRides = await Ride.find({
+    driver: driverId,
+    status: "completed",
+  }).select("fareEstimate");
+
+  const totalEarnings = completedRides.reduce(
+    (sum, ride) => sum + (ride.fareEstimate || 0),
+    0
+  );
+
+  const driverObj = driver.toObject();
+
+  return {
+    ...driverObj,
+    totalEarnings,
+    totalCompletedRides: completedRides.length,
+    rideCount: driverObj.rideCount,
+  };
 }
 
 //service to delete driver (soft delete)
@@ -57,8 +114,6 @@ export async function getDriverProfileStatus(contactNumber) {
   if (!contactNumber) throw new Error("Contact number is required");
 
   const normalizedNumber = normalizeNumber(contactNumber);
-
-  console.log("Checking driver with contact:", normalizedNumber);
 
   const driver = await Driver.findOne({ contactNumber: normalizedNumber });
 

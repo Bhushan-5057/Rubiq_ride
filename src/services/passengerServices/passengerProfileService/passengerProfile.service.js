@@ -1,6 +1,6 @@
 import { passengerfields } from "../../../common/utlis.js";
 import { normalizeNumber } from "../../../helpers/helper.js";
-import { Passenger } from "../../../models/passengers/passenger.model.js";
+import { Passenger } from "../../../models/passenger/passenger.model.js";
 
 
 // -------------------- Update Profile --------------------

@@ -1,4 +1,4 @@
-import { Passenger } from "../../models/passengers/passenger.model.js";
+import { Passenger } from "../../models/passenger/passenger.model.js";
 import { Driver } from "../../models/driver/driver.model.js";
 import { normalizeNumber } from "../../helpers/helper.js";
 import { generateOTP, OTP_EXPIRY_MINUTES } from "../../common/utlis.js";
@@ -42,12 +42,9 @@ export async function sendOtp(contactNumber, userType = "passenger") {
 
 // -------------------- Verify OTP --------------------
 export async function verifyOtp(contactNumber, otp, userType = "passenger") {
-  console.log("contactNumber", contactNumber, "otp", otp, "userType", userType);
   contactNumber = normalizeNumber(contactNumber);
   const Model = userType === "driver" ? Driver : Passenger;
-console.log("Model", Model);
   const user = await Model.findOne({ contactNumber }).select("+otp +otpExpiry");
-  console.log("user", user);
   if (!user || !user.otp) return false;
   if (user.otp !== otp) return false;
   if (user.otpExpiry < new Date()) return false;

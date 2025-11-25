@@ -11,7 +11,6 @@ export async function sendDriverOtp(contactNumber) {
 
 //driver otp login
 export async function otpLogin(payload) {
-  console.log("payload", payload);
   let {
     contactNumber,
     otp,
@@ -25,11 +24,8 @@ export async function otpLogin(payload) {
     city
   } = payload;
 
-  console.log("contactNumber", contactNumber, "otp", otp);
-
   contactNumber = normalizeNumber(contactNumber);
   const isValidOtp = await verifyOtp(contactNumber, otp, "driver");
-  console.log("isValidOtp", isValidOtp);
   if (!isValidOtp) throw new Error("Invalid or expired OTP");
 
   let driver = await Driver.findOne({ contactNumber });

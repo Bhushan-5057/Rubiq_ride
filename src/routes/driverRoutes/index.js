@@ -8,5 +8,6 @@ const router = Router();
 router.use("/auth", driverAuthRoutes);
 router.use("/profile", driverProfileRoutes);
 router.use("/manage", driverManagementRoutes);
+router.use("/earnings", driverManagementRoutes);
 
 export default router;

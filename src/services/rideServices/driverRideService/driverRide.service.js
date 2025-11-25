@@ -1,6 +1,6 @@
 import { Ride } from "../../../models/ride/ride.model.js";
 import { Driver } from "../../../models/driver/driver.model.js";
-import { Passenger } from "../../../models/passengers/passenger.model.js";
+import { Passenger } from "../../../models/passenger/passenger.model.js";
 import { areCoordinatesClose } from "../../../common/utlis.js";
 
 //service for driver to accept ride
@@ -12,6 +12,10 @@ const ride = await Ride.findOneAndUpdate(
 );
 
 if (!ride) throw new Error("Ride not available or already accepted");
+
+await Driver.findByIdAndUpdate(driverId, {
+  $inc: { "rideCount.accepted": 1 },
+});
 
 return ride;
 } 
@@ -94,7 +98,7 @@ await ride.save();
 
 if (ride.driver) {
   await Driver.findByIdAndUpdate(ride.driver, {
-    $inc: { rideCount: 1 },
+    $inc: { "rideCount.completed": 1 },
   });
 }
 
@@ -116,6 +120,11 @@ export async function rejectRideService({ rideId, driverId }) {
         { new: true }
     );
     if (!ride) throw new Error("Ride not found or cannot be rejected");
+
+    await Driver.findByIdAndUpdate(driverId, {
+      $inc: { "rideCount.rejected": 1 },
+    });
+
     return ride;
 }
 
@@ -193,6 +202,16 @@ export async function givePassengerFeedbackService({ rideId, driverId, rating, c
 
   if (ride.status !== "completed") {
     throw new Error("Feedback can only be given for completed rides");
+  }
+
+  const existingFeedback = await Passenger.findOne({
+    _id: ride.passenger,
+    "feedbacks.ride": rideId,
+    "feedbacks.driver": driverId,
+  }).select("_id");
+
+  if (existingFeedback) {
+    throw new Error("Passenger Feedback already submitted");
   }
 
   await Passenger.findByIdAndUpdate(ride.passenger, {

@@ -1,6 +1,6 @@
 import { Ride } from "../../../models/ride/ride.model.js";
 import { Driver } from "../../../models/driver/driver.model.js";
-import { Passenger } from "../../../models/passengers/passenger.model.js";
+import { Passenger } from "../../../models/passenger/passenger.model.js";
 import { calculateFare } from "../../../helpers/rideHelpers.js";
 import { areCoordinatesClose } from "../../../common/utlis.js";
 
@@ -185,7 +185,7 @@ export async function endRideService({ rideId, passengerId, passengerLocationCoo
 
   if (ride.driver) {
     await Driver.findByIdAndUpdate(ride.driver, {
-      $inc: { rideCount: 1 },
+      $inc: { "rideCount.completed": 1 },
     });
   }
 
@@ -212,6 +212,16 @@ export async function giveDriverFeedbackService({ rideId, passengerId, rating, c
 
   if (ride.status !== "completed") {
     throw new Error("Feedback can only be given for completed rides");
+  }
+
+  const existingFeedback = await Driver.findOne({
+    _id: ride.driver,
+    "feedbacks.ride": rideId,
+    "feedbacks.passenger": passengerId,
+  }).select("_id");
+
+  if (existingFeedback) {
+    throw new Error("Driver Feedback already submitted");
   }
 
   await Driver.findByIdAndUpdate(ride.driver, {

@@ -42,7 +42,6 @@ export async function sendEmail({ to, subject, text, html }) {
         text,
         html,
       });
-      console.log("Gmail send OK. MessageId:", info.messageId);
       return { ok: true, provider: "gmail", info };
     } catch (err) {
       console.error("Gmail send failed:", err && err.message ? err.message : err);
@@ -62,8 +61,6 @@ export async function sendEmail({ to, subject, text, html }) {
       text,
       html,
     });
-
-    console.log("Ethereal send OK. Preview URL:", nodemailer.getTestMessageUrl(info));
     return { ok: true, provider: "ethereal", previewUrl: nodemailer.getTestMessageUrl(info), info, testAccount };
   } catch (err) {
     console.error("Ethereal fallback failed:", err);

@@ -17,7 +17,6 @@ export async function getProfile(driver) {
 
 // Service to update driver profile
 export async function updateProfile(driver, data = {}) {
-  console.log("driver in service:", driver);
   if (!driver) throw new Error("Driver not found");
 
   if (typeof data.dateOfBirth === "string" && data.dateOfBirth.trim() === "") {
@@ -80,11 +79,7 @@ export async function updateProfile(driver, data = {}) {
   const allFieldsFilled = requiredFields.every((field) => isFilled(field, driver[field]));
   const allDocsUploaded = requiredDocs.every((docKey) => Boolean(driver.documents?.[docKey]));
   const allDocsApproved = documentStatus.every((status) => driver.documents?.[status] === "approved");
-  console.log("All fields filled:", allFieldsFilled);
-  console.log("All docs uploaded:", allDocsUploaded);
-  console.log("All docs approved:", allDocsApproved);
   driver.profileCompleted = allFieldsFilled && allDocsUploaded && allDocsApproved;
-  console.log("Profile completion status:", driver.profileCompleted);
   driver.updatedAt = new Date();
 
   await driver.save();

@@ -3,7 +3,7 @@ import jwt from "jsonwebtoken";
 import dotenv from "dotenv";
 import { Admin } from "../models/admin/Admin.model.js";
 import { Driver } from "../models/driver/driver.model.js";
-import { Passenger } from "../models/passengers/passenger.model.js";
+import { Passenger } from "../models/passenger/passenger.model.js";
 
 dotenv.config();
 

@@ -177,8 +177,6 @@ export const giveDriverFeedback = async (req, res) => {
       passengerId,
     });
 
-    console.log("Emitting driver_feedback_received to", result.driverId.toString());
-
     res.status(200).json({ success: true, message: "Driver Feedback submitted successfully" });
   } catch (err) {
     res.status(400).json({ success: false, message: err.message });

@@ -1,5 +1,5 @@
 
-import { Passenger } from "../../../models/passengers/passenger.model.js";
+import { Passenger } from "../../../models/passenger/passenger.model.js";
 import { verifyOtp } from "../../../services/otpService/otp.service.js";
 import { normalizeNumber, signToken } from "../../../helpers/helper.js";
 

@@ -1,5 +1,5 @@
 import mongoose from "mongoose";
-import { Passenger } from "../../../models/passengers/passenger.model.js";
+import { Passenger } from "../../../models/passenger/passenger.model.js";
 
 // -------------------- Get All Passengers --------------------
 export async function getAllPassenger() {

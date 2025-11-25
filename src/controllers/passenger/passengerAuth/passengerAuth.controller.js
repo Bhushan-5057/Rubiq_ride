@@ -1,5 +1,5 @@
 import { generateToken } from "../../../common/utlis.js";
-import { Passenger } from "../../../models/passengers/passenger.model.js";
+import { Passenger } from "../../../models/passenger/passenger.model.js";
 import { sendOtp } from "../../../services/otpService/otp.service.js";
 import { logout, otpLogin } from "../../../services/passengerServices/index.js";
 import { handleValidation } from "../../../validations/comman.validation.js";
