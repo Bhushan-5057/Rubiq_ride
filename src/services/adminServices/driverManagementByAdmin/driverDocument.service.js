@@ -1,5 +1,5 @@
 import { Driver } from "../../../models/driver/driver.model.js";
-import { documentStatus, requiredFields, requiredDocs } from "../../../common/utlis.js"
+import { documentStatus, requiredFields, requiredDocs,requiredDocsNumber } from "../../../common/utlis.js"
 
 // shared helper: check if a required field is filled/valid
 const isFilled = (key, val) => {

@@ -7,6 +7,7 @@ import { handleValidation } from "../../../validations/comman.validation.js";
 // -------------------- Send OTP --------------------
 export async function sendOtpController(req, res, next) {
   try {
+     handleValidation(req);  
     const { contactNumber } = req.body;
     if (!contactNumber) return res.status(400).json({ success: false, message: "Contact number required" });
 
@@ -21,13 +22,12 @@ export async function sendOtpController(req, res, next) {
 export async function loginController(req, res, next) {
   try {
     handleValidation(req);
-
     const { email, password } = req.body;
     const passenger = await Passenger.findOne({ email }).select("+password");
     if (!passenger) return res.status(401).json({ success: false, message: "Invalid credentials" });
 
-    if (passenger.status === "suspended")
-      return res.status(403).json({ success: false, message: "Account suspended" });
+    if (passenger.status === "deactive")
+      return res.status(403).json({ success: false, message: "Account deactive" });
 
     if( passenger.status === "deactive")
       return  res.status(403).json({ success: false, message: "Account deactive. Please contact support." });
@@ -64,10 +64,10 @@ export async function otpLoginController(req, res, next) {
   } catch (err) {
     console.error("OTP Login Error:", err.message);
 
-    if (err.message === "Account suspended") {
+    if (err.message === "Account deactive") {
       return res.status(403).json({
         success: false,
-        message: "Your account is suspended. Please contact support.",
+        message: "Your account is deactive. Please contact support.",
       });
     }
 

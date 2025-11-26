@@ -12,13 +12,13 @@ router.get("/all", authenticatePassenger, getPassengerRides);
 router.post("/create", authenticatePassenger, createRide);
 
 //get ride creation route  
-router.get("/:rideId/status", authenticatePassenger, getRideStatus);
+router.get("/status/:rideId", authenticatePassenger, getRideStatus);
 
 //passenger update ride route
 router.put("/:rideId", authenticatePassenger, updateRide);
 
 //passenger ride cancellation route 
-router.post("/:rideId/cancel", authenticatePassenger, cancelRide);
+router.post("/cancel/:rideId", authenticatePassenger, cancelRide);
 
 //passenger end ride route
 router.post("/end-ride", authenticatePassenger, endRide);

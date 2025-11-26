@@ -12,9 +12,9 @@ export const registerPassengerValidation = [
     .isEmail()
     .normalizeEmail()
     .withMessage("Invalid email format"),
-  body("phone")
+  body("contactNumber")
     .exists()
-    .withMessage("Phone number is required")
+    .withMessage("contact Number is required")
     .isMobilePhone("en-IN")
     .withMessage("Invalid Indian mobile number format"),
 ];
@@ -22,6 +22,7 @@ export const registerPassengerValidation = [
 export const otpLoginValidation = [
   body("contactNumber")
     .exists()
+    .isLength({ min: 10, max: 15 })
     .withMessage("Contact number is required")
     .isMobilePhone("en-IN")
     .withMessage("Invalid phone number"),
@@ -55,15 +56,16 @@ export const passengerIdParamValidation = [
 export const otpSendValidation = [
   body("contactNumber")
     .exists()
+    .isLength({ min: 10, max: 15 })
     .withMessage("Contact number is required")
     .isMobilePhone("en-IN")
-    .withMessage("Invalid phone number"),
+    .withMessage("Invalid contact number"),
 ];
 
 export const getPassengerQueryValidation = [
   query("city").optional().isString().trim(),
   query("status")
     .optional()
-    .isIn(["active", "deactive", "suspended"])
+    .isIn(["active", "deactive"])
     .withMessage("Invalid status filter"),
 ];

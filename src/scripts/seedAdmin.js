@@ -1,5 +1,5 @@
 import dotenv from 'dotenv';
-import { Admin } from '../models/admin/Admin.model.js';
+import { Admin } from '../models/admin/admin.model.js';
 
 dotenv.config();
 

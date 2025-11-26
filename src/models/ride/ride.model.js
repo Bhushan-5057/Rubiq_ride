@@ -14,6 +14,7 @@ const rideSchema = new mongoose.Schema(
     },
     vehicleType: { type: String, enum: ["bike", "auto", "cab"], required: true },
     distance: Number,
+    
     fareEstimate: Number,
     otpForStartRide: { type: Number, required: true },
     status: {

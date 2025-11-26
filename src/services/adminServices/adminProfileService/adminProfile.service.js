@@ -1,4 +1,4 @@
-import { Admin } from "../../../models/admin/Admin.model.js";
+import { Admin } from "../../../models/admin/admin.model.js";
 
 //get profile
 export async function getProfile(userId) {

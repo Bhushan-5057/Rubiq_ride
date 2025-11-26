@@ -79,7 +79,17 @@ export async function updateProfile(driver, data = {}) {
   const allFieldsFilled = requiredFields.every((field) => isFilled(field, driver[field]));
   const allDocsUploaded = requiredDocs.every((docKey) => Boolean(driver.documents?.[docKey]));
   const allDocsApproved = documentStatus.every((status) => driver.documents?.[status] === "approved");
-  driver.profileCompleted = allFieldsFilled && allDocsUploaded && allDocsApproved;
+
+  // Ensure all required document numbers are also present for profile completion
+  const allDocNumbersPresent = requiredDocsNumber.every(
+    (numKey) => Boolean(driver.documents?.[numKey])
+  );
+
+  driver.profileCompleted =
+    allFieldsFilled &&
+    allDocsUploaded &&
+    allDocsApproved &&
+    allDocNumbersPresent;
   driver.updatedAt = new Date();
 
   await driver.save();

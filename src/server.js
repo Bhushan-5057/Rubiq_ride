@@ -20,16 +20,18 @@ const server = http.createServer(app);
 export const io = initSocket(server);
 
 const allowedOrigins = [
-  "http://localhost:5173", 
+  "http://localhost:5173",
   "http://localhost:3000",
-  process.env.FRONTEND_URL, 
+  process.env.FRONTEND_URL,
 ].filter(Boolean);
 
 // Middleware
-app.use(cors({  origin: allowedOrigins,
-    credentials: true,
-    methods: ["GET", "POST", "PATCH", "PUT", "DELETE"],
-    allowedHeaders: ["Content-Type", "Authorization"],}));
+app.use(cors({
+  origin: allowedOrigins,
+  credentials: true,
+  methods: ["GET", "POST", "PATCH", "PUT", "DELETE"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+}));
 app.use(helmet());
 app.use(express.json());
 
@@ -45,10 +47,13 @@ app.get("/health", (req, res) => res.json({ status: "ok" }));
 // 404 + error handler
 app.use((req, res) => res.status(404).json({ message: "Route not found" }));
 app.use((err, req, res, next) => {
-  console.error(err);
-  res
-    .status(err.status || 500)
-    .json({ message: err.message || "Internal Server Error" });
+  // console.error(err);
+  const status = err.status || 500;
+  res.status(status).json({
+    success: false,
+    message: err.message || "Internal Server Error",
+    errors: err.details || undefined
+  });
 });
 
 // Start server

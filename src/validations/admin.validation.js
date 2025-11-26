@@ -1,5 +1,5 @@
 import { body } from 'express-validator';
-import { ADMIN_ROLES } from '../models/admin/Admin.model.js';
+import { ADMIN_ROLES } from '../models/admin/admin.model.js';
 
 export const validateRegister = [
   body('email').isEmail().withMessage('Valid email is required'),

@@ -26,7 +26,7 @@ const driverSchema = new mongoose.Schema(
     documentsVerified: { type: Boolean, default: false },
     verificationRemarks: { type: String },
     profileCompleted: { type: Boolean, default: false },
-    status: { type: String, enum: ["active", "pending", "suspended"], default: "pending" },
+    status: { type: String, enum: ["active", "pending","deactive"], default: "pending" },
     location: {
       type: {
         type: String,
@@ -45,6 +45,11 @@ const driverSchema = new mongoose.Schema(
       accepted: { type: Number, default: 0 },
       completed: { type: Number, default: 0 },
       rejected: { type: Number, default: 0 },
+    },
+    earnings: {
+      totalEarnings: { type: Number, default: 0 },
+      totalDriverPayout: { type: Number, default: 0 },
+      totalPlatformFee: { type: Number, default: 0 },
     },
     feedbacks: [
       {

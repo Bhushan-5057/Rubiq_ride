@@ -1,5 +1,5 @@
 import { adminToken } from "../../../helpers/helper.js";
-import { Admin } from "../../../models/admin/Admin.model.js";
+import { Admin } from "../../../models/admin/admin.model.js";
 
 export async function register({ email, password, name, contactNumber, gender }) {
   const existingAdmin = await Admin.findOne({ email });

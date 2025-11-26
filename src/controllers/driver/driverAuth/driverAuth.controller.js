@@ -1,4 +1,4 @@
-import { Driver } from "../../../models/driver/Driver.model.js";
+import { Driver } from "../../../models/index.js";
 import { otpLogin, sendDriverOtp } from "../../../services/driverServices/index.js";
 import { handleValidation } from "../../../validations/comman.validation.js";
 
@@ -45,8 +45,8 @@ export async function loginController(req, res, next) {
     if (!driver) {
       return res.status(401).json({ success: false, message: "Invalid credentials" });
     }
-    if (driver.status === "suspended") {
-      return res.status(403).json({ success: false, message: "Account suspended" });
+    if (driver.status === "deactive") {
+      return res.status(403).json({ success: false, message: "Account deactive" });
     }
 
     const isMatch = await driver.comparePassword(password);

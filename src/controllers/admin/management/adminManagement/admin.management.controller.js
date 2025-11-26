@@ -1,4 +1,4 @@
-import { Admin } from "../../../../models/admin/Admin.model.js";
+import { Admin } from "../../../../models/admin/admin.model.js";
 import { register } from "../../../../services/adminServices/adminAuthService/adminAuth.service.js";
 import dotenv from "dotenv"
 import bcrypt from "bcryptjs"

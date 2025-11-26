@@ -1,9 +1,8 @@
 import { Ride } from "../../../models/ride/ride.model.js";
 import { Driver } from "../../../models/driver/driver.model.js";
 import { Passenger } from "../../../models/passenger/passenger.model.js";
-import { calculateFare } from "../../../helpers/rideHelpers.js";
+import { calculateFare, calculateEarningsFromDistance } from "../../../helpers/rideHelpers.js";
 import { areCoordinatesClose } from "../../../common/utlis.js";
-
 
 // Service to create a new ride
 export async function createRideService({ passengerId, pickup, drop, vehicleType }) {
@@ -162,9 +161,9 @@ export async function endRideService({ rideId, passengerId, passengerLocationCoo
     throw new Error("Ride not found or unauthorized access");
   }
 
-  if (ride.status !== "ongoing") {
-    throw new Error("Only ongoing rides can be ended");
-  }
+  // if (ride.status !== "ongoing") {
+  //   throw new Error("Only ongoing rides can be ended");
+  // }
 
   if (!passengerLocationCoordinates || passengerLocationCoordinates.length !== 2) {
     throw new Error("Passenger location is required to end the ride");
@@ -184,14 +183,30 @@ export async function endRideService({ rideId, passengerId, passengerLocationCoo
   await ride.save();
 
   if (ride.driver) {
+    const fare = ride.fareEstimate || 0;
+    let driverShare = 0;
+    let platformFee = 0;
+    if (ride.distance && ride.vehicleType) {
+      const { platformFee: pf, driverShare: ds } = calculateEarningsFromDistance(
+        ride.distance,
+        ride.vehicleType
+      );
+      driverShare = ds || 0;
+      platformFee = pf || 0;
+    }
     await Driver.findByIdAndUpdate(ride.driver, {
-      $inc: { "rideCount.completed": 1 },
+      $inc: {
+        "rideCount.completed": 1,
+        "earnings.totalEarnings": fare,
+        "earnings.totalDriverPayout": driverShare,
+        "earnings.totalPlatformFee": platformFee,
+      },
     });
   }
 
   if (ride.passenger) {
     await Passenger.findByIdAndUpdate(ride.passenger, {
-      $inc: { "rideCount.completed": 1, "rideCount.ended": 1 },
+      $inc: { "rideCount.completed": 1},
     });
   }
 

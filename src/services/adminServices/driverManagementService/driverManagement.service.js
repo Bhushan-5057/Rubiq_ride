@@ -2,10 +2,11 @@ import mongoose from "mongoose";
 import  {Driver}  from "../../../models/driver/driver.model.js";
 import { Ride } from "../../../models/ride/ride.model.js";
 import { normalizeNumber } from "../../../helpers/helper.js";
+import { calculateEarningsFromDistance } from "../../../helpers/rideHelpers.js";
 
 //service to update driver status by admin
 export async function updateDriverStatus(driverId, newStatus) {
-  if (!["active","pending" ,"suspended"].includes(newStatus))
+  if (!["active","pending","deactive"].includes(newStatus))
     throw new Error("Invalid status value");
 
   const driver = await Driver.findById(driverId);
@@ -25,40 +26,14 @@ export async function getAllDrivers() {
   const drivers = await Driver.find().sort({ createdAt: -1 });
 
   if (!drivers.length) return [];
-
-  const driverIds = drivers.map((d) => d._id);
-
-  // Aggregate earnings and completed rides per driver in one query
-  const earningsByDriver = await Ride.aggregate([
-    {
-      $match: {
-        driver: { $in: driverIds },
-        status: "completed",
-      },
-    },
-    {
-      $group: {
-        _id: "$driver",
-        totalEarnings: {
-          $sum: { $ifNull: ["$fareEstimate", 0] },
-        },
-        totalCompletedRides: { $sum: 1 },
-      },
-    },
-  ]);
-
-  const earningsMap = new Map(
-    earningsByDriver.map((e) => [e._id.toString(), e])
-  );
-
   return drivers.map((driver) => {
     const d = driver.toObject();
-    const earnings = earningsMap.get(driver._id.toString());
 
     return {
       ...d,
-      totalEarnings: earnings?.totalEarnings || 0,
-      totalCompletedRides: earnings?.totalCompletedRides || 0,
+      totalEarnings: d.earnings?.totalEarnings || 0,
+      totalCompletedRides: d.rideCount?.completed || 0,
+      totalDriverPayout: d.earnings?.totalDriverPayout || 0,
       rideCount: d.rideCount,
     };
   });
@@ -72,24 +47,14 @@ export async function getDriverById(driverId) {
 
   const driver = await Driver.findById(driverId);
   if (!driver) throw new Error("Driver not found");
-
-  // Calculate earnings and total completed rides for this driver
-  const completedRides = await Ride.find({
-    driver: driverId,
-    status: "completed",
-  }).select("fareEstimate");
-
-  const totalEarnings = completedRides.reduce(
-    (sum, ride) => sum + (ride.fareEstimate || 0),
-    0
-  );
-
   const driverObj = driver.toObject();
 
   return {
     ...driverObj,
-    totalEarnings,
-    totalCompletedRides: completedRides.length,
+    totalEarnings: driverObj.earnings?.totalEarnings || 0,
+    totalDriverPayout: driverObj.earnings?.totalDriverPayout || 0,
+    // totalPlatformFee: driverObj.earnings?.totalPlatformFee || 0,
+    totalCompletedRides: driverObj.rideCount?.completed || 0,
     rideCount: driverObj.rideCount,
   };
 }
@@ -103,10 +68,10 @@ export async function deleteDriver(driverId) {
   const driver = await Driver.findById(driverId);
   if (!driver) throw new Error("Driver not found");
 
-  driver.status = "suspended";
+  driver.status = "deactive";
   await driver.save();
 
-  return { message: "Driver account suspended successfully" };
+  return { message: "Driver account deactive successfully" };
 }
 
 //service to get driver profile status

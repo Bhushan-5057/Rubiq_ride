@@ -37,7 +37,7 @@ export async function deletePassenger(passengerId) {
 
 // -------------------- Update Passenger Status --------------------
 export async function updatePassangerStatus(passengerId, newStatus) {
-  if (!["active","deactive", "suspended"].includes(newStatus))
+  if (!["active","deactive", "pending"].includes(newStatus))
     throw new Error("Invalid status value");
 
   const passenger = await Passenger.findById(passengerId);
