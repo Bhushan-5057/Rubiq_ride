@@ -1,5 +1,5 @@
 import { getAllDrivers, getDriverById, updateDriverStatus } from "../../../../services/adminServices/driverManagementService/driverManagement.service.js";
-import { verifyDriverDocuments } from "../../../../services/adminServices/driverManagementByAdmin/driverDocument.service.js";
+import { verifyDriverDocuments } from "../../../../services/adminServices/driverDocumentationService/driverDocument.service.js";
 
 // -------------------- ADMIN: UPDATE STATUS --------------------
 export async function updateStatusController(req, res, next) {

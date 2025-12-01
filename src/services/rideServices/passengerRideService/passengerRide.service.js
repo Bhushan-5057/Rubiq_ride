@@ -17,8 +17,8 @@ export async function createRideService({ passengerId, pickup, drop, vehicleType
 
   const ride = await Ride.create({
     passenger: passengerId,
-    pickup: { address: pickup.address, coordinates: [pickup.lat, pickup.lng] },
-    drop: { address: drop.address, coordinates: [drop.lat, drop.lng] },
+    pickup: { address: pickup.address, coordinates: [pickup.lng, pickup.lat] },
+    drop: { address: drop.address, coordinates: [drop.lng, drop.lat] },
     otpForStartRide,
     distance: distanceInKm,
     fareEstimate: totalFare,
@@ -26,7 +26,7 @@ export async function createRideService({ passengerId, pickup, drop, vehicleType
   });
 
   await Passenger.findByIdAndUpdate(passengerId, {
-    location: { type: "Point", coordinates: [pickup.lat, pickup.lng] },
+    location: { type: "Point", coordinates: [pickup.lng, pickup.lat] },
     $inc: { "rideCount.created": 1 },
   });
 
@@ -36,7 +36,7 @@ export async function createRideService({ passengerId, pickup, drop, vehicleType
     vehicleType: vehicleType,
     location: {
       $near: {
-        $geometry: { type: "Point", coordinates: [pickup.lat, pickup.lng] },
+        $geometry: { type: "Point", coordinates: [pickup.lng, pickup.lat] },
         $maxDistance: 5000,
       },
     },
@@ -72,12 +72,12 @@ export async function updateRideService({ rideId, passengerId, drop }) {
   if (drop) {
     ride.drop = {
       address: drop.address,
-      coordinates: [drop.lat, drop.lng],
+      coordinates: [drop.lng, drop.lat],
     };
   }
 
   const dropCoords = drop
-    ? [drop.lat, drop.lng]
+    ? [drop.lng, drop.lat]
     : ride.drop?.coordinates;
 
   const pickupCoords = ride.pickup?.coordinates;
@@ -89,13 +89,13 @@ export async function updateRideService({ rideId, passengerId, drop }) {
     pickupCoords.length === 2
   ) {
     const pickupPoint = {
-      lat: pickupCoords[0],
-      lng: pickupCoords[1],
+      lat: pickupCoords[1],
+      lng: pickupCoords[0],
     };
 
     const dropPoint = {
-      lat: dropCoords[0],
-      lng: dropCoords[1],
+      lat: dropCoords[1],
+      lng: dropCoords[0],
     };
 
     const fareDetails = calculateFare(
@@ -173,7 +173,13 @@ export async function endRideService({ rideId, passengerId, passengerLocationCoo
     throw new Error("Ride drop location is not available");
   }
 
-  if (!areCoordinatesClose(passengerLocationCoordinates, ride.drop.coordinates)) {
+  // Convert passenger location to [lng, lat] for comparison
+  const passengerLocation = [
+    passengerLocationCoordinates[0],
+    passengerLocationCoordinates[1]
+  ];
+  
+  if (!areCoordinatesClose(passengerLocation, ride.drop.coordinates)) {
     throw new Error("Passenger is not at the drop location");
   }
 

@@ -60,7 +60,7 @@ export async function updateProfile(driver, data = {}) {
       const statusKey = docToStatusMap[docKey];
       if (!statusKey) return;
       const currentStatus = driver.documents[statusKey];
-      if (!currentStatus || currentStatus === "not_uploaded") {
+      if (!currentStatus || currentStatus === "not_uploaded" || currentStatus === "rejected") {
         driver.documents[statusKey] = "pending";
       }
     });

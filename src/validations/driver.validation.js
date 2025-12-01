@@ -9,7 +9,8 @@ export const updateProfileValidation = [
   body("gender").optional().isIn(["male", "female", "other"]),
   body("vehicleType").optional().isIn(["cab", "bike", "auto"]),
   body("city").optional().isString().trim(),
-];
+]; 
+
 
 export const otpSendValidation = [
   body("contactNumber")

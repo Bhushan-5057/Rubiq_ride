@@ -34,7 +34,7 @@ if (!ride.driver || ride.driver.toString() !== driverId.toString()) {
   throw new Error("You are not assigned to this ride");
 }
 
-if (ride.status !== "accepted") {
+if (ride.status == "ongoing") {
   throw new Error(`Ride cannot be started in current status: ${ride.status}`);
 }
 
@@ -46,7 +46,15 @@ if (!ride.pickup || !ride.pickup.coordinates || ride.pickup.coordinates.length !
   throw new Error("Ride pickup location is not available");
 }
 
-if (!areCoordinatesClose(driverLocationCoordinates, ride.pickup.coordinates)) {
+// Convert driver location to [lng, lat] for comparison
+const driverLocation = [
+  driverLocationCoordinates[0],
+  driverLocationCoordinates[1]
+];
+
+console.log(driverLocation)
+
+if (!areCoordinatesClose(driverLocation, ride.pickup.coordinates)) {
   throw new Error("Driver is not at the passenger pickup location");
 }
 
@@ -87,7 +95,13 @@ if (!ride.drop || !ride.drop.coordinates || ride.drop.coordinates.length !== 2) 
   throw new Error("Ride drop location is not available");
 }
 
-if (!areCoordinatesClose(driverLocationCoordinates, ride.drop.coordinates)) {
+// Convert driver location to [lng, lat] for comparison
+const driverLocation = [
+  driverLocationCoordinates[0],
+  driverLocationCoordinates[1]
+];
+
+if (!areCoordinatesClose(driverLocation, ride.drop.coordinates)) {
   throw new Error("Driver is not at the passenger drop location");
 }
 
@@ -143,65 +157,6 @@ export async function rejectRideService({ rideId, driverId }) {
     });
 
     return ride;
-}
-
-//service for driver to notify passenger that driver is on the way
-export async function driverOnTheWayService({ rideId, driverId, driverLocationCoordinates }) {
-
-  const ride = await Ride.findById(rideId);
-
-  if (!ride) {
-    throw new Error("Ride not found");
-  }
-
-  if (!ride.driver || ride.driver.toString() !== driverId.toString()) {
-    throw new Error("You are not assigned to this ride");
-  }
-
-  if (ride.status !== "accepted") {
-    throw new Error(`Driver cannot be marked on the way in current status: ${ride.status}`);
-  }
-
-  if (driverLocationCoordinates && driverLocationCoordinates.length === 2) {
-
-    if (!ride.pickup || !ride.pickup.coordinates || ride.pickup.coordinates.length !== 2) {
-      throw new Error("Ride pickup location is not available");
-    }
-
-    if (!areCoordinatesClose(driverLocationCoordinates, ride.pickup.coordinates)) {
-      throw new Error("Driver is too far from the passenger pickup location");
-    }
-  }
-
-  return ride;
-}
-
-//service for driver to notify passenger that driver has arrived at pickup
-export async function driverArrivedService({ rideId, driverId, driverLocationCoordinates }) {
-
-  const ride = await Ride.findById(rideId);
-
-  if (!ride) {
-    throw new Error("Ride not found");
-  }
-
-  if (!ride.driver || ride.driver.toString() !== driverId.toString()) {
-    throw new Error("You are not assigned to this ride");
-  }
-
-  if (!driverLocationCoordinates || driverLocationCoordinates.length !== 2) {
-    throw new Error("Driver location is required to mark arrival");
-  }
-
-  if (!ride.pickup || !ride.pickup.coordinates || ride.pickup.coordinates.length !== 2) {
-    throw new Error("Ride pickup location is not available");
-  }
-
-  if (!areCoordinatesClose(driverLocationCoordinates, ride.pickup.coordinates)) {
-    throw new Error("Driver is not at the passenger pickup location");
-  }
-
-  return ride;
 }
 
 //service for driver to give feedback to passenger

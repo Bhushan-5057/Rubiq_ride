@@ -1,8 +1,6 @@
 import mongoose from "mongoose";
 import  {Driver}  from "../../../models/driver/driver.model.js";
-import { Ride } from "../../../models/ride/ride.model.js";
 import { normalizeNumber } from "../../../helpers/helper.js";
-import { calculateEarningsFromDistance } from "../../../helpers/rideHelpers.js";
 
 //service to update driver status by admin
 export async function updateDriverStatus(driverId, newStatus) {

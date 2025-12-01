@@ -83,7 +83,10 @@ export function toRadians(degrees) {
   return (degrees * Math.PI) / 180;
 }
 
-export function getDistanceInMeters([lat1, lng1], [lat2, lng2]) {
+export function getDistanceInMeters(coord1, coord2) {
+  // Expecting coordinates in [longitude, latitude] format
+  const [lng1, lat1] = coord1;
+  const [lng2, lat2] = coord2;
   const R = 6371000;
   const phi1 = toRadians(lat1);
   const phi2 = toRadians(lat2);
@@ -99,7 +102,20 @@ export function getDistanceInMeters([lat1, lng1], [lat2, lng2]) {
   return R * c;
 }
 
-export function areCoordinatesClose(coord1, coord2, thresholdMeters = 100) {
-  const distance = getDistanceInMeters(coord1, coord2);
-  return distance <= thresholdMeters;
+export function areCoordinatesClose(coord1, coord2, thresholdMeters = 200) {
+  try {
+    // Ensure we have valid coordinate arrays
+    if (!Array.isArray(coord1) || !Array.isArray(coord2) || 
+        coord1.length !== 2 || coord2.length !== 2) {
+      return false;
+    }
+    
+    const distance = getDistanceInMeters(coord1, coord2);
+        const isClose = distance <= thresholdMeters;
+    console.log(`Distance: ${distance.toFixed(2)}m, Threshold: ${thresholdMeters}m, Is Close: ${isClose}`);
+    return isClose;
+  } catch (error) {
+    console.error('Error calculating distance:', error);
+    return false;
+  }
 }

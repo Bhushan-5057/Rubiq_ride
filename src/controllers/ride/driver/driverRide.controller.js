@@ -1,30 +1,13 @@
 import { getIO } from "../../../config/socket/socket.js";
-import { acceptRideService, rejectRideService, startRideService, completeRideService, driverOnTheWayService, driverArrivedService, givePassengerFeedbackService } from "../../../services/rideServices/index.js";
-import { updateDriverLocationService, getAllRidesForDriverService, getRideByIdService } from "../../../services/driverServices/index.js";
+import { 
+  acceptRideService, 
+  rejectRideService, 
+  startRideService, 
+  completeRideService, 
+  givePassengerFeedbackService 
+} from "../../../services/rideServices/index.js";
+import { updateDriverLocationService } from "../../../services/driverServices/index.js";
 import { Ride } from "../../../models/ride/ride.model.js";
-
-//controller to get ride by id for driver
-export const getRideById = async (req, res) => {
-  try {
-    const driverId = req.driver._id;
-    const { rideId } = req.params;
-    const ride = await getRideByIdService(rideId, driverId);
-    res.status(200).json({ success: true, ride });
-  } catch (e) {
-    res.status(400).json({ success: false, message: e.message });
-  }
-};
-
-//controller to get all rides for driver
-export const getAllRidesForDriver = async (req, res) => {
-  try {
-    const driverId = req.driver._id;
-    const rides = await getAllRidesForDriverService(driverId);
-    res.status(200).json({ success: true, rides });
-  } catch (e) {
-    res.status(400).json({ success: false, message: e.message });
-  }
-}
 
 //controller for driver to accept ride
 export const acceptRide = async (req, res) => {
@@ -44,6 +27,7 @@ export const acceptRide = async (req, res) => {
         vehicleNumber: req.driver.vehicleNumber,
         vehicleType: req.driver.vehicleType,
       },
+      status:ride.status,
       pickup: ride.pickup,
       drop: ride.drop,
       fareEstimate: ride.fareEstimate,
@@ -118,34 +102,41 @@ export const rejectRide = async (req, res) => {
 //controller to update driver location
 export const updateDriverLocation = async (req, res) => {
   try {
-    const { lat, lng } = req.body;
+    const { lng, lat,  rideId } = req.body;
 
-    const updatedDriver = await updateDriverLocationService(req.driver, lat, lng);
+    if (typeof lng !== 'number' || typeof lat !== 'number') {
+      throw new Error('Latitude and longitude are required and must be numbers');
+    }
 
-    const io = getIO();
+    const updatedDriver = await updateDriverLocationService(req.driver, lng,lat,  rideId);
 
-    const activeRides = await Ride.find({
-      driver: req.driver._id,
-      status: { $in: ["accepted", "ongoing"] },
-    }).lean();
+    // Only proceed with ride-specific updates if rideId is provided
+    if (rideId) {
+      const ride = await Ride.findOne({
+        _id: rideId,
+        driver: req.driver._id,
+        passenger: { $exists: true, $ne: null },
+        status: { $in: ["accepted", "on_the_way", "driver_arrived", "ongoing"] }
+      }).select('passenger status').lean();
 
-    activeRides.forEach((ride) => {
-      if (!ride.passenger) return;
-
-      io.to(ride.passenger.toString()).emit("driverLocationUpdate", {
-        rideId: ride._id,
-        driver: {
-          id: req.driver._id,
-          name: req.driver.name,
-          vehicleType: req.driver.vehicleType,
-          vehicleNumber: req.driver.vehicleNumber,
-        },
-        coordinates: updatedDriver.coordinates,
-        latitude: updatedDriver.latitude,
-        longitude: updatedDriver.longitude,
-        updatedAt: updatedDriver.updatedAt,
-      });
-    });
+      if (ride && ride.passenger) {
+        const io = getIO();
+        io.to(ride.passenger.toString()).emit("driverLocationUpdate", {
+          rideId,
+          driver: {
+            id: req.driver._id,
+            name: req.driver.name,
+            vehicleType: req.driver.vehicleType,
+            vehicleNumber: req.driver.vehicleNumber,
+          },
+          coordinates: [lng, lat],
+          longitude: lng,
+          latitude: lat,
+          updatedAt: new Date(),
+          status: ride.status // Include current ride status in the update
+        });
+      }
+    }
 
     res.json({
       success: true,
@@ -154,66 +145,6 @@ export const updateDriverLocation = async (req, res) => {
     });
   } catch (err) {
     res.status(400).json({ success: false, message: err.message });
-  }
-};
-
-//controller for driver to notify passenger that driver is on the way
-export const driverOnTheWay = async (req, res) => {
-  try {
-    const driverId = req.driver._id;
-    const { rideId, driverLocationCoordinates } = req.body;
-
-    const ride = await driverOnTheWayService({
-      rideId,
-      driverId,
-      driverLocationCoordinates,
-    });
-
-    const io = getIO();
-
-    io.to(ride.passenger.toString()).emit("driver_on_the_way", {
-      rideId: ride._id,
-      driver: {
-        id: driverId,
-        name: req.driver.name,
-        vehicleType: req.driver.vehicleType,
-        vehicleNumber: req.driver.vehicleNumber,
-      },
-    });
-
-    res.status(200).json({ success: true, message: "Notified passenger that driver is on the way" });
-  } catch (e) {
-    res.status(400).json({ success: false, message: e.message });
-  }
-};
-
-//controller for driver to notify passenger that driver has arrived
-export const driverArrived = async (req, res) => {
-  try {
-    const driverId = req.driver._id;
-    const { rideId, driverLocationCoordinates } = req.body;
-
-    const ride = await driverArrivedService({
-      rideId,
-      driverId,
-      driverLocationCoordinates,
-    });
-
-    const io = getIO();
-
-    io.to(ride.passenger.toString()).emit("driver_arrived", {
-      rideId: ride._id,
-      driver: {
-        id: driverId,
-        name: req.driver.name,
-        vehicleType: req.driver.vehicleType,
-        vehicleNumber: req.driver.vehicleNumber,
-      },
-    });
-
-    res.status(200).json({ success: true, message: "Notified passenger that driver has arrived" });
-  } catch (e) {
-    res.status(400).json({ success: false, message: e.message });
   }
 };
 
