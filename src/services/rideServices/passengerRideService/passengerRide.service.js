@@ -161,9 +161,6 @@ export async function endRideService({ rideId, passengerId, passengerLocationCoo
     throw new Error("Ride not found or unauthorized access");
   }
 
-  // if (ride.status !== "ongoing") {
-  //   throw new Error("Only ongoing rides can be ended");
-  // }
 
   if (!passengerLocationCoordinates || passengerLocationCoordinates.length !== 2) {
     throw new Error("Passenger location is required to end the ride");

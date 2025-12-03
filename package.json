@@ -40,6 +40,7 @@
     "mongoose": "^8.6.0",
     "multer": "^2.0.2",
     "nodemailer": "^7.0.9",
+    "razorpay": "^2.9.6",
     "socket.io": "^4.8.1",
     "twilio": "^5.10.3"
   },

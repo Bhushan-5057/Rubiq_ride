@@ -33,12 +33,10 @@ const driverSchema = new mongoose.Schema(
         enum: ["Point"],
       },
       coordinates: {
-        type: [Number], // [lng, lat] - GeoJSON format
+        type: [Number],
         default: undefined,
       },
     },
-
-    // these are for direct lng/lat update (optional)
     longitude: Number,
     latitude: Number,
     rideCount: {
@@ -65,12 +63,11 @@ const driverSchema = new mongoose.Schema(
 );
 
 driverSchema.pre("save", function (next) {
-  // When longitude/latitude change, keep location in sync as a valid GeoJSON Point
   if (this.isModified("longitude") || this.isModified("latitude")) {
     if (this.longitude !== undefined && this.latitude !== undefined) {
       this.location = {
         type: "Point",
-        coordinates: [this.longitude, this.latitude], // GeoJSON format: [lng, lat]
+        coordinates: [this.longitude, this.latitude],
       };
     } else {
       this.location = undefined;
@@ -84,7 +81,6 @@ driverSchema.pre("save", function (next) {
   ) {
     this.location = undefined;
   }
-
   next();
 });
 

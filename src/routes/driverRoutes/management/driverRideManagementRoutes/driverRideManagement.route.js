@@ -6,7 +6,7 @@ import {
   startRide,
   completeRide,
   givePassengerFeedback
-} from "../../../../controllers/ride/driver/driverRide.controller.js";
+} from "../../../../controllers/ride/driver/driverTracking.controller.js";
 import { authenticateDriver } from "../../../../middleware/auth.middleware.js";
 import { getAllRidesForDriver, getRideById, } from "../../../../controllers/driver/driverManagment/driverManagement.controller.js"
 
