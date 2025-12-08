@@ -3,11 +3,12 @@ import express from "express";
 import cors from "cors";
 import helmet from "helmet";
 import http from "http";
-
 import { connectDB } from "./config/dbConnect.js";
 import { seedAdmin } from "./scripts/seedAdmin.js";
 import routes from "./routes/index.js";
 import { initSocket } from "./config/socket/socket.js";
+import paymentRoutes from "./routes/payment/payment.routes.js"
+import "../src/config/firebase.js"
 
 dotenv.config();
 
@@ -33,6 +34,9 @@ app.use(cors({
   allowedHeaders: ["Content-Type", "Authorization"],
 }));
 app.use(helmet());
+
+app.use("/api/payment/webhook", express.raw({ type: "application/json" }));
+
 app.use(express.json());
 
 app.use((req, res, next) => {
@@ -41,6 +45,7 @@ app.use((req, res, next) => {
 });
 
 // Routes
+app.use("/api/payment", paymentRoutes);
 app.use("/api", routes);
 app.get("/health", (req, res) => res.json({ status: "ok" }));
 

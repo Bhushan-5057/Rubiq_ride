@@ -3,13 +3,13 @@ import documentSchema from "./driverDocument.model.js";
 
 const driverSchema = new mongoose.Schema(
   {
-    contactNumber: { type: String, unique: true, required: true },
+    contactNumber: { type: String, unique: true, required: false },
     otp: { type: String, select: false },
     otpExpiry: { type: Date, select: false },
     otpVerified: { type: Boolean, default: false },
     profileImage: { type: String },
     name: { type: String, trim: true },
-    email: { type: String, unique: true, sparse: true },
+    email: { type: String, unique: true, sparse: true, required: false },
     vehicleNumber: { type: String, unique: true, sparse: true },
     dateOfBirth: { type: String },
     gender: { type: String, enum: ["male", "female", "other"], default: null },
@@ -26,7 +26,7 @@ const driverSchema = new mongoose.Schema(
     documentsVerified: { type: Boolean, default: false },
     verificationRemarks: { type: String },
     profileCompleted: { type: Boolean, default: false },
-    status: { type: String, enum: ["active", "pending","deactive"], default: "pending" },
+    status: { type: String, enum: ["active", "pending", "deactive"], default: "pending" },
     location: {
       type: {
         type: String,

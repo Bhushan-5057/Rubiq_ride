@@ -1,76 +1,165 @@
-import { createRazorpayOrder, verifyPayment } from '../../services/payment/payment.service.js';
+import {
+  createPaymentIntent as createPaymentIntentService,
+  confirmPaymentIntent as confirmPaymentIntentService,
+  retrievePaymentIntent as retrievePaymentIntentService,
+  handleStripeWebhook as handleStripeWebhookService,
+  refundPayment as refundPaymentService
+} from '../../services/payment/payment.service.js';
+import { Ride } from "../../models/ride/ride.model.js";
 
-// Create a Razorpay order for ride payment
-export const createRidePaymentOrder = async (req, res) => {
+export const createPaymentIntent = async (req, res) => {
   try {
-    const { amount, rideId } = req.body;
-    
-    if (!amount || !rideId) {
+    const { rideId } = req.body;
+
+    if (!rideId) {
+      return res.status(400).json({ success: false, message: "Ride ID required" });
+    }
+
+
+    const ride = await Ride.findById(rideId);
+
+    if (!ride) {
+      return res.status(404).json({ success: false, message: "Ride not found" });
+    }
+
+    if (!ride.fareEstimate) {
+      return res.status(400).json({ success: false, message: "fareEstimate missing in ride" });
+    }
+
+    const amountToCharge = Math.round(ride.fareEstimate * 100);
+
+    const paymentResult = await createPaymentIntentService(
+      ride.fareEstimate,
+      'inr',
+      { rideId: ride._id.toString() }
+    );
+
+    if (!paymentResult.success) {
       return res.status(400).json({
         success: false,
-        message: 'Amount and rideId are required'
+        message: paymentResult.error
       });
     }
 
-    const orderResponse = await createRazorpayOrder(amount, 'INR', `ride_${rideId}`);
-    
-    if (!orderResponse.success) {
-      return res.status(500).json({
-        success: false,
-        message: 'Failed to create payment order',
-        error: orderResponse.error
-      });
-    }
+    ride.paymentIntentId = paymentResult.paymentIntentId;
+    ride.paymentStatus = "pending";
+    await ride.save();
 
-    res.status(200).json({
+    return res.json({
       success: true,
-      order: orderResponse.order,
-      key: process.env.RAZORPAY_KEY_ID
+      clientSecret: paymentResult.clientSecret,
+      paymentIntentId: paymentResult.paymentIntentId,
+      rideId: ride._id,
+      amount: ride.fareEstimate,
+    });
+
+  } catch (error) {
+    console.error("Error creating payment intent:", error);
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+
+export const confirmPaymentIntent = async (req, res) => {
+  try {
+    const { paymentIntentId } = req.params;
+    const { paymentMethodId } = req.body
+
+    // if (!paymentMethodId) {
+    //   return res.status(400).json({
+    //     success: false,
+    //     message: "Payment method ID is required"
+    //   })
+    // }
+    const result = await confirmPaymentIntentService(paymentIntentId);
+
+    if (!result.success) {
+      return res.status(400).json({
+        success: false,
+        message: result.error
+      });
+    }
+
+    return res.json({
+      success: true,
+      status: result.status,
+      clientSecret: result.clientSecret,
+      requiresAction: result.requiresAction
     });
   } catch (error) {
-    console.error('Error in createRidePaymentOrder:', error);
-    res.status(500).json({
+    console.error("Error in confirm payment:", error);
+    return res.status(500).json({
       success: false,
-      message: 'Internal server error',
-      error: error.message
+      message: error.message
     });
   }
 };
 
-// Verify payment webhook
-export const verifyRidePayment = async (req, res) => {
+export const retrievePaymentIntent = async (req, res) => {
   try {
-    const { order_id: orderId, payment_id: paymentId, razorpay_signature: signature } = req.body;
-    
-    if (!orderId || !paymentId || !signature) {
+    const { paymentIntentId } = req.params;
+    const result = await retrievePaymentIntentService(paymentIntentId);
+
+    if (!result.success) {
       return res.status(400).json({
         success: false,
-        message: 'Missing required payment details'
+        message: result.error
       });
     }
 
-    const isSignatureValid = verifyPayment(orderId, paymentId, signature);
-    
-    if (!isSignatureValid) {
-      return res.status(400).json({
-        success: false,
-        message: 'Invalid payment signature'
-      });
-    }
-
-    // Update your database here to mark payment as successful
-    // For example: await Ride.findByIdAndUpdate(rideId, { paymentStatus: 'completed' });
-
-    res.status(200).json({
+    return res.json({
       success: true,
-      message: 'Payment verified successfully'
+      paymentIntent: result.paymentIntent
     });
   } catch (error) {
-    console.error('Error in verifyRidePayment:', error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
-      message: 'Error verifying payment',
-      error: error.message
+      message: error.message
+    });
+  }
+};
+
+// ---------- WEBHOOK HANDLER ----------
+export const handleStripeWebhook = async (req, res) => {
+  try {
+    await handleStripeWebhookService(req, res);
+  } catch (error) {
+    console.error('Webhook processing error:', error);
+    if (!res.headersSent) {
+      res.status(500).json({ success: false, message: 'Webhook processing failed' });
+    }
+  }
+};
+
+export const refundPayment = async (req, res) => {
+  try {
+    const { paymentIntentId } = req.params;
+    const { amount, reason } = req.body;
+
+    const result = await refundPaymentService(
+      paymentIntentId,
+      amount ? Math.round(amount * 100) : null,
+      reason
+    );
+
+    if (!result.success) {
+      return res.status(400).json({
+        success: false,
+        message: result.error
+      });
+    }
+
+    return res.json({
+      success: true,
+      refundId: result.refundId,
+      status: result.status,
+      amount: result.amount,
+      currency: result.currency
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: error.message
     });
   }
 };

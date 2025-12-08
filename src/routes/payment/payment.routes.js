@@ -1,13 +1,14 @@
 import { Router } from "express";
-import { createRidePaymentOrder, verifyRidePayment } from "../../controllers/payment/payment.controller.js";
+import { confirmPaymentIntent, createPaymentIntent,handleStripeWebhook } from "../../controllers/payment/payment.controller.js";
 import { authenticatePassenger } from "../../middleware/auth.middleware.js";
 
 const router = Router();
 
 // Create a payment order for a ride
-router.post('/create-order', authenticatePassenger, createRidePaymentOrder);
+router.post("/create-payment", authenticatePassenger, createPaymentIntent);
 
-// Webhook for Razorpay to verify payment
-router.post('/verify', verifyRidePayment);
+router.post("/confirm-payment/:paymentIntentId", authenticatePassenger, confirmPaymentIntent);
+
+router.post("/webhook", handleStripeWebhook);
 
 export default router;

@@ -8,8 +8,7 @@ const router = Router();
 
 router.get("/get-profile", authenticateDriver, profileController);
 
-// PATCH /api/driver/profile/update
-router.patch("/update", authenticateDriver, updateProfileValidation, updateProfileController);
+router.put("/profile-update", authenticateDriver, updateProfileValidation, updateProfileController);
 
 export default router;
 

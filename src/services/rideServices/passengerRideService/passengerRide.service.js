@@ -5,7 +5,7 @@ import { calculateFare, calculateEarningsFromDistance } from "../../../helpers/r
 import { areCoordinatesClose } from "../../../common/utlis.js";
 
 // Service to create a new ride
-export async function createRideService({ passengerId, pickup, drop, vehicleType }) {
+export async function createRideService({ passengerId, pickup, drop, vehicleType ,paymentMethod,isPaymentRequiredBeforeRide}) {
   const fareDetails = calculateFare(pickup, drop, vehicleType);
   const { distanceInKm, totalFare } = fareDetails;
 
@@ -23,6 +23,8 @@ export async function createRideService({ passengerId, pickup, drop, vehicleType
     distance: distanceInKm,
     fareEstimate: totalFare,
     vehicleType: fareDetails.vehicleType,
+    paymentMethod, // <-- IMPORTANT
+    isPaymentRequiredBeforeRide: paymentMethod !== 'cash',
   });
 
   await Passenger.findByIdAndUpdate(passengerId, {
@@ -147,7 +149,7 @@ export async function cancelRideService(passengerId, rideId) {
     $inc: { "rideCount.cancelled": 1 },
   });
   return ride;
-} 
+}
 
 // Service to end a ride for passenger (based on passenger's current location)
 export async function endRideService({ rideId, passengerId, passengerLocationCoordinates }) {
@@ -175,7 +177,7 @@ export async function endRideService({ rideId, passengerId, passengerLocationCoo
     passengerLocationCoordinates[0],
     passengerLocationCoordinates[1]
   ];
-  
+
   if (!areCoordinatesClose(passengerLocation, ride.drop.coordinates)) {
     throw new Error("Passenger is not at the drop location");
   }
@@ -209,12 +211,12 @@ export async function endRideService({ rideId, passengerId, passengerLocationCoo
 
   if (ride.passenger) {
     await Passenger.findByIdAndUpdate(ride.passenger, {
-      $inc: { "rideCount.completed": 1},
+      $inc: { "rideCount.completed": 1 },
     });
   }
 
   return ride;
-} 
+}
 
 // Service for passenger to give feedback to driver
 export async function giveDriverFeedbackService({ rideId, passengerId, rating, comment }) {

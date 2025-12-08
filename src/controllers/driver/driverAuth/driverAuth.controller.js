@@ -1,6 +1,8 @@
-import { Driver } from "../../../models/index.js";
-import { otpLogin, sendDriverOtp } from "../../../services/driverServices/index.js";
+import { googleLogin, otpLogin, sendDriverOtp } from "../../../services/driverServices/index.js";
 import { handleValidation } from "../../../validations/comman.validation.js";
+import {OAuth2Client} from "google-auth-library" 
+
+const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID)
 
 // -------------------- SEND OTP --------------------
 export async function sendOtpController(req, res, next) {
@@ -33,30 +35,43 @@ export async function otpLoginDriverController(req, res, next) {
   }
 }
 
-
-
 // -------------------- LOGIN --------------------
-export async function loginController(req, res, next) {
+export async function googleLoginController(req, res, next) {
   try {
-    handleValidation(req);
-    const { email, password } = req.body;
-    const driver = await Driver.findOne({ email }).select("+password");
+    const { idToken } = req.body;
 
-    if (!driver) {
-      return res.status(401).json({ success: false, message: "Invalid credentials" });
-    }
-    if (driver.status === "deactive") {
-      return res.status(403).json({ success: false, message: "Account deactive" });
+    if (!idToken) {
+      return res.status(400).json({ success: false, message: "idToken is required" });
     }
 
-    const isMatch = await driver.comparePassword(password);
-    if (!isMatch) return res.status(401).json({ success: false, message: "Invalid credentials" });
+    // Verify ID Token with Google
+    const ticket = await client.verifyIdToken({
+      idToken,
+      audience: process.env.GOOGLE_CLIENT_ID,
+    });
 
-    const token = jwt.sign({ id: driver._id }, process.env.JWT_SECRET, { expiresIn: "7d" });
-    const driverData = { ...driver.toObject(), password: undefined };
+    const payload = ticket.getPayload();
 
-    res.json({ success: true, message: "Login successful", driver: driverData, token });
+    // Extract user data from token
+    const userData = {
+      email: payload.email,
+      googleId: payload.sub,
+      name: payload.name,
+      profileImage: payload.picture,
+    };
+
+    // Pass verified data to service
+    const result = await googleLogin(userData);
+
+    res.json({
+      success: true,
+      message: "Google login successful",
+      token: result.token,
+      driver: result.driver,
+      profileCompleted: result.profileCompleted,
+    });
   } catch (err) {
+    console.log(err);
     next(err);
   }
 }
