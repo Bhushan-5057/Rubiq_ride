@@ -40,15 +40,10 @@ const passengerSchema = new mongoose.Schema(
       cancelled: { type: Number, default: 0 },
       completed: { type: Number, default: 0 }
     },
-    feedbacks: [
-      {
-        rating: { type: Number, enum: [1, 2, 3, 4, 5], required: true },
-        comment: { type: String },
-        driver: { type: mongoose.Schema.Types.ObjectId, ref: "Driver" },
-        ride: { type: mongoose.Schema.Types.ObjectId, ref: "Ride" },
-        createdAt: { type: Date, default: Date.now },
-      },
-    ],
+    rating: {
+      average: { type: Number, default: 0 },
+      count: { type: Number, default: 0 }
+    }
   },
 
   { timestamps: true }

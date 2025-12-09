@@ -1,4 +1,4 @@
-import { createRideService, cancelRideService, updateRideService, endRideService, giveDriverFeedbackService } 
+import { createRideService, cancelRideService, updateRideService, endRideService } 
 from "../../../../services/rideServices/passengerRideService/passengerRide.service.js";
 import { createPaymentIntent, confirmPaymentIntent } from "../../../../services/payment/payment.service.js";
 import { getIO } from "../../../../config/socket/socket.js";
@@ -338,36 +338,5 @@ export const confirmPayment = async (req, res) => {
       success: false, 
       message: err.message || 'Failed to confirm payment' 
     });
-  }
-};
-
-//----------------------------------- Driver Feedback -----------------------------------
-export const giveDriverFeedback = async (req, res) => {
-  try {
-    const passengerId = req.passenger._id;
-    const { rideId, rating, comment } = req.body;
-
-    if (![1, 2, 3, 4, 5].includes(Number(rating))) {
-      return res.status(400).json({ success: false, message: "Invalid rating" });
-    }
-    const result = await giveDriverFeedbackService({
-      rideId,
-      passengerId,
-      rating,
-      comment,
-    });
-
-    const io = getIO();
-
-    io.to(result.driverId.toString()).emit("driver_feedback_received", {
-      rideId: result.rideId,
-      rating: result.rating,
-      comment: result.comment,
-      passengerId,
-    });
-
-    res.status(200).json({ success: true, message: "Driver Feedback submitted successfully" });
-  } catch (err) {
-    res.status(400).json({ success: false, message: err.message });
   }
 };

@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { authenticatePassenger } from "../../../../middleware/auth.middleware.js";
-import { createRide,cancelRide, updateRide,giveDriverFeedback,endRide  } from "../../../../controllers/ride/passenger/ride/passengerRide.controller.js";
+import { createRide,cancelRide, updateRide,endRide  } from "../../../../controllers/ride/passenger/ride/passengerRide.controller.js";
 import { getPassengerRides, getRideStatus } from "../../../../controllers/ride/passenger/rideStatus/getRideStatus.controller.js";
 
 const router = Router()
@@ -22,8 +22,5 @@ router.post("/cancel/:rideId", authenticatePassenger, cancelRide);
 
 //-------------------- End Ride Route --------------------
 router.post("/end-ride", authenticatePassenger, endRide);
-
-//--------------------- Driver Feedback ---------------------
-router.post("/give-driver-feedback", authenticatePassenger, giveDriverFeedback);
 
 export default router;

@@ -5,7 +5,6 @@ import {
   rejectRide,
   startRide,
   completeRide,
-  givePassengerFeedback
 } from "../../../../controllers/ride/driver/driverTracking.controller.js";
 import { authenticateDriver } from "../../../../middleware/auth.middleware.js";
 import { getAllRidesForDriver, getRideById, } from "../../../../controllers/driver/driverManagment/driverManagement.controller.js"
@@ -32,8 +31,5 @@ router.post("/complete-ride", authenticateDriver, completeRide);
 
 //---------------- Reject Ride Route ----------------
 router.post("/reject-ride", authenticateDriver, rejectRide);
-
-//---------------- Passenger Feedback Route ----------------
-router.post("/give-passenger-feedback", authenticateDriver, givePassengerFeedback);
 
 export default router;

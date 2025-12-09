@@ -71,7 +71,7 @@ export async function authenticateDriver(req, res, next) {
     if (!driver)
       return res.status(404).json({ success: false, message: "Driver not found" });
 
-   req.driver  = driver;       
+    req.driver = driver;       
     next();
   } catch (err) {
     console.error("Driver Auth Error:", err.message);
@@ -89,16 +89,53 @@ export async function authenticatePassenger(req, res, next) {
       return res.status(401).json({ success: false, message: "Missing token" });
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const passenger = await Passenger.findOne({_id:decoded.sub , status:"active"} );
+    const passenger = await Passenger.findOne({_id: decoded.sub, status: "active"});
 
     if (!passenger)
       return res.status(404).json({ success: false, message: "Passenger not found" });
-
 
     req.passenger = passenger;        
     next();
   } catch (err) {
     console.error("Passenger Auth Error:", err.message);
     res.status(401).json({ success: false, message: "Invalid or expired token" });
+  }
+}
+
+//------------------------------ Authenticate User (Driver or Passenger) ------------------------------
+export async function authenticateUser(req, res, next) {
+  try {
+    const authHeader = req.headers.authorization || "";
+    const token = authHeader.startsWith("Bearer ") ? authHeader.split(" ")[1] : null;
+    
+    if (!token) {
+      return res.status(401).json({ success: false, message: "Missing token" });
+    }
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    
+    // Try to find the user in either Passenger or Driver collection
+    const [passenger, driver] = await Promise.all([
+      Passenger.findOne({ _id: decoded.sub, status: "active" }),
+      Driver.findOne({ _id: decoded.sub })
+    ]);
+
+    if (!passenger && !driver) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+
+    // Attach the user to the request object
+    req.user = passenger || driver;
+    req.user.role = passenger ? 'passenger' : 'driver';
+    
+    next();
+  } catch (err) {
+    console.error("Authentication Error:", err.message);
+    if (err.name === "TokenExpiredError") {
+      return res.status(401).json({ success: false, message: "Token expired" });
+    } else if (err.name === "JsonWebTokenError") {
+      return res.status(401).json({ success: false, message: "Invalid token" });
+    }
+    res.status(401).json({ success: false, message: "Authentication failed" });
   }
 }

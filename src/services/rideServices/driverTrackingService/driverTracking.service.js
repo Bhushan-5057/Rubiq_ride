@@ -1,6 +1,5 @@
 import { Ride } from "../../../models/ride/ride.model.js";
 import { Driver } from "../../../models/driver/driver.model.js";
-import { Passenger } from "../../../models/passenger/passenger.model.js";
 import { areCoordinatesClose } from "../../../common/utlis.js";
 import { calculateEarningsFromDistance } from "../../../helpers/rideHelpers.js";
 
@@ -133,74 +132,21 @@ if (ride.driver) {
   });
 }
 
-if (ride.passenger) {
-  await Passenger.findByIdAndUpdate(ride.passenger, {
-    $inc: { "rideCount.completed": 1},
-  });
-}
-
 return ride;
-
 }
 
 //-------------------- Reject Ride --------------------
 export async function rejectRideService({ rideId, driverId }) {
-    const ride = await Ride.findOneAndUpdate(
-        { _id: rideId, driver: driverId, status: "accepted" },
-        { driver: null, status: "pending", acceptedAt: null },
-        { new: true }
-    );
-    if (!ride) throw new Error("Ride not found or cannot be rejected");
+  const ride = await Ride.findOneAndUpdate(
+    { _id: rideId, driver: driverId, status: "accepted" },
+    { driver: null, status: "pending", acceptedAt: null },
+    { new: true }
+  );
+  if (!ride) throw new Error("Ride not found or cannot be rejected");
 
-    await Driver.findByIdAndUpdate(driverId, {
-      $inc: { "rideCount.rejected": 1 },
-    });
-
-    return ride;
-}
-
-//-------------------- Passenger Feedback --------------------
-export async function givePassengerFeedbackService({ rideId, driverId, rating, comment }) {
-
-  const ride = await Ride.findById(rideId);
-
-  if (!ride || !ride.driver || ride.driver.toString() !== driverId.toString()) {
-    throw new Error("Ride not found");
-  }
-
-  if (!ride.passenger) {
-    throw new Error("Passenger not associated with this ride");
-  }
-
-  if (ride.status !== "completed") {
-    throw new Error("Feedback can only be given for completed rides");
-  }
-
-  const existingFeedback = await Passenger.findOne({
-    _id: ride.passenger,
-    "feedbacks.ride": rideId,
-    "feedbacks.driver": driverId,
-  }).select("_id");
-
-  if (existingFeedback) {
-    throw new Error("Passenger Feedback already submitted");
-  }
-
-  await Passenger.findByIdAndUpdate(ride.passenger, {
-    $push: {
-      feedbacks: {
-        rating: Number(rating),
-        comment,
-        driver: driverId,
-        ride: rideId,
-      },
-    },
+  await Driver.findByIdAndUpdate(driverId, {
+    $inc: { "rideCount.rejected": 1 },
   });
 
-  return {
-    rideId,
-    passengerId: ride.passenger,
-    rating: Number(rating),
-    comment,
-  };
+  return ride;
 }

@@ -3,8 +3,7 @@ import {
   acceptRideService, 
   rejectRideService, 
   startRideService, 
-  completeRideService, 
-  givePassengerFeedbackService 
+  completeRideService
 } from "../../../services/rideServices/index.js";
 import { updateDriverLocationService } from "../../../services/driverServices/index.js";
 import { Ride } from "../../../models/ride/ride.model.js";
@@ -248,37 +247,5 @@ export const updateDriverLocation = async (req, res) => {
       success: false, 
       message: err.message || 'Failed to update location' 
     });
-  }
-};
-
-//----------------------------------- Passenger Feedback -----------------------------------
-export const givePassengerFeedback = async (req, res) => {
-  try {
-    const driverId = req.driver._id;
-    const { rideId, rating, comment } = req.body;
-
-    if (![1, 2, 3, 4, 5].includes(Number(rating))) {
-      return res.status(400).json({ success: false, message: "Invalid rating" });
-    }
-
-    const result = await givePassengerFeedbackService({
-      rideId,
-      driverId,
-      rating,
-      comment,
-    });
-
-    const io = getIO();
-
-    io.to(result.passengerId.toString()).emit("passenger_feedback_received", {
-      rideId: result.rideId,
-      rating: result.rating,
-      comment: result.comment,
-      driverId,
-    });
-
-    res.status(200).json({ success: true, message: "Passenger Feedback submitted successfully" });
-  } catch (e) {
-    res.status(400).json({ success: false, message: e.message });
   }
 };

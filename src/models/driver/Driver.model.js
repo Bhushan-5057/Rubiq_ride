@@ -49,15 +49,10 @@ const driverSchema = new mongoose.Schema(
       totalDriverPayout: { type: Number, default: 0 },
       totalPlatformFee: { type: Number, default: 0 },
     },
-    feedbacks: [
-      {
-        rating: { type: Number, enum: [1, 2, 3, 4, 5], required: true },
-        comment: { type: String },
-        passenger: { type: mongoose.Schema.Types.ObjectId, ref: "Passenger" },
-        ride: { type: mongoose.Schema.Types.ObjectId, ref: "Ride" },
-        createdAt: { type: Date, default: Date.now },
-      },
-    ],
+    rating: {
+      average: { type: Number, default: 0 },
+      count: { type: Number, default: 0 }
+    }
   },
   { timestamps: true }
 );
