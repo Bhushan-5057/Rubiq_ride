@@ -4,7 +4,7 @@ import { Passenger } from "../../../models/passenger/passenger.model.js";
 import { areCoordinatesClose } from "../../../common/utlis.js";
 import { calculateEarningsFromDistance } from "../../../helpers/rideHelpers.js";
 
-//service for driver to accept ride
+//-------------------- Accept Ride --------------------
 export async function acceptRideService({ rideId, driverId }) {
 const ride = await Ride.findOneAndUpdate(
 { _id: rideId, status: "pending" },
@@ -21,7 +21,7 @@ await Driver.findByIdAndUpdate(driverId, {
 return ride;
 } 
 
-//service for driver to start ride
+//-------------------- Start Ride --------------------
 export async function startRideService({ rideId, driverId, otpForStartRide, driverLocationCoordinates }) {
 
 const ride = await Ride.findById(rideId);
@@ -71,7 +71,7 @@ await ride.save();
 return ride;
 } 
 
-//service for driver to complete ride
+//-------------------- Complete Ride --------------------
 export async function completeRideService({ rideId, driverId, driverLocationCoordinates }) {
 const ride = await Ride.findById(rideId);
 
@@ -143,7 +143,7 @@ return ride;
 
 }
 
-//service for driver to reject ride
+//-------------------- Reject Ride --------------------
 export async function rejectRideService({ rideId, driverId }) {
     const ride = await Ride.findOneAndUpdate(
         { _id: rideId, driver: driverId, status: "accepted" },
@@ -159,7 +159,7 @@ export async function rejectRideService({ rideId, driverId }) {
     return ride;
 }
 
-//service for driver to give feedback to passenger
+//-------------------- Passenger Feedback --------------------
 export async function givePassengerFeedbackService({ rideId, driverId, rating, comment }) {
 
   const ride = await Ride.findById(rideId);

@@ -2,7 +2,7 @@ import mongoose from "mongoose";
 import  {Driver}  from "../../../models/driver/driver.model.js";
 import { normalizeNumber } from "../../../helpers/helper.js";
 
-//service to update driver status by admin
+//---------------------------- Update Driver Status ----------------------------
 export async function updateDriverStatus(driverId, newStatus) {
   if (!["active","pending","deactive"].includes(newStatus))
     throw new Error("Invalid status value");
@@ -19,14 +19,51 @@ export async function updateDriverStatus(driverId, newStatus) {
   };
 }
 
-//service to get all drivers for admin
-export async function getAllDrivers() {
-  const drivers = await Driver.find().sort({ createdAt: -1 });
+//---------------------------- Get All Drivers ----------------------------
+export async function getAllDrivers(filters = {}) {
+  const {
+    page = 1,
+    limit = 5,
+    status,
+    search,
+    sortBy = 'createdAt',
+    sortOrder = 'desc',
+  } = filters;
 
-  if (!drivers.length) return [];
-  return drivers.map((driver) => {
+  const skip = (page - 1) * limit;
+  const sort = { [sortBy]: sortOrder === 'desc' ? -1 : 1 };
+
+  // Build the query
+  const query = {};
+  
+  // Add status filter if provided
+  if (status) {
+    query.status = status;
+  }
+
+  // Add search filter if provided
+  if (search) {
+    const searchRegex = new RegExp(search, 'i');
+    query.$or = [
+      { name: searchRegex },
+      { email: searchRegex },
+      { contactNumber: searchRegex },
+      { vehicleNumber: searchRegex }
+    ];
+  }
+
+  // Get total count for pagination
+  const total = await Driver.countDocuments(query);
+  
+  // Get paginated results
+  const drivers = await Driver.find(query)
+    .sort(sort)
+    .skip(skip)
+    .limit(parseInt(limit));
+
+  // Format the response
+  const formattedDrivers = drivers.map((driver) => {
     const d = driver.toObject();
-
     return {
       ...d,
       totalEarnings: d.earnings?.totalEarnings || 0,
@@ -35,9 +72,19 @@ export async function getAllDrivers() {
       rideCount: d.rideCount,
     };
   });
+
+  return {
+    pagination: {
+      total,
+      page: parseInt(page),
+      limit: parseInt(limit),
+      totalPages: Math.ceil(total / limit)
+    },
+    data: formattedDrivers,
+  };
 }
 
-//service to get driver by id for admin
+//---------------------------- Get Driver By ID ----------------------------
 export async function getDriverById(driverId) {
   if (!driverId) throw new Error("Driver ID is required");
   if (!mongoose.Types.ObjectId.isValid(driverId))
@@ -57,7 +104,7 @@ export async function getDriverById(driverId) {
   };
 }
 
-//service to delete driver (soft delete)
+//---------------------------- Delete Driver  ----------------------------
 export async function deleteDriver(driverId) {
   if (!mongoose.Types.ObjectId.isValid(driverId)) {
     throw new Error("Invalid driver ID format");
@@ -72,7 +119,7 @@ export async function deleteDriver(driverId) {
   return { message: "Driver account deactive successfully" };
 }
 
-//service to get driver profile status
+//---------------------------- Get Driver Profile Status ----------------------------
 export async function getDriverProfileStatus(contactNumber) {
   if (!contactNumber) throw new Error("Contact number is required");
 

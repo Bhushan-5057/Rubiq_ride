@@ -1,7 +1,7 @@
 import { getAllDrivers, getDriverById, updateDriverStatus } from "../../../../services/adminServices/driverManagementService/driverManagement.service.js";
 import { verifyDriverDocuments } from "../../../../services/adminServices/driverDocumentationService/driverDocument.service.js";
 
-// -------------------- ADMIN: UPDATE STATUS --------------------
+// -------------------- Admin Udate Status --------------------
 export async function updateStatusController(req, res, next) {
   try {
 
@@ -19,18 +19,45 @@ export async function updateStatusController(req, res, next) {
   }
 }
 
-// -------------------- ADMIN: GET ALL DRIVERS --------------------
+// -------------------- Admin Get All Drivers --------------------
 export async function getAllDriversController(req, res, next) {
   try {
-    const drivers = await getAllDrivers();
-    res.json({ success: true, drivers });
+    // Extract query parameters
+    const { 
+      page = 1, 
+      limit = 5, 
+      status, 
+      search, 
+      sortBy = 'createdAt', 
+      sortOrder = 'desc' 
+    } = req.query;
+
+    // Validate page and limit
+    const pageNum = Math.max(1, parseInt(page)) || 1;
+    const limitNum = Math.max(1, parseInt(limit)) || 5;
+
+    // Call service with filters
+    const result = await getAllDrivers({
+      page: pageNum,
+      limit: limitNum,
+      status,
+      search,
+      sortBy,
+      sortOrder
+    });
+
+    res.json({ 
+      success: true, 
+      pagination: result.pagination,
+      data: result.data,
+    });
   } catch (err) {
     next(err);
   }
 }
 
 
-// -------------------- GET DRIVER BY ID --------------------
+// -------------------- Get Driver By ID --------------------
 export async function getDriverByIdController(req, res, next) {
   try {
     const driverId = req.params.id; // from route /get/:id
@@ -50,7 +77,7 @@ export async function getDriverByIdController(req, res, next) {
   }
 } 
 
-// -------------------- VERIFY DRIVER DOCUMENTS --------------------
+// -------------------- Verify Driver Documents --------------------
 export async function verifyDriverDocumentsController(req, res, next) {
   try {
     const isAdmin = true;
@@ -68,4 +95,3 @@ export async function verifyDriverDocumentsController(req, res, next) {
     next(err);
   }
 }
-

@@ -1,5 +1,6 @@
 import { validationResult } from "express-validator";
 
+//------------------------ Global Validation ------------------------
 export function validate(validations) {
   return async (req, res, next) => {
     // Run all validations

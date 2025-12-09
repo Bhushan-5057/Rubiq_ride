@@ -2,7 +2,6 @@ import { passengerfields } from "../../../common/utlis.js";
 import { normalizeNumber } from "../../../helpers/helper.js";
 import { Passenger } from "../../../models/passenger/passenger.model.js";
 
-
 // -------------------- Update Profile --------------------
 export async function updateProfile(passenger, data = {}) {
   passengerfields.forEach((field) => {
@@ -25,8 +24,6 @@ export async function updateProfile(passenger, data = {}) {
 
   return { passenger: result };
 }  
-
-
 
 // -------------------- Logout --------------------
 export async function logout(passengerId) {

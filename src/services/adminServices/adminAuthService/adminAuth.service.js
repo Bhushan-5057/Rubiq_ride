@@ -1,6 +1,7 @@
 import { adminToken } from "../../../helpers/helper.js";
 import { Admin } from "../../../models/admin/admin.model.js";
 
+//---------------------- Register Admin ----------------------
 export async function register({ email, password, name, contactNumber, gender }) {
   const existingAdmin = await Admin.findOne({ email });
 
@@ -24,7 +25,7 @@ export async function register({ email, password, name, contactNumber, gender })
   return { newAdmin, token };
 }
 
-
+//---------------------- Admin Login----------------------
 export async function login({ email, password }) {
   const normalizedEmail =
     typeof email === "string" ? email.trim().toLowerCase() : email;
@@ -49,6 +50,7 @@ export async function login({ email, password }) {
   return { success: true,message:"Login Successfully", user: userData, token };
 } 
 
+//---------------------- Admin logout ----------------------
 export async function logout(adminId, token) {
   const admin = await Admin.findById(adminId);
   if (!admin) {

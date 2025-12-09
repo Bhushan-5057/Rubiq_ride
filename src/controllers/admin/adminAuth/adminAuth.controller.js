@@ -1,7 +1,7 @@
 import { login,logout,register } from "../../../services/adminServices/adminAuthService/adminAuth.service.js";
 import { handleValidation } from "../../../validations/comman.validation.js";
 
-//register controller
+//---------------------------- Register controller ----------------------------
 export async function registerController(req, res, next) {
   try {
     const { newAdmin, token } = await register(req.body);
@@ -22,7 +22,7 @@ export async function registerController(req, res, next) {
   }
 }
 
-//login controller
+//--------------------------------- Login Controller ---------------------------------
 export async function loginController(req, res, next) {
   try {
     handleValidation(req);
@@ -37,7 +37,7 @@ export async function loginController(req, res, next) {
 }
 
 
-//logout controller
+//--------------------------------- Logout Controller ---------------------------------
 export async function logoutController(req, res, next) {
   try {
     const token = req.headers.authorization?.split(' ')[1];

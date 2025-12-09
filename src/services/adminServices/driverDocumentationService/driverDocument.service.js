@@ -1,7 +1,7 @@
 import { Driver } from "../../../models/driver/driver.model.js";
 import { documentStatus, requiredFields, requiredDocs,requiredDocsNumber } from "../../../common/utlis.js"
 
-// shared helper: check if a required field is filled/valid
+// ------------------ Helper For Field is Filled ------------------
 const isFilled = (key, val) => {
   if (key === "dateOfBirth") {
     if (!val) return false;
@@ -12,6 +12,7 @@ const isFilled = (key, val) => {
   return Boolean(val);
 };
 
+//-------------------- Verify Documents -------------------- 
 export async function verifyDriverDocuments(driverId, verificationData = {}) {
   const driver = await Driver.findById(driverId);
   if (!driver) throw new Error("Driver not found");

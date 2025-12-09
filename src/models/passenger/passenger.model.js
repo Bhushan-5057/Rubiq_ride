@@ -1,5 +1,4 @@
 import mongoose from "mongoose";
-import bcrypt from "bcryptjs";
 
 const passengerSchema = new mongoose.Schema(
   {
@@ -22,7 +21,6 @@ const passengerSchema = new mongoose.Schema(
       enum: ["male", "female", "other", ""],
       default: "",
     },
-    password: { type: String, select: false },
     lastLogoutAt: { type: Date },
     profileCompleted: { type: Boolean, default: false },
     status: { type: String, enum: ["active", "deactive"], default: "active" },
@@ -56,18 +54,5 @@ const passengerSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-passengerSchema.pre("save", async function (next) {
-  if (this.isModified("password") && this.password) {
-    this.password = await bcrypt.hash(this.password, 12);
-  }
-  next();
-});
-
-passengerSchema.methods.comparePassword = async function (password) {
-  if (!this.password) return false;
-  return bcrypt.compare(password, this.password);
-};
-
 export const Passenger =
   mongoose.models.Passenger || mongoose.model("Passenger", passengerSchema);
-

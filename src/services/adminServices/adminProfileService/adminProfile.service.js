@@ -1,6 +1,6 @@
 import { Admin } from "../../../models/admin/admin.model.js";
 
-//get profile
+//----------------------- Get Profile -----------------------
 export async function getProfile(userId) {
   const user = await Admin.findById(userId).select("-password");
   if (!user) {
@@ -11,7 +11,7 @@ export async function getProfile(userId) {
   return user;
 }
 
-//update profile
+//----------------------- Update Profile -----------------------
 export async function updateProfile(userId, updateData) {
   const user = await Admin.findById(userId);
   if (!user) {

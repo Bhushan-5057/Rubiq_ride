@@ -1,21 +1,18 @@
 import { Router } from "express";
-import {
-  authenticateDriver,
-} from "../../../../middleware/auth.middleware.js";
+import {  authenticateDriver} from "../../../../middleware/auth.middleware.js";
 import { deleteDriverController } from "../../../../controllers/driver/driverManagment/driverManagement.controller.js";
 import { getDriverEarningsController } from "../../../../controllers/driver/driverManagment/driverEarning.controller.js";
 import rideManagementRoutes from "../driverRideManagementRoutes/driverRideManagement.route.js";
 
-
 const router = Router();
-//driver delete self account
+
+//----------------- Delete Driver ----------------- 
 router.delete("/delete/:driverId", authenticateDriver, deleteDriverController);
 
-// Other driver management routes can be added here
+//-------------------- Ride Management Route --------------------
 router.use("/driver-ride", rideManagementRoutes);
 
-//driver earning routes
+//-------------------- Driver Earning Route --------------------
 router.get("/:driverId", authenticateDriver, getDriverEarningsController)
-
 
 export default router;

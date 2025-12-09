@@ -2,7 +2,7 @@ import { Ride } from "../../../models/ride/ride.model.js";
 import { areCoordinatesClose } from "../../../common/utlis.js";
 import { getIO } from "../../../config/socket/socket.js";
 
-// Helper function to emit socket events
+// ----------------- Helper Function to emit Socket Events -----------------
 const emitRideStatusUpdate = (ride, status) => {
   const io = getIO();
   if (io) {
@@ -15,7 +15,7 @@ const emitRideStatusUpdate = (ride, status) => {
   }
 };
 
-//service to get ride by id for driver
+//------------------------ Get Ride By ID ------------------------
 export async function getRideByIdService(rideId, driverId) {
   const ride = await Ride.findById(rideId);
 
@@ -29,13 +29,13 @@ export async function getRideByIdService(rideId, driverId) {
   return ride;
 }
 
-//service to get all rides for driver
+//------------------------ Get All Rides ------------------------
 export async function getAllRidesForDriverService(driverId) {
   const rides = await Ride.find({ driver: driverId }).sort({ createdAt: -1 });
   return rides.map((ride) => ride);
 }
 
-//service to update driver location
+//------------------------ Update Drivert Location ------------------------
 export async function updateDriverLocationService(driver, lng, lat,  rideId = null) {
   if (!driver?._id) {
     throw new Error("Driver not found or unauthorized");

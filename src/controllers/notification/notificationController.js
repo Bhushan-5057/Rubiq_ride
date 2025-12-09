@@ -1,5 +1,6 @@
 import admin from "../../config/firebase.js";
 
+//------------------------------- Test Notification For FCM -------------------------------
 export const sendTestNotification = async (req, res) => {
   try {
     const { token } = req.body;

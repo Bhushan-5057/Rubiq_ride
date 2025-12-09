@@ -5,12 +5,12 @@ import { requiredFields } from "../../../common/utlis.js";
 import jwt from "jsonwebtoken";
 
 
-//send driver otp
+//----------------------- Send Otp -----------------------
 export async function sendDriverOtp(contactNumber) {
   return await sendOtp(contactNumber,"driver");
 }
 
-//driver otp login
+//----------------------- otp Login -----------------------
 export async function otpLogin(payload) {
   let {
     contactNumber,
@@ -74,7 +74,7 @@ export async function otpLogin(payload) {
   return { driver, token, profileCompleted: driver.profileCompleted };
 }
 
-//google login
+//----------------------- Google Login -----------------------
 export async function googleLogin(payload) {
   const { email, name, googleId, profileImage } = payload;
   

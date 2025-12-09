@@ -5,6 +5,7 @@ import driverManagementRoutes from "./management/driverManagementRoutes/driverMa
 
 const router = Router();
 
+// All Driver Management Routes
 router.use("/auth", driverAuthRoutes);
 router.use("/profile", driverProfileRoutes);
 router.use("/manage", driverManagementRoutes);

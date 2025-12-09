@@ -24,7 +24,6 @@ export async function profileController(req, res, next) {
   }
 }
 
-
 // -------------------- Update Profile --------------------
 export async function updateProfileController(req, res, next) {
   try {

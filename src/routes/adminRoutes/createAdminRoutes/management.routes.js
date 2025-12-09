@@ -5,18 +5,17 @@ import { deleteAdminController, getAllAdminsController, registerController, upda
 
 const router = Router();
 
-//admin create admin account
+//-------------- Create Admin Route -------------- 
 router.post("/create", authenticateAdmin, validateRegister, registerController);
 
-//admin updated 
+//------------------- Update Admin Route------------------- 
 router.put("/update/:adminId", authenticateAdmin, updateAdminController);
 
 
-//admin get all admin's
+//------------------- Get All Admin -------------------
 router.get("/get-all", authenticateAdmin, getAllAdminsController)
 
-//admin delete
+//----------------- Delete Admin -----------------
 router.delete("/delete/:adminId", authenticateAdmin, deleteAdminController);
-
 
 export default router;

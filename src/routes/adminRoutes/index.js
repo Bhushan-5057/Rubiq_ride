@@ -8,22 +8,22 @@ import RidesManagment from "./management/rideRoutesForAdmin/ridesForAdmin.route.
 
 const router = Router();
 
-// Admin auth routes
+//-------------- Admin Auth Route --------------
 router.use("/auth", adminAuthRoutes);
 
-// Admin profile routes
+//--------------- Admin Profile Route ---------------
 router.use("/profile", adminProfileRoutes);
 
-// Admin management routes
+//--------------- Admin Management Route ---------------
 router.use("/manage", managementRoutes);
 
-// Specific management routes
+//---------------- Driver Management Route ----------------
 router.use("/manage/drivers", driverManagementRoutes);
 
-// Specific management routes
+//------------------ Passenger Management Route ------------------
 router.use("/manage/passengers", passengerManagementRoutes);
 
-// Specific management routes
+//------------------ Ride Management Route ------------------
 router.use("/manage/rides", RidesManagment);
 
 export default router;

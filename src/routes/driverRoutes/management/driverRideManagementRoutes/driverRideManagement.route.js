@@ -12,28 +12,28 @@ import { getAllRidesForDriver, getRideById, } from "../../../../controllers/driv
 
 const router = express.Router();
 
-// Driver get all rides
+//---------------- Driver Get All Rides ----------------
 router.get("/rides", authenticateDriver, getAllRidesForDriver);
 
-// Driver get ride by id
+//---------------- Driver Get Ride By ID ----------------
 router.get("/:rideId", authenticateDriver, getRideById);
 
-//update location for driver 
+//---------------- Update Driver Location Route ---------------- 
 router.post("/update-location", authenticateDriver, updateDriverLocation);
 
-// Accept a ride request
+//---------------- Accept Ride Route ----------------
 router.post("/accept-ride", authenticateDriver, acceptRide);
 
-// Start a ride (after arriving at pickup)
+//---------------- Start Ride Route ----------------
 router.post("/start-ride", authenticateDriver, startRide);
 
-// Complete a ride
+//---------------- Complete Ride Route ----------------
 router.post("/complete-ride", authenticateDriver, completeRide);
 
-// Reject a ride request
+//---------------- Reject Ride Route ----------------
 router.post("/reject-ride", authenticateDriver, rejectRide);
 
-// Give feedback to passenger
+//---------------- Passenger Feedback Route ----------------
 router.post("/give-passenger-feedback", authenticateDriver, givePassengerFeedback);
 
 export default router;

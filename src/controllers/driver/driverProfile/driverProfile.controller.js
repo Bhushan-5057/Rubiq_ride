@@ -3,7 +3,7 @@ import { upload } from "../../../middleware/upload.middleware.js";
 import { getDriverProfileStatus } from "../../../services/adminServices/driverManagementService/driverManagement.service.js";
 import { updateProfile, getProfile } from "../../../services/driverServices/driverProfileService/driverProfile.service.js";
 
-// -------------------- PROFILE --------------------
+// -------------------- Driver Profile --------------------
 export async function profileController(req, res, next) {
   try {
     if (!req.driver) {
@@ -22,7 +22,7 @@ export async function profileController(req, res, next) {
   }
 }
 
-// -------------------- UPDATE PROFILE --------------------
+// -------------------- Update Driver Profile --------------------
 export async function updateProfileController(req, res, next) {
   try {
     // Handle multer file parsing
@@ -65,7 +65,7 @@ export async function updateProfileController(req, res, next) {
   }
 }
 
-// -------------------- CHECK DRIVER PROFILE STATUS --------------------
+// -------------------- Driver Profile Status --------------------
 export const checkDriverProfileStatusController = async (req, res) => {
   try {
     const { contactNumber } = req.params;

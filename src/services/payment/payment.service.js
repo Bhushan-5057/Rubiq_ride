@@ -3,6 +3,7 @@ import { Ride } from '../../models/ride/ride.model.js';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
+//------------------------ Create Payment Method  ------------------------
 export const createPaymentMethod=async (paymentMethodId)=>{
   try {
     return{
@@ -18,6 +19,7 @@ export const createPaymentMethod=async (paymentMethodId)=>{
   }
 }
 
+//------------------------ Create Payment Intent  ------------------------
 export const createPaymentIntent = async (amount, currency = 'inr', metadata = {}, customerId = null) => {
   try {
     const paymentIntentParams = {
@@ -57,21 +59,19 @@ export const createPaymentIntent = async (amount, currency = 'inr', metadata = {
   }
 };
 
+//------------------------ Confirm Payment Intent  ------------------------
 export const confirmPaymentIntent = async (paymentIntentId) => {
   try {
-    // For testing, we'll use a test token that doesn't require 3D Secure
-    // Create a test payment method using a test token
     const paymentMethod = await stripe.paymentMethods.create({
       type: 'card',
       card: {
-        token: 'tok_visa' // Test token for a successful Visa card
+        token: 'tok_visa'
       }
     });
 
     // Confirm the payment intent with the test payment method
     const paymentIntent = await stripe.paymentIntents.confirm(paymentIntentId, {
       payment_method: paymentMethod.id,
-      // No need for return_url with test tokens
     });
 
     return {
@@ -90,6 +90,7 @@ export const confirmPaymentIntent = async (paymentIntentId) => {
   }
 };
 
+//------------------------ Retrieve Payment Intent  ------------------------
 export const retrievePaymentIntent = async (paymentIntentId) => {
   try {
     const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
@@ -117,7 +118,7 @@ export const retrievePaymentIntent = async (paymentIntentId) => {
   }
 };
 
-
+//----------------------- Stripe Webhook -----------------------
 export const handleStripeWebhook = async (req, res) => {
   const sig = req.headers["stripe-signature"];
   const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;

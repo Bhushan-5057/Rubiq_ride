@@ -6,13 +6,16 @@ import { otpLoginValidation, otpSendValidation } from "../../../validations/driv
 
 const router = Router();
 
-
+//---------------------- Driver Google Login ---------------------- 
 router.post("/google-login", googleLoginController);
 
+//------------------- Send Otp for Driver -------------------
 router.post("/send-otp", otpSendValidation,sendOtpController);
 
+//------------------- Otp login For Driver ------------------- 
 router.post("/otp-login", otpLoginValidation,otpLoginDriverController);
 
+//-------------------- Profile Status with Contact Number -------------------- 
 router.get("/check-profile-status/:contactNumber", authenticateDriver, checkDriverProfileStatusController);
 
 export default router;

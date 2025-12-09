@@ -36,7 +36,6 @@ const AdminSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// 🔐 Hash password before save
 AdminSchema.pre('save', async function (next) {
   if (!this.isModified('password')) return next();
   if (!this.password) return next();
@@ -46,7 +45,6 @@ AdminSchema.pre('save', async function (next) {
   next();
 });
 
-// 🔍 Password comparison method
 AdminSchema.methods.comparePassword = async function (candidate) {
   if (!this.password) return false;
   return bcrypt.compare(candidate, this.password);

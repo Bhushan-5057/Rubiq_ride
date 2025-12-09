@@ -1,6 +1,6 @@
 import { getProfile, updateProfile } from "../../../services/adminServices/adminProfileService/adminProfile.service.js";
 
-//get profile controller
+//--------------------------------------- Get Profile Controller ---------------------------------------
 export async function profileController(req, res, next) {
   try {
     const adminId = req.admin._id;
@@ -16,7 +16,7 @@ export async function profileController(req, res, next) {
   }
 }
 
-//update profile controller
+//---------------------------------------- Update Profile Controller ----------------------------------------
 export async function updateProfileController(req, res, next) {
   try {
     const adminId = req.admin._id;

@@ -10,7 +10,7 @@ import { updateDriverLocationService } from "../../../services/driverServices/in
 import { Ride } from "../../../models/ride/ride.model.js";
 import { refundPayment } from "../../../services/payment/payment.service.js";
 
-//controller for driver to accept ride
+//----------------------------- Driver Accept Ride -----------------------------
 export const acceptRide = async (req, res) => {
   try {
     const driverId = req.driver._id;
@@ -40,7 +40,7 @@ export const acceptRide = async (req, res) => {
   }
 };
 
-//controller for driver to start ride
+//------------------------- Driver Start Ride -------------------------
 export const startRide = async (req, res) => {
   try {
     const driverId = req.driver._id;
@@ -61,7 +61,7 @@ export const startRide = async (req, res) => {
   }
 }
 
-//controller for driver to complete ride
+//-------------------------- Driver Complete Ride --------------------------
 export const completeRide = async (req, res) => {
   try {
     const driverId = req.driver._id;
@@ -130,7 +130,7 @@ export const completeRide = async (req, res) => {
   }
 };
 
-//controller for driver to reject ride
+//------------------------------- Driver Reject Ride -------------------------------
 export const rejectRide = async (req, res) => {
   try {
     const driverId = req.driver._id;
@@ -184,7 +184,7 @@ export const rejectRide = async (req, res) => {
   }
 };
 
-//controller to update driver location
+//------------------------------ Update Driver Location ------------------------------
 export const updateDriverLocation = async (req, res) => {
   try {
     const { lng, lat, rideId } = req.body;
@@ -251,7 +251,7 @@ export const updateDriverLocation = async (req, res) => {
   }
 };
 
-//controller for driver to give feedback to passenger
+//----------------------------------- Passenger Feedback -----------------------------------
 export const givePassengerFeedback = async (req, res) => {
   try {
     const driverId = req.driver._id;

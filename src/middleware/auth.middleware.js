@@ -1,12 +1,11 @@
-
 import jwt from "jsonwebtoken";
 import dotenv from "dotenv";
 import { Admin } from "../models/admin/admin.model.js";
 import { Driver } from "../models/driver/driver.model.js";
 import { Passenger } from "../models/passenger/passenger.model.js";
-
 dotenv.config();
 
+//------------------------------- Authenticate Admin -------------------------------
 export async function authenticateAdmin(req, res, next) {
   try {
     const authHeader = req.headers.authorization;
@@ -57,6 +56,7 @@ export async function authenticateAdmin(req, res, next) {
   }
 }
 
+//------------------------------ Authenticate Driver ------------------------------ 
 export async function authenticateDriver(req, res, next) {
   try {
     const authHeader = req.headers.authorization || "";
@@ -79,7 +79,7 @@ export async function authenticateDriver(req, res, next) {
   }
 }
 
-// --- PASSENGER AUTH ---
+//----------------------------- Authenticate Passenger -----------------------------
 export async function authenticatePassenger(req, res, next) {
   try {
     const authHeader = req.headers.authorization || "";

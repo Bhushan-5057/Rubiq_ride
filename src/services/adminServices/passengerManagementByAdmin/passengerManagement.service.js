@@ -2,9 +2,62 @@ import mongoose from "mongoose";
 import { Passenger } from "../../../models/passenger/passenger.model.js";
 
 // -------------------- Get All Passengers --------------------
-export async function getAllPassenger() {
-  const passengers = await Passenger.find().sort({ createdAt: -1 });
-  return passengers.map((p) => p);
+export async function getAllPassenger(filters = {}) {
+  const {
+    page = 1,
+    limit = 5,
+    status,
+    search,
+    sortBy = 'createdAt',
+    sortOrder = 'desc',
+  } = filters;
+
+  const skip = (page - 1) * limit;
+  const sort = { [sortBy]: sortOrder === 'desc' ? -1 : 1 };
+
+  // Build the query
+  const query = {};
+
+  // Add status filter if provided
+  if (status) {
+    query.status = status;
+  }
+
+  // Add search filter if provided
+  if (search) {
+    const searchRegex = new RegExp(search, 'i');
+    query.$or = [
+      { name: searchRegex },
+      { email: searchRegex },
+      { contactNumber: searchRegex },
+      { gender: searchRegex }
+    ];
+  }
+
+  // Get total count for pagination
+  const total = await Passenger.countDocuments(query);
+
+  // Get paginated results
+  const passengers = await Passenger.find(query)
+    .sort(sort)
+    .skip(skip)
+    .limit(parseInt(limit));
+
+  // Format the response
+  const formattedPassengers = passengers.map(passenger => ({
+    ...passenger.toObject(),
+    // Add any additional formatting if needed
+  }));
+
+  return {
+    pagination: {
+      total,
+      page: parseInt(page),
+      limit: parseInt(limit),
+      totalPages: Math.ceil(total / limit)
+    },
+    data: formattedPassengers
+  };
 }
 
 // -------------------- Get Passenger by ID --------------------
@@ -37,7 +90,7 @@ export async function deletePassenger(passengerId) {
 
 // -------------------- Update Passenger Status --------------------
 export async function updatePassangerStatus(passengerId, newStatus) {
-  if (!["active","deactive", "pending"].includes(newStatus))
+  if (!["active", "deactive", "pending"].includes(newStatus))
     throw new Error("Invalid status value");
 
   const passenger = await Passenger.findById(passengerId);

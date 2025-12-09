@@ -6,6 +6,7 @@ import paymentRoutes from "../payment/payment.routes.js";
 
 const router = Router();
 
+//------------------------ Passenger Management Routes ------------------------
 router.use("/auth", passengerAuthRoutes);
 router.use("/profile", passengerProfileRoutes);
 router.use("/manage", managementRoutes);

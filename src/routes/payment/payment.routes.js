@@ -4,11 +4,13 @@ import { authenticatePassenger } from "../../middleware/auth.middleware.js";
 
 const router = Router();
 
-// Create a payment order for a ride
+//------------------------  Create Payment ------------------------
 router.post("/create-payment", authenticatePassenger, createPaymentIntent);
 
+//-------------------- Confirm Payment--------------------
 router.post("/confirm-payment/:paymentIntentId", authenticatePassenger, confirmPaymentIntent);
 
+//------------------ Webhook ------------------
 router.post("/webhook", handleStripeWebhook);
 
 export default router;

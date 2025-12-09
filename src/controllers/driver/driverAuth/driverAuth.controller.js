@@ -4,7 +4,7 @@ import {OAuth2Client} from "google-auth-library"
 
 const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID)
 
-// -------------------- SEND OTP --------------------
+// -------------------- Send Otp --------------------
 export async function sendOtpController(req, res, next) {
   try {
     handleValidation(req);
@@ -16,7 +16,7 @@ export async function sendOtpController(req, res, next) {
   }
 }
 
-// -------------------- OTP LOGIN --------------------
+// -------------------- Otp Login --------------------
 export async function otpLoginDriverController(req, res, next) {
   try {
     handleValidation(req);
@@ -35,7 +35,7 @@ export async function otpLoginDriverController(req, res, next) {
   }
 }
 
-// -------------------- LOGIN --------------------
+// -------------------- Google Login --------------------
 export async function googleLoginController(req, res, next) {
   try {
     const { idToken } = req.body;

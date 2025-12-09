@@ -1,17 +1,19 @@
 import jwt from "jsonwebtoken";
 
+// -------------------------------- Normalize Number --------------------------------
 export function normalizeNumber(contactNumber) {
   if (!contactNumber.startsWith("+")) contactNumber = "+91" + contactNumber;
   return contactNumber;
 }
 
+//----------------------------- Sign Token -----------------------------
 export function signToken(user) {
   const secret = process.env.JWT_SECRET;
   const expiresIn = process.env.JWT_EXPIRES_IN || "7d";
   return jwt.sign({ sub: user._id }, secret, { expiresIn });
 } 
 
-
+//------------------------------ Admin Token ------------------------------ 
 export function adminToken(user) {
   const payload = { sub: user._id.toString(), role: user.role };
   const secret = process.env.JWT_SECRET;

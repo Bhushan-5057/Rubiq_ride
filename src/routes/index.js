@@ -11,12 +11,16 @@ router.use((req, res, next) => {
     next();
 });
 
+//--------------- Admin Route ---------------
 router.use("/admin", adminRoutes);
 
+//--------------- Passenger Route ---------------
 router.use("/v1/passenger", passengerRoutes);
 
+//--------------- Driver Route ---------------
 router.use("/v2/drivers", driverRoutes);
 
+//--------------- Notification Route ---------------
 router.use("/notification", notificationRoutes);
 
 export default router;

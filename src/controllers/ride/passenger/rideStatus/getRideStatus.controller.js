@@ -1,5 +1,6 @@
 import { getPassengerAllRideService, getRideStatusService } from "../../../../services/passengerServices/index.js";
 
+//-------------------------------- Get Ride Status --------------------------------
 export const getRideStatus = async (req, res) => {
   try {
     const { rideId } = req.params;
@@ -13,7 +14,7 @@ export const getRideStatus = async (req, res) => {
   }
 };
 
-//get all rides for passenger
+//----------------------------- Get All Rides -----------------------------
 export const getPassengerRides = async (req, res) => {
   try {
     const passengerId = req.passenger._id; 

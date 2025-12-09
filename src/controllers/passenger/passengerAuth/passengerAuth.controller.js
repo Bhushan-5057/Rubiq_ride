@@ -4,7 +4,7 @@ import { sendOtp } from "../../../services/otpService/otp.service.js";
 import { logout, otpLogin } from "../../../services/passengerServices/index.js";
 import { handleValidation } from "../../../validations/comman.validation.js";
 
-// -------------------- Send OTP --------------------
+// -------------------- Send Otp --------------------
 export async function sendOtpController(req, res, next) {
   try {
      handleValidation(req);  
@@ -46,7 +46,6 @@ export async function loginController(req, res, next) {
 }
 
 // -------------------- OTP Login (auto-create or auto-login) --------------------
-
 export async function otpLoginController(req, res, next) {
   try {
     handleValidation(req);
@@ -81,7 +80,6 @@ export async function otpLoginController(req, res, next) {
     next(err); 
   }
 }
-
 
 // -------------------- Logout --------------------
 export async function logoutController(req, res, next) {

@@ -3,6 +3,7 @@ import { sendTestNotification } from "../../controllers/notification/notificatio
 
 const router = express.Router();
 
+//--------------------- Notification Send Route ---------------------
 router.post("/send-test", sendTestNotification);
 
 export default router;

@@ -1,5 +1,6 @@
 import {getDriverEarnings} from "../../../services/driverServices/driverEarningService/driverEarning.service.js"
 
+//-------------------------- Driver Earning Controller --------------------------
 export async function getDriverEarningsController(req, res, next) {
     try {
         const driverId = req.params.driverId;

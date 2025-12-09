@@ -5,25 +5,25 @@ import { getPassengerRides, getRideStatus } from "../../../../controllers/ride/p
 
 const router = Router()
 
-//get ride history for passenger route  
+//--------------------- Get All Rides For Passenger --------------------- 
 router.get("/all", authenticatePassenger, getPassengerRides);
 
-//passenger create ride route
+//---------------------- Create Ride For Passenger ----------------------
 router.post("/create", authenticatePassenger, createRide);
 
-//get ride creation route  
+//--------------------- Get Ride Status --------------------- 
 router.get("/status/:rideId", authenticatePassenger, getRideStatus);
 
-//passenger update ride route
+//---------------------- Update Ride Route ---------------------- 
 router.put("/:rideId", authenticatePassenger, updateRide);
 
-//passenger ride cancellation route 
+//---------------------- Cancel Ride Route ---------------------- 
 router.post("/cancel/:rideId", authenticatePassenger, cancelRide);
 
-//passenger end ride route
+//-------------------- End Ride Route --------------------
 router.post("/end-ride", authenticatePassenger, endRide);
 
-//passenger give feedback to driver route
+//--------------------- Driver Feedback ---------------------
 router.post("/give-driver-feedback", authenticatePassenger, giveDriverFeedback);
 
 export default router;

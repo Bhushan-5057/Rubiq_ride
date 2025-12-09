@@ -4,7 +4,7 @@ import { Passenger } from "../../../models/passenger/passenger.model.js";
 import { calculateFare, calculateEarningsFromDistance } from "../../../helpers/rideHelpers.js";
 import { areCoordinatesClose } from "../../../common/utlis.js";
 
-// Service to create a new ride
+//-------------------- Create Ride --------------------
 export async function createRideService({ passengerId, pickup, drop, vehicleType ,paymentMethod,isPaymentRequiredBeforeRide}) {
   const fareDetails = calculateFare(pickup, drop, vehicleType);
   const { distanceInKm, totalFare } = fareDetails;
@@ -47,7 +47,7 @@ export async function createRideService({ passengerId, pickup, drop, vehicleType
   return { ride, nearbyDrivers };
 }
 
-// Service to update an existing ride
+//-------------------- Update Ride --------------------
 export async function updateRideService({ rideId, passengerId, drop }) {
   if (!rideId || !passengerId) {
     throw new Error("Ride ID and Passenger ID are required");
@@ -114,7 +114,7 @@ export async function updateRideService({ rideId, passengerId, drop }) {
   return ride;
 }
 
-// Service to cancel a ride
+//-------------------- Cancel Ride --------------------
 export async function cancelRideService(passengerId, rideId) {
   if (!passengerId || !rideId) {
     throw new Error("Passenger ID and Ride ID are required");
@@ -151,7 +151,7 @@ export async function cancelRideService(passengerId, rideId) {
   return ride;
 }
 
-// Service to end a ride for passenger (based on passenger's current location)
+//-------------------- End Ride --------------------
 export async function endRideService({ rideId, passengerId, passengerLocationCoordinates }) {
   if (!rideId || !passengerId) {
     throw new Error("Ride ID and Passenger ID are required");
@@ -218,7 +218,7 @@ export async function endRideService({ rideId, passengerId, passengerLocationCoo
   return ride;
 }
 
-// Service for passenger to give feedback to driver
+//-------------------- Driver Feedback --------------------
 export async function giveDriverFeedbackService({ rideId, passengerId, rating, comment }) {
   const ride = await Ride.findById(rideId);
 

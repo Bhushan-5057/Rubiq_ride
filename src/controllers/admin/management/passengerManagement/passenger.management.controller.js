@@ -1,6 +1,6 @@
 import { getPassengerById,getAllPassenger, updatePassangerStatus, } from "../../../../services/adminServices/index.js";
 
-
+//-------------------------------- Update Passenger Status -------------------------------- 
 export async function updatePassengerStatusController(req, res, next) {
   try {
     if (req.admin.role !== "admin") {
@@ -24,8 +24,33 @@ export async function updatePassengerStatusController(req, res, next) {
 // -------------------- Get All Passengers --------------------
 export async function getAllPassengersController(req, res, next) {
   try {
-    const passengers = await getAllPassenger();
-    res.json({ success: true, passengers });
+        // Extract query parameters
+    const { 
+      page = 1, 
+      limit = 5, 
+      status, 
+      search, 
+      sortBy = 'createdAt', 
+      sortOrder = 'desc' 
+    } = req.query;
+
+    // Validate page and limit
+    const pageNum = Math.max(1, parseInt(page)) || 1;
+    const limitNum = Math.max(1, parseInt(limit)) || 5;
+
+    const result = await getAllPassenger({
+      page: pageNum,
+      limit: limitNum,
+      status,
+      search,
+      sortBy,
+      sortOrder
+    });
+    res.json({ 
+      success: true, 
+      pagination: result.pagination,
+      data: result.data,
+    });
   } catch (err) {
     next(err);
   }

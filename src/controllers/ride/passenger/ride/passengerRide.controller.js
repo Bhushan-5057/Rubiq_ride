@@ -4,7 +4,7 @@ import { createPaymentIntent, confirmPaymentIntent } from "../../../../services/
 import { getIO } from "../../../../config/socket/socket.js";
 import { Ride } from "../../../../models/ride/ride.model.js";
 
-//controller to create a new ride for passenger
+//---------------------------- Create Ride ---------------------------- 
 export const createRide = async (req, res) => {
   try {
     const passengerId = req.passenger._id;
@@ -106,7 +106,7 @@ export const createRide = async (req, res) => {
   }
 };
 
-//controller to update an existing ride for passenger
+//------------------------------ Update Ride ------------------------------
 export const updateRide = async (req, res) => {
   try {
     const { rideId } = req.params;
@@ -147,7 +147,7 @@ export const updateRide = async (req, res) => {
   }
 };
 
-//controller to cancel a ride for passenger
+//--------------------------------- Cancel Ride --------------------------------- 
 export const cancelRide = async (req, res) => {
   try {
     const passengerId = req.passenger._id;
@@ -179,7 +179,7 @@ export const cancelRide = async (req, res) => {
   }
 };
 
-//controller to end a ride for passenger
+//-------------------------- End Ride --------------------------  
 export const endRide = async (req, res) => {
   try {
     const passengerId = req.passenger._id;
@@ -268,7 +268,7 @@ export const endRide = async (req, res) => {
   }
 };
 
-// Confirm payment for a ride
+//------------------------------ Confirm Payment ------------------------------
 export const confirmPayment = async (req, res) => {
   try {
     const passengerId = req.passenger._id;
@@ -341,7 +341,7 @@ export const confirmPayment = async (req, res) => {
   }
 };
 
-//controller for passenger to give feedback to driver
+//----------------------------------- Driver Feedback -----------------------------------
 export const giveDriverFeedback = async (req, res) => {
   try {
     const passengerId = req.passenger._id;

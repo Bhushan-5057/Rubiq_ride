@@ -2,8 +2,9 @@ import { Admin } from "../../../../models/admin/admin.model.js";
 import { register } from "../../../../services/adminServices/adminAuthService/adminAuth.service.js";
 import dotenv from "dotenv"
 import bcrypt from "bcryptjs"
-
 dotenv.config();
+
+//----------------------------- Admin Register Controller -----------------------------
 export async function registerController(req, res, next) {
   try {
     const { newAdmin, token } = await register(req.body);
@@ -24,7 +25,7 @@ export async function registerController(req, res, next) {
   }
 }
 
-//get all admin
+// ---------------------------------------- Get All Admin ----------------------------------------
 export async function getAllAdminsController(req, res, next) {
   try {
     const admins = await Admin.find({ isDeleted: false }).select("-password");
@@ -39,6 +40,7 @@ export async function getAllAdminsController(req, res, next) {
   }
 }
 
+//--------------------------------- Update Admin Profile --------------------------------- 
 export async function updateMyProfileController(req, res, next) {
   try {
     const admin = req.admin;
@@ -60,8 +62,7 @@ export async function updateMyProfileController(req, res, next) {
   }
 }
 
-//updated admin
-
+//----------------------------- Updated Admin -----------------------------
 export async function updateAdminController(req, res, next) {
   try {
     const { adminId } = req.params;
@@ -76,7 +77,7 @@ export async function updateAdminController(req, res, next) {
       });
     }
 
-    // 🚫 BLOCK SEEDED ADMIN UPDATE
+    // BLOCK SEEDED ADMIN UPDATE
     if (adminToUpdate.email === process.env.ADMIN_EMAIL) {
       return res.status(403).json({
         success: false,
@@ -111,7 +112,7 @@ export async function updateAdminController(req, res, next) {
     next(err);
   }
 }
-//delete admin
+// ----------------------------------------- Delete Admin -----------------------------------------
 export async function deleteAdminController(req, res, next) {
   try {
     const { adminId } = req.params;

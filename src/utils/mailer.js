@@ -2,6 +2,7 @@ import nodemailer from "nodemailer";
 import dotenv from "dotenv";
 dotenv.config();
 
+//---------------------- Create Gmail ----------------------
 async function createGmailTransporter() {
   return nodemailer.createTransport({
     host: "smtp.gmail.com",
@@ -17,6 +18,7 @@ async function createGmailTransporter() {
   });
 }
 
+//---------------------- Create Ethereal Transporter ----------------------
 async function createEtherealTransporter() {
   const testAccount = await nodemailer.createTestAccount();
   return {
@@ -28,6 +30,8 @@ async function createEtherealTransporter() {
     testAccount,
   };
 }
+
+//----------------- Send Email -----------------
 export async function sendEmail({ to, subject, text, html }) {
   if (!to) throw new Error("sendEmail: 'to' is required");
   if (!subject) subject = "No subject";
@@ -45,13 +49,10 @@ export async function sendEmail({ to, subject, text, html }) {
       return { ok: true, provider: "gmail", info };
     } catch (err) {
       console.error("Gmail send failed:", err && err.message ? err.message : err);
-      
     }
   } else {
     console.warn("EMAIL_USER/EMAIL_PASS not set — skipping Gmail, using Ethereal for dev.");
   }
-
-
   try {
     const { transporter, testAccount } = await createEtherealTransporter();
     const info = await transporter.sendMail({

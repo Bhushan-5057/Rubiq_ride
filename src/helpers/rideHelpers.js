@@ -1,6 +1,6 @@
 import { getDistance } from "geolib";
 
-// Helper functions for ride calculations
+//--------------------------- Ride Distance Calculations ---------------------------
 export function calculateDistance(pickup, drop) {
   // getDistance returns meters
   const distanceInMeters = getDistance(
@@ -28,7 +28,7 @@ const pricingConfig = {
   },
 };
 
-// Calculate fare based on distance and vehicle type
+//-------------------------------- Fare Calculations --------------------------------
 export function calculateFare(pickup, drop, vehicleType) {
   const distance = calculateDistance(pickup, drop);
 
@@ -60,6 +60,7 @@ export function calculateFare(pickup, drop, vehicleType) {
   };
 }
 
+//------------------------------ Calculate Earning from Distance ------------------------------ 
 export function calculateEarningsFromDistance(distance, vehicleType) {
   const type = (vehicleType || "").toString().toLowerCase();
 

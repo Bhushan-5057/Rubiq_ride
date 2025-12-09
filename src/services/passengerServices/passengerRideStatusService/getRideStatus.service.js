@@ -3,7 +3,7 @@ import { getDistance } from "geolib";
 import { Ride } from "../../../models/ride/ride.model.js";
 import { Driver } from "../../../models/driver/driver.model.js";
 
-//service to get ride status for passenger
+//------------------------ Get Ride Status ------------------------
 export async function getRideStatusService({ rideId, passengerId }) {
   const ride = await Ride.findOne({ _id: rideId, passenger: passengerId }).lean();
 
@@ -81,7 +81,7 @@ export async function getRideStatusService({ rideId, passengerId }) {
   };
 }
 
-//get all rides for passenger
+//------------------------ Get All Rides ------------------------
 export async function getPassengerAllRideService(passengerId) {
   if (!passengerId) throw new Error("Passenger ID is required");
 

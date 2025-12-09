@@ -3,6 +3,7 @@ import { Admin } from '../models/admin/admin.model.js';
 
 dotenv.config();
 
+//------------------ Seed Admin ------------------
 export async function seedAdmin() {
   try {
     const email = process.env.ADMIN_EMAIL ;

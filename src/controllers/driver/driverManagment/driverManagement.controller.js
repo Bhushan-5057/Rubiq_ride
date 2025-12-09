@@ -4,9 +4,7 @@ import {
   getRideByIdService 
 } from "../../../services/driverServices/index.js";
 
-// -------------------- RIDE MANAGEMENT --------------------
-
-// Controller to get ride by id for driver
+//--------------------------- Get Ride by ID ---------------------------
 export const getRideById = async (req, res) => {
   try {
     const driverId = req.driver._id;
@@ -18,7 +16,7 @@ export const getRideById = async (req, res) => {
   }
 };
 
-// Controller to get all rides for driver
+//----------------------------- Get All Rides ----------------------------- 
 export const getAllRidesForDriver = async (req, res) => {
   try {
     const driverId = req.driver._id;
@@ -29,7 +27,7 @@ export const getAllRidesForDriver = async (req, res) => {
   }
 };
 
-// -------------------- DELETE DRIVER --------------------
+// -------------------- Delete Driver --------------------
 export async function deleteDriverController(req, res, next) {
   try {
     const { driverId } = req.params;
@@ -49,5 +47,3 @@ export async function deleteDriverController(req, res, next) {
     next(err);
   }
 }
-
-

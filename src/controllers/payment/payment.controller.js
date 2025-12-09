@@ -7,6 +7,7 @@ import {
 } from '../../services/payment/payment.service.js';
 import { Ride } from "../../models/ride/ride.model.js";
 
+//------------------------------- Create Payment Intent -------------------------------
 export const createPaymentIntent = async (req, res) => {
   try {
     const { rideId } = req.body;
@@ -59,7 +60,7 @@ export const createPaymentIntent = async (req, res) => {
   }
 };
 
-
+//------------------------------------ Confirm Payment Intent ------------------------------------
 export const confirmPaymentIntent = async (req, res) => {
   try {
     const { paymentIntentId } = req.params;
@@ -95,6 +96,7 @@ export const confirmPaymentIntent = async (req, res) => {
   }
 };
 
+//---------------------------------- Retrieve Payment Intent ----------------------------------
 export const retrievePaymentIntent = async (req, res) => {
   try {
     const { paymentIntentId } = req.params;
@@ -119,7 +121,7 @@ export const retrievePaymentIntent = async (req, res) => {
   }
 };
 
-// ---------- WEBHOOK HANDLER ----------
+// ---------- Webhook Handler ----------
 export const handleStripeWebhook = async (req, res) => {
   try {
     await handleStripeWebhookService(req, res);
@@ -131,6 +133,7 @@ export const handleStripeWebhook = async (req, res) => {
   }
 };
 
+//---------------------- Refund Payment ----------------------
 export const refundPayment = async (req, res) => {
   try {
     const { paymentIntentId } = req.params;

@@ -1,5 +1,6 @@
 import { Driver } from "../../../models/driver/driver.model.js";
 
+//----------------------- Get Driver Earnings -----------------------
 export async function getDriverEarnings(driverId) {
     const driver = await Driver.findById(driverId)
         .select("name vehicleNumber vehicleType contactNumber earnings rideCount");
