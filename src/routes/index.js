@@ -3,6 +3,7 @@ import adminRoutes from "./adminRoutes/index.js";
 import passengerRoutes from "./passengerRoutes/index.js";
 import driverRoutes from "./driverRoutes/index.js";
 import notificationRoutes from "./notificationRoutes/notificationRoutes.js"
+import  {complaintRoutes}  from "./complaintRoutes/complaint.routes.js";
 
 const router = Router();
 
@@ -22,5 +23,8 @@ router.use("/v2/drivers", driverRoutes);
 
 //--------------- Notification Route ---------------
 router.use("/notification", notificationRoutes);
+
+//--------------- Compalint Route ---------------
+router.use("/complaint", complaintRoutes);
 
 export default router;

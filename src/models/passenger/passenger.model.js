@@ -35,11 +35,6 @@ const passengerSchema = new mongoose.Schema(
         index: "2dsphere",
       },
     },
-    rideCount: {
-      created: { type: Number, default: 0 },
-      cancelled: { type: Number, default: 0 },
-      completed: { type: Number, default: 0 }
-    },
     rating: {
       average: { type: Number, default: 0 },
       count: { type: Number, default: 0 }

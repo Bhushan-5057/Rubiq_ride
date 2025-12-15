@@ -1,6 +1,11 @@
-import FeedbackService from '../../services/feedback/feedback.service.js';
+import {
+  submitDriverFeedbackService,
+  submitPassengerFeedbackService,
+  getUserFeedbackService,
+  getRideFeedbackService
+} from '../../services/feedback/feedback.service.js';
 
-
+//---------------------- Passenger Feedback To Driver ----------------------
 export const submitDriverFeedback = async (req, res) => {
   try {
     if (!req.passenger) {
@@ -9,7 +14,7 @@ export const submitDriverFeedback = async (req, res) => {
 
     const { rideId, rating, comment } = req.body;
     
-    const feedback = await FeedbackService.submitDriverFeedback({
+    const feedback = await submitDriverFeedbackService({
       rideId,
       passengerId: req.passenger._id,
       rating: parseInt(rating),
@@ -30,6 +35,7 @@ export const submitDriverFeedback = async (req, res) => {
   }
 };
 
+//---------------------- Driver Feedback To Passenger ----------------------
 export const submitPassengerFeedback = async (req, res) => {
   try {
     if (!req.driver) {
@@ -38,7 +44,7 @@ export const submitPassengerFeedback = async (req, res) => {
 
     const { rideId, rating, comment } = req.body;
     
-    const feedback = await FeedbackService.submitPassengerFeedback({
+    const feedback = await submitPassengerFeedbackService({
       rideId,
       driverId: req.driver._id,
       rating: parseInt(rating),
@@ -59,6 +65,7 @@ export const submitPassengerFeedback = async (req, res) => {
   }
 };
 
+//--------------------- Get User Feedback ---------------------
 export const getMyFeedback = async (req, res) => {
   try {
     const user = req.user || req.driver || req.passenger;
@@ -76,7 +83,7 @@ export const getMyFeedback = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Invalid user type' });
     }
 
-    const feedback = await FeedbackService.getUserFeedback(userType, user._id);
+    const feedback = await getUserFeedbackService(userType, user._id);
     
     return res.status(200).json({
       success: true,
@@ -91,6 +98,7 @@ export const getMyFeedback = async (req, res) => {
   }
 };
 
+//--------------------- Get User Feedback For Admin ---------------------
 export const getUserFeedback = async (req, res) => {
   try {
     const { userId } = req.params;
@@ -103,7 +111,7 @@ export const getUserFeedback = async (req, res) => {
       });
     }
 
-    const feedback = await FeedbackService.getUserFeedback(userType, userId);
+    const feedback = await getUserFeedbackService(userType, userId);
     
     return res.status(200).json({
       success: true,
@@ -118,6 +126,7 @@ export const getUserFeedback = async (req, res) => {
   }
 };
 
+//------------------------ Get Feedback On Ride For (Driver/Passenger) ------------------------ 
 export const getRideFeedback = async (req, res) => {
   try {
     const { rideId } = req.params;
@@ -127,7 +136,7 @@ export const getRideFeedback = async (req, res) => {
       return res.status(401).json({ success: false, message: 'User not authenticated' });
     }
 
-    const feedback = await FeedbackService.getRideFeedback(rideId, user._id);
+    const feedback = await getRideFeedbackService(rideId, user._id);
     
     return res.status(200).json({
       success: true,

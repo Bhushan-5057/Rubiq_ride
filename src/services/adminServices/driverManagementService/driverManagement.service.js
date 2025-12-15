@@ -1,10 +1,11 @@
 import mongoose from "mongoose";
-import  {Driver}  from "../../../models/driver/driver.model.js";
+import { Driver } from "../../../models/driver/driver.model.js";
 import { normalizeNumber } from "../../../helpers/helper.js";
+import { getDriverStats } from "../../../services/rideServices/rideStats.service.js";
 
 //---------------------------- Update Driver Status ----------------------------
 export async function updateDriverStatus(driverId, newStatus) {
-  if (!["active","pending","deactive"].includes(newStatus))
+  if (!["active", "pending", "deactive"].includes(newStatus))
     throw new Error("Invalid status value");
 
   const driver = await Driver.findById(driverId);
@@ -13,9 +14,13 @@ export async function updateDriverStatus(driverId, newStatus) {
   driver.status = newStatus;
   await driver.save();
 
+  const stats = await getDriverStats(driver._id);
   return {
     message: `Driver status updated to ${newStatus}`,
-    driver: driver,
+    driver: {
+      ...driver.toObject(),
+      rideStats: stats
+    },
   };
 }
 
@@ -35,7 +40,7 @@ export async function getAllDrivers(filters = {}) {
 
   // Build the query
   const query = {};
-  
+
   // Add status filter if provided
   if (status) {
     query.status = status;
@@ -54,24 +59,25 @@ export async function getAllDrivers(filters = {}) {
 
   // Get total count for pagination
   const total = await Driver.countDocuments(query);
-  
+
   // Get paginated results
   const drivers = await Driver.find(query)
     .sort(sort)
     .skip(skip)
     .limit(parseInt(limit));
 
-  // Format the response
-  const formattedDrivers = drivers.map((driver) => {
-    const d = driver.toObject();
+  // Format the response with ride stats
+  const formattedDrivers = await Promise.all(drivers.map(async (driver) => {
+    const stats = await getDriverStats(driver._id);
     return {
-      ...d,
-      totalEarnings: d.earnings?.totalEarnings || 0,
-      totalCompletedRides: d.rideCount?.completed || 0,
-      totalDriverPayout: d.earnings?.totalDriverPayout || 0,
-      rideCount: d.rideCount,
+      ...driver.toObject(),
+      rideStats: stats,
+      totalEarnings: driver.earnings?.totalEarnings || 0,
+      totalCompletedRides: driver.rideCount?.completed || 0,
+      totalDriverPayout: driver.earnings?.totalDriverPayout || 0,
+      rideCount: driver.rideCount,
     };
-  });
+  }));
 
   return {
     pagination: {
@@ -92,15 +98,14 @@ export async function getDriverById(driverId) {
 
   const driver = await Driver.findById(driverId);
   if (!driver) throw new Error("Driver not found");
+
+  const rideStats = await getDriverStats(driver._id);
+  console.log("ride status :", rideStats);
   const driverObj = driver.toObject();
 
   return {
     ...driverObj,
-    totalEarnings: driverObj.earnings?.totalEarnings || 0,
-    totalDriverPayout: driverObj.earnings?.totalDriverPayout || 0,
-    // totalPlatformFee: driverObj.earnings?.totalPlatformFee || 0,
-    totalCompletedRides: driverObj.rideCount?.completed || 0,
-    rideCount: driverObj.rideCount,
+    rideStats
   };
 }
 

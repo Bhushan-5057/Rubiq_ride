@@ -3,9 +3,10 @@ import { Driver } from "../../../models/driver/driver.model.js";
 import { Passenger } from "../../../models/passenger/passenger.model.js";
 import { calculateFare, calculateEarningsFromDistance } from "../../../helpers/rideHelpers.js";
 import { areCoordinatesClose } from "../../../common/utlis.js";
+import { rideTimeoutQueue } from "../../../queues/rideTimeout.queue.js";
 
 //-------------------- Create Ride --------------------
-export async function createRideService({ passengerId, pickup, drop, vehicleType ,paymentMethod,isPaymentRequiredBeforeRide}) {
+export async function createRideService({ passengerId, pickup, drop, vehicleType, paymentMethod, isPaymentRequiredBeforeRide }) {
   const fareDetails = calculateFare(pickup, drop, vehicleType);
   const { distanceInKm, totalFare } = fareDetails;
 
@@ -23,13 +24,8 @@ export async function createRideService({ passengerId, pickup, drop, vehicleType
     distance: distanceInKm,
     fareEstimate: totalFare,
     vehicleType: fareDetails.vehicleType,
-    paymentMethod, // <-- IMPORTANT
+    paymentMethod,
     isPaymentRequiredBeforeRide: paymentMethod !== 'cash',
-  });
-
-  await Passenger.findByIdAndUpdate(passengerId, {
-    location: { type: "Point", coordinates: [pickup.lng, pickup.lat] },
-    $inc: { "rideCount.created": 1 },
   });
 
   const nearbyDrivers = await Driver.find({
@@ -42,6 +38,19 @@ export async function createRideService({ passengerId, pickup, drop, vehicleType
         $maxDistance: 5000,
       },
     },
+  }).select("_id");
+
+  ride.notifiedDrivers = nearbyDrivers.map(d => d._id);
+  await ride.save();
+
+  await rideTimeoutQueue.add(
+    "rideTimeoutJob",
+    { rideId: ride._id },
+    { delay: 10000 }
+  );
+
+  await Passenger.findByIdAndUpdate(passengerId, {
+    location: { type: "Point", coordinates: [pickup.lng, pickup.lat] },
   });
 
   return { ride, nearbyDrivers };
@@ -144,10 +153,6 @@ export async function cancelRideService(passengerId, rideId) {
 
   ride.status = "cancelled";
   await ride.save();
-
-  await Passenger.findByIdAndUpdate(passengerId, {
-    $inc: { "rideCount.cancelled": 1 },
-  });
   return ride;
 }
 
@@ -201,7 +206,6 @@ export async function endRideService({ rideId, passengerId, passengerLocationCoo
     }
     await Driver.findByIdAndUpdate(ride.driver, {
       $inc: {
-        "rideCount.completed": 1,
         "earnings.totalEarnings": fare,
         "earnings.totalDriverPayout": driverShare,
         "earnings.totalPlatformFee": platformFee,
@@ -211,7 +215,6 @@ export async function endRideService({ rideId, passengerId, passengerLocationCoo
 
   if (ride.passenger) {
     await Passenger.findByIdAndUpdate(ride.passenger, {
-      $inc: { "rideCount.completed": 1 },
     });
   }
 

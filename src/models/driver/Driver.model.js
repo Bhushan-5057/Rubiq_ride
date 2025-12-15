@@ -39,11 +39,6 @@ const driverSchema = new mongoose.Schema(
     },
     longitude: Number,
     latitude: Number,
-    rideCount: {
-      accepted: { type: Number, default: 0 },
-      completed: { type: Number, default: 0 },
-      rejected: { type: Number, default: 0 },
-    },
     earnings: {
       totalEarnings: { type: Number, default: 0 },
       totalDriverPayout: { type: Number, default: 0 },

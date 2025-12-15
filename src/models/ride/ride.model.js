@@ -19,10 +19,13 @@ const rideSchema = new mongoose.Schema(
     otpForStartRide: { type: Number, required: true },
     status: {
       type: String,
-      enum: ["pending", "accepted", "ongoing", "on_the_way", "driver_arrived", "completed", "cancelled"],
+      enum: ["pending", "accepted", "ongoing", "on_the_way", "driver_arrived","started", "completed", "cancelled", "missed"],
       default: "pending",
     },
-
+    notifiedDrivers: [{
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Driver"
+    }],
     // Payment information
     paymentMethod: {
       type: String,

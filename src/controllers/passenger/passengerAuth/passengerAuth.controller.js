@@ -3,6 +3,7 @@ import { Passenger } from "../../../models/passenger/passenger.model.js";
 import { sendOtp } from "../../../services/otpService/otp.service.js";
 import { logout, otpLogin } from "../../../services/passengerServices/index.js";
 import { handleValidation } from "../../../validations/comman.validation.js";
+import {OAuth2Client} from "google-auth-library" 
 
 // -------------------- Send Otp --------------------
 export async function sendOtpController(req, res, next) {
@@ -18,29 +19,43 @@ export async function sendOtpController(req, res, next) {
   }
 }
 
-// -------------------- Login with Email/Password --------------------
-export async function loginController(req, res, next) {
+// -------------------- Google Login --------------------
+export async function googleLoginController(req, res, next) {
   try {
-    handleValidation(req);
-    const { email, password } = req.body;
-    const passenger = await Passenger.findOne({ email }).select("+password");
-    if (!passenger) return res.status(401).json({ success: false, message: "Invalid credentials" });
+    const { idToken } = req.body;
 
-    if (passenger.status === "deactive")
-      return res.status(403).json({ success: false, message: "Account deactive" });
+    if (!idToken) {
+      return res.status(400).json({ success: false, message: "idToken is required" });
+    }
 
-    if( passenger.status === "deactive")
-      return  res.status(403).json({ success: false, message: "Account deactive. Please contact support." });
-    
-    const isMatch = await passenger.comparePassword(password);
-    if (!isMatch) return res.status(401).json({ success: false, message: "Invalid credentials" });
+    // Verify ID Token with Google
+    const ticket = await client.verifyIdToken({
+      idToken,
+      audience: process.env.GOOGLE_CLIENT_ID,
+    });
 
-    const token = generateToken(passenger);
-    const passengerData = passenger.toObject();
-    delete passengerData.password;
+    const payload = ticket.getPayload();
 
-    res.json({ success: true, message: "Login successful", passenger: passengerData, token });
+    // Extract user data from token
+    const userData = {
+      email: payload.email,
+      googleId: payload.sub,
+      name: payload.name,
+      profileImage: payload.picture,
+    };
+
+    // Pass verified data to service
+    const result = await googleLogin(userData);
+
+    res.json({
+      success: true,
+      message: "Google login successful",
+      token: result.token,
+      passenger: result.passenger,
+      profileCompleted: result.profileCompleted,
+    });
   } catch (err) {
+    console.log(err);
     next(err);
   }
 }

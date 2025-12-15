@@ -1,5 +1,6 @@
 import mongoose from "mongoose";
 import { Passenger } from "../../../models/passenger/passenger.model.js";
+import { getPassengerStats } from "../../../services/rideServices/rideStats.service.js";
 
 // -------------------- Get All Passengers --------------------
 export async function getAllPassenger(filters = {}) {
@@ -43,10 +44,13 @@ export async function getAllPassenger(filters = {}) {
     .skip(skip)
     .limit(parseInt(limit));
 
-  // Format the response
-  const formattedPassengers = passengers.map(passenger => ({
-    ...passenger.toObject(),
-    // Add any additional formatting if needed
+  // Format the response with ride stats
+  const formattedPassengers = await Promise.all(passengers.map(async (passenger) => {
+    const stats = await getPassengerStats(passenger._id);
+    return {
+      ...passenger.toObject(),
+      rideStats: stats
+    };
   }));
 
   return {
@@ -65,7 +69,13 @@ export async function getPassengerById(passengerId) {
   const passenger = await Passenger.findById(passengerId);
   if (!passenger) throw new Error("Passenger not found");
 
-  return passenger;
+  // Get passenger stats
+  const stats = await getPassengerStats(passengerId);
+
+  return {
+    ...passenger.toObject(),
+    rideStats: stats
+  };
 }
 
 // -------------------- Delete Passenger --------------------

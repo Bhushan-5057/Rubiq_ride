@@ -1,24 +1,5 @@
 import { body, param, query } from "express-validator";
 
-export const registerPassengerValidation = [
-  body("name")
-    .optional()
-    .isString()
-    .trim()
-    .isLength({ min: 2 })
-    .withMessage("Name must be at least 2 characters long"),
-  body("email")
-    .optional()
-    .isEmail()
-    .normalizeEmail()
-    .withMessage("Invalid email format"),
-  body("contactNumber")
-    .exists()
-    .withMessage("contact Number is required")
-    .isMobilePhone("en-IN")
-    .withMessage("Invalid Indian mobile number format"),
-];
-
 export const otpLoginValidation = [
   body("contactNumber")
     .exists()

@@ -2,6 +2,7 @@ import { Ride } from "../../../models/ride/ride.model.js";
 import { Driver } from "../../../models/driver/driver.model.js";
 import { areCoordinatesClose } from "../../../common/utlis.js";
 import { calculateEarningsFromDistance } from "../../../helpers/rideHelpers.js";
+import { rideTimeoutQueue } from "../../../queues/rideTimeout.queue.js";
 
 //-------------------- Accept Ride --------------------
 export async function acceptRideService({ rideId, driverId }) {
@@ -13,10 +14,12 @@ const ride = await Ride.findOneAndUpdate(
 
 if (!ride) throw new Error("Ride not available or already accepted");
 
-await Driver.findByIdAndUpdate(driverId, {
-  $inc: { "rideCount.accepted": 1 },
-});
-
+ const jobs = await rideTimeoutQueue.getDelayed();
+  for (const job of jobs) {
+    if (job.data.rideId.toString() === rideId.toString()) {
+      await job.remove();
+    }
+  }
 return ride;
 } 
 
@@ -124,7 +127,6 @@ if (ride.driver) {
   }
   await Driver.findByIdAndUpdate(ride.driver, {
     $inc: {
-      "rideCount.completed": 1,
       "earnings.totalEarnings": fare,
       "earnings.totalDriverPayout": driverShare,
       "earnings.totalPlatformFee": platformFee,
@@ -143,10 +145,5 @@ export async function rejectRideService({ rideId, driverId }) {
     { new: true }
   );
   if (!ride) throw new Error("Ride not found or cannot be rejected");
-
-  await Driver.findByIdAndUpdate(driverId, {
-    $inc: { "rideCount.rejected": 1 },
-  });
-
   return ride;
 }

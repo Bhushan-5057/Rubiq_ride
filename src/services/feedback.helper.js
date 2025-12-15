@@ -1,80 +1,76 @@
-import { Feedback } from "../models/feedback/feedback.model.js";
-import { Driver } from "../models/driver/driver.model.js";
-import { Passenger } from "../models/passenger/passenger.model.js";
+// import { Feedback } from "../models/feedback/feedback.model.js";
+// import { Driver } from "../models/driver/driver.model.js";
+// import { Passenger } from "../models/passenger/passenger.model.js";
 
-class FeedbackHelper {
-  static async submitFeedback(feedbackData) {
-    const { ride, givenBy, givenByUser, givenTo, givenToUser, rating, comment } = feedbackData;
+// async function updateUserRating(userType, userId) {
+//   // Get all feedback for this user
+//   const feedbacks = await Feedback.find({
+//     givenTo: userType,
+//     givenToUser: userId,
+//   });
 
-    // Validate rating
-    if (rating < 1 || rating > 5) {
-      throw new Error('Rating must be between 1 and 5');
-    }
+//   if (feedbacks.length === 0) return;
 
-    // Check if feedback already exists for this ride and giver
-    const existingFeedback = await Feedback.findOne({
-      ride,
-      givenBy,
-      givenByUser,
-    });
+//   // Calculate new average rating
+//   const totalRating = feedbacks.reduce((sum, fb) => sum + fb.rating, 0);
+//   const averageRating = Math.round((totalRating / feedbacks.length) * 10) / 10; // Round to 1 decimal
 
-    if (existingFeedback) {
-      throw new Error('Feedback already submitted for this ride');
-    }
+//   // Update the appropriate model
+//   if (userType === 'driver') {
+//     await Driver.findByIdAndUpdate(userId, {
+//       $set: { 'rating.average': averageRating, 'rating.count': feedbacks.length },
+//     });
+//   } else if (userType === 'passenger') {
+//     await Passenger.findByIdAndUpdate(userId, {
+//       $set: { 'rating.average': averageRating, 'rating.count': feedbacks.length },
+//     });
+//   }
+// }
 
-    // Create new feedback
-    const feedback = new Feedback({
-      ride,
-      givenBy,
-      givenByUser,
-      givenTo,
-      givenToUser,
-      rating,
-      comment,
-    });
+// export async function submitFeedback(feedbackData) {
+//   const { ride, givenBy, givenByUser, givenTo, givenToUser, rating, comment } = feedbackData;
 
-    // Save the feedback
-    await feedback.save();
+//   // Validate rating
+//   if (rating < 1 || rating > 5) {
+//     throw new Error('Rating must be between 1 and 5');
+//   }
 
-    // Update the recipient's rating
-    await this._updateUserRating(givenTo, givenToUser);
+//   // Check if feedback already exists for this ride and giver
+//   const existingFeedback = await Feedback.findOne({
+//     ride,
+//     givenBy,
+//     givenByUser,
+//   });
 
-    return feedback;
-  }
+//   if (existingFeedback) {
+//     throw new Error('Feedback already submitted for this ride');
+//   }
 
-  static async _updateUserRating(userType, userId) {
-    // Get all feedback for this user
-    const feedbacks = await Feedback.find({
-      givenTo: userType,
-      givenToUser: userId,
-    });
+//   // Create new feedback
+//   const feedback = new Feedback({
+//     ride,
+//     givenBy,
+//     givenByUser,
+//     givenTo,
+//     givenToUser,
+//     rating,
+//     comment,
+//   });
 
-    if (feedbacks.length === 0) return;
+//   // Save the feedback
+//   await feedback.save();
 
-    // Calculate new average rating
-    const totalRating = feedbacks.reduce((sum, fb) => sum + fb.rating, 0);
-    const averageRating = Math.round((totalRating / feedbacks.length) * 10) / 10; // Round to 1 decimal
+//   // Update the recipient's rating
+//   await updateUserRating(givenTo, givenToUser);
 
-    // Update the appropriate model
-    if (userType === 'driver') {
-      await Driver.findByIdAndUpdate(userId, {
-        $set: { 'rating.average': averageRating, 'rating.count': feedbacks.length },
-      });
-    } else if (userType === 'passenger') {
-      await Passenger.findByIdAndUpdate(userId, {
-        $set: { 'rating.average': averageRating, 'rating.count': feedbacks.length },
-      });
-    }
-  }
+//   return feedback;
+// }
 
-  static async getUserFeedback(userType, userId) {
-    return Feedback.find({
-      givenTo: userType,
-      givenToUser: userId,
-    })
-      .populate('givenByUser', 'name profileImage')
-      .sort({ createdAt: -1 });
-  }
-}
-
-export default FeedbackHelper;
+// export async function getUserFeedback(userType, userId) {
+//   return Feedback.find({
+//     givenTo: userType,
+//     givenToUser: userId,
+//   })
+//     .populate('givenByUser', 'name profileImage')
+//     .sort({ createdAt: -1 });
+// }

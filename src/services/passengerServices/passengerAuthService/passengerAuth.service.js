@@ -2,24 +2,49 @@
 import { Passenger } from "../../../models/passenger/passenger.model.js";
 import { verifyOtp } from "../../../services/otpService/otp.service.js";
 import { normalizeNumber, signToken } from "../../../helpers/helper.js";
+import jwt from "jsonwebtoken";
 
 
-// -------------------- Register Passenger --------------------
-export async function registerPassenger({ name, email, password, contactNumber, gender }) {
-  const query = [{ email }];
-  if (contactNumber) query.push({ contactNumber });
-
-  const existing = await Passenger.findOne({ $or: query });
-  if (existing) {
-    if (existing.email === email) throw new Error("Passenger with this email already exists");
-    if (contactNumber && existing.contactNumber === contactNumber)
-      throw new Error("Passenger with this contact number already exists");
+// -------------------- Google Login --------------------
+export async function googleLogin(payload) {
+  const { email, name, googleId, profileImage } = payload;
+  
+  // Check if driver exists with this email
+  let passenger = await Passenger.findOne({ email });
+  
+  if (!passenger) {
+    // Create new passenger with Google OAuth data
+    passenger = await Passenger.create({
+      email,
+      name,
+      googleId,
+      profileImage,
+      otpVerified: true,
+      status: "pending",
+      contactNumber:"pending",
+      profileCompleted: false,
+    });
+  } else {
+    // Update existing driver with Google OAuth data
+    passenger.googleId = googleId;
+    passenger.profileImage = profileImage || passenger.profileImage;
+    passenger.name = name || passenger.name;
+    passenger.otpVerified = true;
+    await passenger.save();
   }
-
-  const newPassenger = new Passenger({ name, email, password, contactNumber, gender });
-  await newPassenger.save();
-
-  return newPassenger;
+  
+  // Generate JWT token
+  const token = jwt.sign(
+    { id: driver._id, email: passenger.email },
+    process.env.JWT_SECRET,
+    { expiresIn: "7d" }
+  );
+  
+  return { 
+    passenger, 
+    token, 
+    profileCompleted: passenger.profileCompleted 
+  };
 }
 
 // -------------------- OTP Login --------------------
