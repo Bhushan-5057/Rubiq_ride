@@ -2,6 +2,38 @@ import { uploadToCloudinary } from "../../../helpers/cloudinary.helper.js";
 import { upload } from "../../../middleware/upload.middleware.js";
 import { getDriverProfileStatus } from "../../../services/adminServices/driverManagementService/driverManagement.service.js";
 import { updateProfile, getProfile } from "../../../services/driverServices/driverProfileService/driverProfile.service.js";
+import { setDriverOfflineService, setDriverOnlineService } from ".././../../services/driverServices/driverProfileService/driverProfile.service.js";
+
+
+//------------------------ Driver Go Online ------------------------
+export const setDriverOnlineController = async (req, res, next) => {
+  try {
+    const driverId = req.driver._id;
+    const driver = await setDriverOnlineService(driverId);
+    res.status(200).json({
+      success: true,
+      message: "Captain is now online",
+      driver,
+    });
+  } catch (error) {
+    next(error);
+  }
+} 
+
+//------------------------ Driver Go Offline ------------------------
+export const setDriverOfflineController = async (req, res, next) => {
+  try {
+    const driverId = req.driver._id;
+    const driver = await setDriverOfflineService(driverId);
+    res.status(200).json({
+      success: true,
+      message: "Captain is now offline",
+      driver,
+    });
+  } catch (error) {
+    next(error);
+  }
+}
 
 // -------------------- Driver Profile --------------------
 export async function profileController(req, res, next) {

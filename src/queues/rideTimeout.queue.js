@@ -17,14 +17,28 @@ const queueOptions = {
 export const rideTimeoutQueue = new Queue("rideTimeoutQueue", queueOptions);
 
 // Add job with retry logic
-export const addRideTimeoutJob = async (rideId, delay = 15000) => {
+export const addRideTimeoutJob = async (rideId, delay = 60000) => {
+  const createdAt = Date.now();
+  const expectedFireAt = new Date(createdAt + delay);
+
+  console.log(
+    "🕒 RIDE TIMEOUT JOB CREATED",
+    "\nRide ID:", rideId,
+    "\nCreated At:", new Date(createdAt).toISOString(),
+    "\nExpected Fire At:", expectedFireAt.toISOString(),
+    "\nDelay:", delay / 1000, "seconds"
+  );
+
   try {
     const job = await rideTimeoutQueue.add(
       "rideTimeout",
-      { rideId },
       {
-        delay, // 15 seconds delay
-        jobId: `ride_timeout_${rideId}`,
+        rideId,
+        createdAt, // 👈 used to calculate real delay
+      },
+      {
+        delay, // 1 minute
+        jobId: `ride_timeout_${rideId}`, // unchanged
         removeOnComplete: true,
         attempts: 3,
         backoff: {
@@ -33,10 +47,11 @@ export const addRideTimeoutJob = async (rideId, delay = 15000) => {
         },
       }
     );
-    console.log(`Added ride timeout job ${job.id} for ride ${rideId}`);
+
+    console.log(`✅ Ride timeout job added. Job ID: ${job.id}`);
     return job;
   } catch (error) {
-    console.error("Error adding ride timeout job:", error);
+    console.error("❌ Error adding ride timeout job:", error);
     throw error;
   }
 };

@@ -1,5 +1,6 @@
 import { uploadToCloudinary } from "../../../helpers/cloudinary.helper.js";
 import { updateProfile } from "../../../services/passengerServices/passengerProfileService/passengerProfile.service.js";
+import {getPassengerStats} from "../../../services/rideServices/rideStats.service.js"
 
 // -------------------- Get Profile --------------------
 export async function profileController(req, res, next) {
@@ -13,6 +14,10 @@ export async function profileController(req, res, next) {
     delete result.otp;
     delete result.otpExpiry;
     delete result.__v;
+
+    // Add ride statistics to the profile result
+    const stats = await getPassengerStats(passenger._id);
+    result.getPassengerStats = stats;
 
     res.json({
       success: true,

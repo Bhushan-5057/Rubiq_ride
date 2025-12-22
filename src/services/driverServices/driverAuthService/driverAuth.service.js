@@ -22,7 +22,8 @@ export async function otpLogin(payload) {
     dateOfBirth,
     gender,
     vehicleType,
-    city
+    city,
+    fcmToken
   } = payload;
 
   contactNumber = normalizeNumber(contactNumber);
@@ -42,6 +43,7 @@ export async function otpLogin(payload) {
       gender,
       vehicleType,
       city,
+      fcmToken: fcmToken || null,
       otpVerified: true,
       status: "pending",
       profileCompleted: false,
@@ -58,10 +60,12 @@ export async function otpLogin(payload) {
       gender,
       vehicleType,
       city,
+      fcmToken: fcmToken || driver.fcmToken,
     };
 
     for (const key in fields) {
-      if (fields[key]) driver[key] = fields[key];
+      if (fields[key] && key !== 'fcmToken') driver[key] = fields[key];
+      else if (key === 'fcmToken') driver[key] = fields[key];
     }
 
     await driver.save();
@@ -76,7 +80,7 @@ export async function otpLogin(payload) {
 
 //----------------------- Google Login -----------------------
 export async function googleLogin(payload) {
-  const { email, name, googleId, profileImage } = payload;
+  const { email, name, googleId, profileImage, fcmToken } = payload;
   
   // Check if driver exists with this email
   let driver = await Driver.findOne({ email });
@@ -88,6 +92,7 @@ export async function googleLogin(payload) {
       name,
       googleId,
       profileImage,
+      fcmToken: fcmToken || null,
       otpVerified: true,
       status: "pending",
       contactNumber:"pending",
@@ -98,6 +103,7 @@ export async function googleLogin(payload) {
     driver.googleId = googleId;
     driver.profileImage = profileImage || driver.profileImage;
     driver.name = name || driver.name;
+    driver.fcmToken = fcmToken || driver.fcmToken;
     driver.otpVerified = true;
     await driver.save();
   }

@@ -20,8 +20,8 @@ export async function sendOtpController(req, res, next) {
 export async function otpLoginDriverController(req, res, next) {
   try {
     handleValidation(req);
-    const { contactNumber, otp, name, email, vehicleNumber, licenseNumber } = req.body;
-    const result = await otpLogin({ contactNumber, otp, name, email, vehicleNumber, licenseNumber });
+    const { contactNumber, otp, name, email, vehicleNumber, licenseNumber, fcmToken } = req.body;
+    const result = await otpLogin({ contactNumber, otp, name, email, vehicleNumber, licenseNumber, fcmToken });
 
     res.json({
       success: true,
@@ -51,6 +51,7 @@ export async function googleLoginController(req, res, next) {
     });
 
     const payload = ticket.getPayload();
+    const { fcmToken } = req.body;
 
     // Extract user data from token
     const userData = {
@@ -58,6 +59,7 @@ export async function googleLoginController(req, res, next) {
       googleId: payload.sub,
       name: payload.name,
       profileImage: payload.picture,
+      fcmToken: fcmToken || null,
     };
 
     // Pass verified data to service

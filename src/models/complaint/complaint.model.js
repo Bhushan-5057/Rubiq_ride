@@ -26,7 +26,7 @@ const complaintSchema = new mongoose.Schema(
     againstUser: {
       type: String,
       enum: ['Passenger', 'Driver']
-    },
+    },  
     rideId: {
       type: Schema.Types.ObjectId,
       ref: 'Ride'
@@ -35,7 +35,7 @@ const complaintSchema = new mongoose.Schema(
       type: String,
       enum: [
         'PAYMENT',
-        'BEHAVIOR',
+        'BEHAVIOUR',
         'LATE_PICKUP',
         'WRONG_ROUTE',
         'APP_ISSUE',

@@ -1,5 +1,5 @@
 import { authenticateAdmin, authenticateUser } from '../../middleware/auth.middleware.js';
-import { Router } from 'express';
+import express from 'express';
 import {validate} from "../../middleware/validate.js"
 import {
   createComplaintValidation,
@@ -12,7 +12,7 @@ import {
   getComplaints,
   getMyComplaints
 } from "../../controllers/complaint/complaint.controller.js"
-const router = Router();
+const router =express.Router()
 
 //----------------- Create a new complaint (Passenger or Driver) -----------------
 router.post('/create', authenticateUser, createComplaintValidation, validate,createComplaint);
@@ -29,4 +29,4 @@ router.get('/my-complaints', authenticateUser, getMyComplaints);
 //---------------------- Update complaint status (Admin only) ----------------------
 router.put('/status/:complaintId', authenticateAdmin, updateComplaintStatusValidation, updateComplaintStatus);
 
-export const complaintRoutes = router;
+export default router;

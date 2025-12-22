@@ -12,12 +12,13 @@ export const createComplaint = async (req, res, next) => {
     const complaintData = {
       ...req.body,
       raisedBy: req.user.id,
-      raisedByUser: req.user.role === 'DRIVER' ? 'Driver' : 'Passenger'
+      raisedByUser: req.user.role
     };
 
     const complaint = await createComplaintService(complaintData);
     res.status(201).json({
       success: true,
+      message:"Complaint created successfully",
       data: complaint
     });
   } catch (error) {
@@ -43,6 +44,7 @@ export const getComplaint = async (req, res, next) => {
 
     res.json({
       success: true,
+      message:"Complaint fetched successfully",
       data: complaint
     });
   } catch (error) {
@@ -60,6 +62,7 @@ export const updateComplaintStatus = async (req, res, next) => {
 
     res.json({
       success: true,
+      message:"Complaint status updated successfully",
       data: updatedComplaint
     });
   } catch (error) {
@@ -78,6 +81,7 @@ export const getComplaints = async (req, res, next) => {
     const result = await getComplaintsService(filter, options);
     res.json({
       success: true,
+      message:"Complaints fetched successfully",
       data: result
     })
   } catch (error) {
@@ -95,6 +99,7 @@ export const getMyComplaints = async (req, res, next) => {
     const result = await getMyComplaintsService(req.user.id, options);
     res.json({
       success: true,
+      message:"User complaints fetched successfully",
       data: result
     });
   } catch (error) {

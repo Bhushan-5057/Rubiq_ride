@@ -2,7 +2,7 @@ import { body, query, param } from 'express-validator';
 
 const complaintCategories = [
   'PAYMENT',
-  'BEHAVIOR',
+  'BEHAVIOUR',
   'LATE_PICKUP',
   'WRONG_ROUTE',
   'APP_ISSUE',

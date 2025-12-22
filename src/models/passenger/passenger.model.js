@@ -21,6 +21,7 @@ const passengerSchema = new mongoose.Schema(
       enum: ["male", "female", "other", ""],
       default: "",
     },
+    bankDetails: {type:mongoose.Schema.Types.ObjectId, ref: "BankAccount"},
     lastLogoutAt: { type: Date },
     profileCompleted: { type: Boolean, default: false },
     status: { type: String, enum: ["active", "deactive"], default: "active" },
@@ -35,6 +36,7 @@ const passengerSchema = new mongoose.Schema(
         index: "2dsphere",
       },
     },
+    fcmToken: { type: String, default: null },
     rating: {
       average: { type: Number, default: 0 },
       count: { type: Number, default: 0 }

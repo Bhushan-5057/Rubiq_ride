@@ -3,7 +3,7 @@ import { Driver } from "../../../models/driver/driver.model.js";
 import { Passenger } from "../../../models/passenger/passenger.model.js";
 import { calculateFare, calculateEarningsFromDistance } from "../../../helpers/rideHelpers.js";
 import { areCoordinatesClose } from "../../../common/utlis.js";
-import { rideTimeoutQueue } from "../../../queues/rideTimeout.queue.js";
+import { addRideTimeoutJob } from "../../../queues/rideTimeout.queue.js";
 
 //-------------------- Create Ride --------------------
 export async function createRideService({ passengerId, pickup, drop, vehicleType, paymentMethod, isPaymentRequiredBeforeRide }) {
@@ -43,11 +43,7 @@ export async function createRideService({ passengerId, pickup, drop, vehicleType
   ride.notifiedDrivers = nearbyDrivers.map(d => d._id);
   await ride.save();
 
-  await rideTimeoutQueue.add(
-    "rideTimeoutJob",
-    { rideId: ride._id },
-    { delay: 10000 }
-  );
+  await addRideTimeoutJob(ride._id.toString(), 60000);
 
   await Passenger.findByIdAndUpdate(passengerId, {
     location: { type: "Point", coordinates: [pickup.lng, pickup.lat] },

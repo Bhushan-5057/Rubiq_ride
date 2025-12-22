@@ -118,4 +118,22 @@ export function areCoordinatesClose(coord1, coord2, thresholdMeters = 200) {
     console.error('Error calculating distance:', error);
     return false;
   }
-}
+} 
+
+//-------------- Ride cancellation rules ----------------
+export const CANCELLATION_RULES = {
+  passenger: [
+    "changed_mind",
+    "payment_issue",
+    "driver_delay",
+    "driver_no_show",
+    "other"
+  ],
+  driver: [
+    "vehicle_issue",
+    "passenger_no_show",
+    "passenger_unreachable",
+    "payment_issue",
+    "other"
+  ],
+};

@@ -12,14 +12,11 @@ export async function getDriverStats(driverId) {
     {
       $group: {
         _id: null,
-        accepted: {
-          $sum: { $cond: [{ $eq: ["$status", "accepted"] }, 1, 0] }
-        },
         completed: {
           $sum: { $cond: [{ $eq: ["$status", "completed"] }, 1, 0] }
         },
-        rejected: {
-          $sum: { $cond: [{ $eq: ["$status", "rejected"] }, 1, 0] }
+        cancelled: {
+          $sum: { $cond: [{ $eq: ["$status", "cancelled"] }, 1, 0] }
         },
         missed: {
           $sum: { $cond: [{ $eq: ["$status", "missed"] }, 1, 0] }
@@ -29,9 +26,8 @@ export async function getDriverStats(driverId) {
   ]);
 
   return stats[0] ?? {
-    accepted: 0,
     completed: 0,
-    rejected: 0,
+    cancelled: 0,
     missed: 0
   };
 }
@@ -47,13 +43,10 @@ export async function getPassengerStats(passengerId) {
     {
       $group: {
         _id: null,
-        created: {
-          $sum: { $cond: [{ $eq: ["$status", "created"] }, 1, 0] }
-        },
         completed: {
           $sum: { $cond: [{ $eq: ["$status", "completed"] }, 1, 0] }
         },
-        canceled: {
+        cancelled: {
           $sum: { $cond: [{ $eq: ["$status", "cancelled"] }, 1, 0] }
         }
       }
@@ -61,8 +54,9 @@ export async function getPassengerStats(passengerId) {
   ]);
 
   return stats[0] ?? {
-    created: 0,
     completed: 0,
-    canceled: 0
+    cancelled: 0
   };
-}
+} 
+
+

@@ -47,7 +47,12 @@ const driverSchema = new mongoose.Schema(
     rating: {
       average: { type: Number, default: 0 },
       count: { type: Number, default: 0 }
-    }
+    },
+    fcmToken: { type: String, default: null },
+    isOnline: { type: Boolean, default: false },
+    lastOnline: { type: Date },
+    lastOffline: { type: Date },
+    driverStatus: { type: String, enum: ["available", "unavailable", "on_trip"], default: "unavailable" },
   },
   { timestamps: true }
 );
@@ -76,5 +81,4 @@ driverSchema.pre("save", function (next) {
 
 driverSchema.index({ location: "2dsphere" });
 
-export const Driver =
-  mongoose.models.Driver || mongoose.model("Driver", driverSchema);
+export const Driver = mongoose.model('Driver', driverSchema);

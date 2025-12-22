@@ -7,9 +7,9 @@ import jwt from "jsonwebtoken";
 
 // -------------------- Google Login --------------------
 export async function googleLogin(payload) {
-  const { email, name, googleId, profileImage } = payload;
+  const { email, name, googleId, profileImage, fcmToken } = payload;
   
-  // Check if driver exists with this email
+  // Check if passenger exists with this email
   let passenger = await Passenger.findOne({ email });
   
   if (!passenger) {
@@ -19,23 +19,25 @@ export async function googleLogin(payload) {
       name,
       googleId,
       profileImage,
+      fcmToken: fcmToken || null,
       otpVerified: true,
-      status: "pending",
+      status: "active",
       contactNumber:"pending",
       profileCompleted: false,
     });
   } else {
-    // Update existing driver with Google OAuth data
+    // Update existing passenger with Google OAuth data
     passenger.googleId = googleId;
     passenger.profileImage = profileImage || passenger.profileImage;
     passenger.name = name || passenger.name;
+    passenger.fcmToken = fcmToken || passenger.fcmToken;
     passenger.otpVerified = true;
     await passenger.save();
   }
   
   // Generate JWT token
   const token = jwt.sign(
-    { id: driver._id, email: passenger.email },
+    { id: passenger._id, email: passenger.email },
     process.env.JWT_SECRET,
     { expiresIn: "7d" }
   );
@@ -48,7 +50,8 @@ export async function googleLogin(payload) {
 }
 
 // -------------------- OTP Login --------------------
-export async function otpLogin({ contactNumber, otp, name, email, gender }) {
+export async function otpLogin({ contactNumber, otp, name, email, gender, fcmToken }) {
+  console.log("fcm token in service:", fcmToken); 
   contactNumber = normalizeNumber(contactNumber);
 
   const isValidOtp = await verifyOtp(contactNumber, otp ,"passenger");
@@ -63,6 +66,7 @@ export async function otpLogin({ contactNumber, otp, name, email, gender }) {
       name: name || "",
       email: email || null,
       gender: gender || "",
+      fcmToken: fcmToken || null,
       status: "active",
       profileCompleted: false,
     });
@@ -72,6 +76,7 @@ export async function otpLogin({ contactNumber, otp, name, email, gender }) {
     if (name && !passenger.name) passenger.name = name;
     if (email && !passenger.email) passenger.email = email;
     if (gender && !passenger.gender) passenger.gender = gender;
+    if (fcmToken) passenger.fcmToken = fcmToken;
 
     await passenger.save();
   }

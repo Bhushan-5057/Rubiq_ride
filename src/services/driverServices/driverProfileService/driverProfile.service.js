@@ -1,4 +1,68 @@
-import { requiredFields, updatableFields, documentStatus, requiredDocs,requiredDocsNumber } from "../../../common/utlis.js";
+import { requiredFields, updatableFields, documentStatus, requiredDocs, requiredDocsNumber } from "../../../common/utlis.js";
+import { getDriverStats } from "../../../services/rideServices/rideStats.service.js"
+import { Driver } from "../../../models/driver/driver.model.js"
+import { Ride } from "../../../models/ride/ride.model.js";
+
+
+//---------------------- Driver Online ----------------------
+export const setDriverOnlineService = async (driverId) => {
+  try {
+    const driver = await Driver.findById(driverId);
+    if (!driver) {
+      throw new Error("Driver not found");
+    }
+    if (driver.activationStatus !== "ready") {
+      throw new Error("Driver is not ready to go online");
+    }
+
+    if (driver.approvalStatus !== "approved") {
+      throw new Error("Driver is not approved to go online");
+    }
+    if (driver.profileCompleted !== true) {
+      throw new Error("Driver profile is not completed");
+    }
+    if (driver.documentsVerified !== true) {
+      throw new Error("Driver documents are not verified");
+    }
+    if (driver.status !== "active") {
+      throw new Error("Driver account is not active");
+    }
+    driver.isOnline = true;
+    driver.driverStatus = "available";
+    driver.lastOnline = new Date();
+    await driver.save(); 
+    return driver;
+  } catch (error) {
+    throw error;
+  }
+}
+
+//---------------------- Driver Offline ----------------------
+export const setDriverOfflineService = async (driverId) => {
+  try {
+    const driver = await Driver.findById(driverId);
+    if(!driver) {
+      throw new Error("Driver not found");
+    }  
+
+    if (driver.driverStatus === "on_trip") {
+      throw new Error("Cannot go offline while on a trip");
+    } 
+
+    const selectedRides = await Ride.find({ driver: driverId, status: { $in: ["accepted", "ongoing"] } });
+    if (selectedRides.length > 0) {
+      throw new Error("Cannot go offline with active rides");
+    }
+    
+    driver.isOnline = false;
+    driver.driverStatus = "unavailable";
+    driver.lastOffline = new Date();
+    await driver.save();
+    return driver;
+  } catch (error) {
+    throw error;
+  }
+}
 
 //----------------------- Get Profile -----------------------
 export async function getProfile(driver) {
@@ -10,6 +74,10 @@ export async function getProfile(driver) {
   delete result.otp;
   delete result.otpExpiry;
   delete result.__v;
+
+  // Add ride statistics to the profile result
+  const stats = await getDriverStats(driver._id);
+  result.getDriverStats = stats;
 
   return result;
 }

@@ -2,7 +2,8 @@ import express from "express";
 import {
   updateDriverLocation,
   acceptRide,
-  rejectRide,
+  cancelRide,
+  driverArrived,
   startRide,
   completeRide,
 } from "../../../../controllers/ride/driver/driverTracking.controller.js";
@@ -23,13 +24,16 @@ router.post("/update-location", authenticateDriver, updateDriverLocation);
 //---------------- Accept Ride Route ----------------
 router.post("/accept-ride", authenticateDriver, acceptRide);
 
+//---------------- Driver Arrived Route ----------------
+router.post("/driver-arrived", authenticateDriver, driverArrived);
+
 //---------------- Start Ride Route ----------------
 router.post("/start-ride", authenticateDriver, startRide);
 
 //---------------- Complete Ride Route ----------------
 router.post("/complete-ride", authenticateDriver, completeRide);
 
-//---------------- Reject Ride Route ----------------
-router.post("/reject-ride", authenticateDriver, rejectRide);
+//---------------- Cancel Ride Route ----------------
+router.post("/cancel-ride", authenticateDriver,  cancelRide);
 
 export default router;

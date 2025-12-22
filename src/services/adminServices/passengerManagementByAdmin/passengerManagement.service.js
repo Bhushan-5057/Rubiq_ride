@@ -66,7 +66,12 @@ export async function getAllPassenger(filters = {}) {
 
 // -------------------- Get Passenger by ID --------------------
 export async function getPassengerById(passengerId) {
-  const passenger = await Passenger.findById(passengerId);
+  const passenger = await Passenger.findById(passengerId)
+      .populate({
+      path: "bankDetails",
+      // select: "-accountNumber" 
+    });
+    console.log(passenger)
   if (!passenger) throw new Error("Passenger not found");
 
   // Get passenger stats
