@@ -1,6 +1,7 @@
 import { googleLogin, otpLogin, sendDriverOtp } from "../../../services/driverServices/index.js";
 import { handleValidation } from "../../../validations/comman.validation.js";
 import {OAuth2Client} from "google-auth-library" 
+import {logout} from "../../../services/driverServices/driverAuthService/driverAuth.service.js"
 
 const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID)
 
@@ -74,6 +75,24 @@ export async function googleLoginController(req, res, next) {
     });
   } catch (err) {
     console.log(err);
+    next(err);
+  }
+} 
+
+//-------------------------- Driver Logout --------------------------
+
+export async function logoutController(req, res, next) {
+  try {
+    if (!req.driver || !req.driver._id) {
+      return res.status(401).json({
+        success: false,
+        message: "Unauthorized",
+      });
+    }
+
+    const result = await logout(req.driver._id);
+    res.json({ success: true, ...result });
+  } catch (err) {
     next(err);
   }
 }

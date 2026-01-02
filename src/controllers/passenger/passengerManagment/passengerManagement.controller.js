@@ -1,4 +1,7 @@
-import { deletePassenger, getPassengerProfileStatus, } from "../../../services/adminServices/passengerManagementByAdmin/passengerManagement.service.js";
+import {
+  deletePassenger,
+  getPassengerProfileStatus,
+} from "../../../services/adminServices/passengerManagementByAdmin/passengerManagement.service.js";
 
 
 // -------------------- Delete Passenger --------------------
@@ -26,27 +29,28 @@ export async function deletePassengerController(req, res, next) {
     return res.json({
       success: true,
       message: "Passenger deleted successfully",
-      ...result,
+      data: result,
     });
-  } catch (err) {
-    next(err);
+  } catch (error) {
+    next(error);
   }
 }
 
 // -------------------- Check Passenger Profile Status --------------------
-export const checkProfileStatusController = async (req, res) => {
+export const checkProfileStatusController = async (req, res, next) => {
   try {
     const { contactNumber } = req.params;
     const status = await getPassengerProfileStatus(contactNumber);
 
     res.status(200).json({
       success: true,
-      ...status,
+      message: "Passenger Status Fetched Successfuly",
+      data: status,
     });
-  } catch (err) {
-    console.error("Error checking profile status:", err);
-    if (err.message === "Passenger not found") {
-      return res.status(404).json({ success: false, message: err.message });
+  } catch (error) {
+    console.error("Error checking profile status:", error);
+    if (error.message === "Passenger not found") {
+      return res.status(404).json({ success: false, message: error.message });
     }
     res.status(500).json({ success: false, message: "Internal server error" });
   }

@@ -1,12 +1,47 @@
-import { createRideService, cancelRideService, updateRideService, endRideService }
+import { createRideService, cancelRideService, updateRideService, endRideService, updatePassengerLocationService }
   from "../../../../services/rideServices/passengerRideService/passengerRide.service.js";
 import { createPaymentIntent, confirmPaymentIntent } from "../../../../services/payment/payment.service.js";
 import { getIO } from "../../../../config/socket/socket.js";
 import { Ride } from "../../../../models/ride/ride.model.js";
 import { Passenger } from "../../../../models/passenger/passenger.model.js";
-import { sendPushNotification } from "../../../../services/notification/notification.service.js"
+import { sendToUser } from "../../../../services/notification/sendToUser.js";
+import { Driver } from "../../../../models/driver/driver.model.js";
+import { PASSENGER_CANCELLATION_REASONS } from "../../../../common/cancellationReasons.js";
+
+
+//-------------------------- Update passenger Location --------------------------  
+
+export const updatePassengerLocation = async (req, res, next) => {
+  try {
+    const { lng, lat } = req.body;
+
+    if (typeof lng !== "number" || typeof lat !== "number") {
+      throw new Error("Latitude and longitude must be valid numbers");
+    }
+
+    const passenger = req.passenger;
+
+    const updatedPassenger = await updatePassengerLocationService(
+      passenger,
+      lng,
+      lat
+    );
+
+    res.status(200).json({
+      success: true,
+      message: updatedPassenger.dbSaved
+        ? "Passenger location saved successfully"
+        : "Passenger location already exists",
+      passenger: updatedPassenger,
+      dbSaved: updatedPassenger.dbSaved,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
 
 //---------------------------- Create Ride ---------------------------- 
+
 export const createRide = async (req, res) => {
   try {
     const passengerId = req.passenger._id;
@@ -73,6 +108,7 @@ export const createRide = async (req, res) => {
 
     // Notify nearby drivers about the new ride request
     nearbyDrivers.forEach((driver) => {
+      console.log("driver List", driver)
       io.to(driver._id.toString()).emit("new_ride_request", {
         rideId: ride._id,
         pickup,
@@ -80,24 +116,37 @@ export const createRide = async (req, res) => {
         fareEstimate: ride.fareEstimate,
         vehicleType: ride.vehicleType,
         paymentMethod: ride.paymentMethod,
-        paymentStatus: ride.paymentStatus
+        paymentStatus: ride.paymentStatus,
+        passenger:{
+          name:ride.passenger.name,
+          contactNumber:ride.passenger.contactNumber,
+          rating:ride.passenger.rating,
+        }
       });
     });
 
     // Send push notifications to nearby drivers
     for (const driver of nearbyDrivers) {
-      if (driver.fcmToken) {
-        await sendPushNotification({
-          token: driver.fcmToken,
-          title: 'New Ride Request',
-          body: `You have a new ride request from a passenger.`,
-          data: {
-            type: 'new_ride_request',
-            rideId: ride._id.toString()
-          }
-        })
+      const driverData = await Driver.findById(driver._id).select("fcmTokens");
+
+      if (!driverData?.fcmTokens?.length) {
+        console.log("❌ Skipping driver, no FCM tokens:", driver._id.toString());
+        continue;
       }
+
+      await sendToUser({
+        user: driverData,
+        title: "New Ride Request",
+        body: "You have a new ride request from a passenger.",
+        data: {
+          type: "new_ride_request",
+          rideId: ride._id.toString(),
+        },
+        userType: "driver",
+      });
     }
+
+
 
     // Notify passenger about ride creation
     io.to(passengerId.toString()).emit("ride_created", {
@@ -112,26 +161,27 @@ export const createRide = async (req, res) => {
     });
 
     // Send push notification to passenger
-    const passenger = await Passenger.findById(passengerId);
-    if (passenger?.fcmToken) {
-      await sendPushNotification({
-        token: passenger.fcmToken,
-        title: 'Ride Created',
-        body: `Your ride has been created successfully.`,
-        data: {
-          type: 'ride_created',
-          rideId: ride._id.toString()
-        }
-      })
-    }
+    const passenger = await Passenger.findById(passengerId).select("fcmTokens");
+
+    await sendToUser({
+      user: passenger,
+      title: "Ride Created",
+      body: "Your ride has been created successfully.",
+      data: {
+        type: "ride_created",
+        rideId: ride._id.toString(),
+      },
+      userType: "passenger",
+    });
+
 
     res.status(201).json({
       success: true,
       ride,
       ...paymentData
     });
-  } catch (e) {
-    console.error('Error creating ride:', e);
+  } catch (error) {
+    console.error('Error creating ride:', error);
     res.status(500).json({
       success: false,
       message: e.message || 'Failed to create ride'
@@ -140,6 +190,7 @@ export const createRide = async (req, res) => {
 };
 
 //------------------------------ Update Ride ------------------------------
+
 export const updateRide = async (req, res) => {
   try {
     const { rideId } = req.params;
@@ -161,310 +212,340 @@ export const updateRide = async (req, res) => {
     });
 
     // Send push notification to passenger
-    const passenger = await Passenger.findById(passengerId);
-    if (passenger?.fcmToken) {
-      await sendPushNotification({
-        token: passenger.fcmToken,
+    const passenger = await Passenger.findById(passengerId).select("fcmTokens");
+    await sendToUser({
+      user: passenger,
+      title: 'Drop Location Updated',
+      body: `Your drop location has been updated successfully.`,
+      data: {
+        type: 'drop_location_updated',
+        rideId: ride._id.toString()
+      },
+      userType: "passenger",
+    })
+
+    // Notify driver about ride update
+    if (ride.driver) {
+      io.to(ride.driver.toString()).emit("drop_location_updated", {
+        rideId: ride._id,
+        status: ride.status,
+        pickup: ride.pickup,
+        drop: ride.drop,
+        distance: ride.distance,
+        fareEstimate: ride.fareEstimate,
+      });
+    }
+
+    // Send push notification to driver
+    if (ride.driver) {
+      const driver = await Driver.findById(ride.driver).select("fcmTokens");
+      await sendToUser({
+        user: driver,
         title: 'Drop Location Updated',
         body: `Your drop location has been updated successfully.`,
         data: {
           type: 'drop_location_updated',
           rideId: ride._id.toString()
-        }
+        },
+        userType: "driver",
       })
     }
 
-      // Notify driver about ride update
-      if (ride.driver) {
-        io.to(ride.driver.toString()).emit("drop_location_updated", {
-          rideId: ride._id,
-          status: ride.status,
-          pickup: ride.pickup,
-          drop: ride.drop,
-          distance: ride.distance,
-          fareEstimate: ride.fareEstimate,
-        });
-      }  
+    res.status(200).json({
+      success: true,
+      message: "Ride updated successfully",
+      ride,
+    });
+  } catch (err) {
+    res.status(400).json({ success: false, message: err.message });
+  }
+};
 
-      // Send push notification to driver
-      if (ride.driver) {
-        const driver = await Driver.findById(ride.driver);
-        if (driver?.fcmToken) {
-          await sendPushNotification({
-            token: driver.fcmToken,
-            title: 'Drop Location Updated',
-            body: `Your drop location has been updated successfully.`,
-            data: {
-              type: 'drop_location_updated',
-              rideId: ride._id.toString()
-            }
-          })
-        }
-      }
+//--------------------------------- Cancel Ride --------------------------------- 
 
-      res.status(200).json({
-        success: true,
-        message: "Ride updated successfully",
-        ride,
+export const cancelRide = async (req, res, next) => {
+  try {
+    const passengerId = req.passenger._id;
+    const { reasonCode, reasonText, rideId } = req.body
+
+    if (!rideId) {
+      return res.status(400).json({
+        success: false,
+        message: "Ride ID is required",
       });
-    } catch (err) {
-      res.status(400).json({ success: false, message: err.message });
     }
-  };
 
-  //--------------------------------- Cancel Ride --------------------------------- 
-  export const cancelRide = async (req, res) => {
-    try {
-      const passengerId = req.passenger._id;
-      const { rideId } = req.params;
 
-      const ride = await cancelRideService(passengerId, rideId);
+    if (!reasonCode) {
+      return res.status(400).json({
+        success: false,
+        message: "Cancellation reason is required",
+      });
+    }
 
-      const io = getIO();
+    const ride = await cancelRideService({ passengerId, rideId, reasonCode, reasonText, });
 
-      // Notify passenger about ride cancellation
-      io.to(passengerId.toString()).emit("ride_cancelled", {
+    const io = getIO();
+
+    // Notify passenger about ride cancellation
+    io.to(passengerId.toString()).emit("ride_cancelled", {
+      rideId: ride._id,
+      status: ride.status,
+    });
+
+    // Send push notification to passenger
+    const passenger = await Passenger.findById(passengerId).select("fcmTokens");
+
+    await sendToUser({
+      user: passenger,
+      title: 'Ride Cancelled',
+      body: `Your ride has been cancelled successfully.`,
+      data: {
+        type: 'ride_cancelled',
+        rideId: ride._id.toString()
+      },
+      userType: "passenger",
+    })
+
+    // Notify driver about ride cancellation
+    if (ride.driver) {
+      io.to(ride.driver.toString()).emit("ride_cancelled", {
         rideId: ride._id,
         status: ride.status,
       });
-
-      // Send push notification to passenger
-      const passenger = await Passenger.findById(passengerId);
-      if (passenger?.fcmToken) {
-        await sendPushNotification({
-          token: passenger.fcmToken,
-          title: 'Ride Cancelled',
-          body: `Your ride has been cancelled successfully.`,
-          data: {
-            type: 'ride_cancelled',
-            rideId: ride._id.toString()
-          } 
-        })
-      }
-
-      // Notify driver about ride cancellation
-      if (ride.driver) {
-        io.to(ride.driver.toString()).emit("ride_cancelled", {
-          rideId: ride._id,
-          status: ride.status,
-        });
-      } 
-
-      // Send push notification to driver
-      if (ride.driver) {
-        const driver = await Driver.findById(ride.driver);
-        if (driver?.fcmToken) {
-          await sendPushNotification({
-            token: driver.fcmToken,
-            title: 'Ride Cancelled',
-            body: `The ride has been cancelled by the passenger.`,
-            data: {
-              type: 'ride_cancelled',
-              rideId: ride._id.toString()
-            }
-          })
-        }
-      }
-      res.status(200).json({
-        success: true,
-        message: "Ride cancelled successfully",
-        ride,
-      });
-    } catch (err) {
-      res.status(400).json({ success: false, message: err.message });
     }
-  };
 
-  //-------------------------- End Ride --------------------------  
-  export const endRide = async (req, res) => {
-    try {
-      const passengerId = req.passenger._id;
-      const { rideId, passengerLocationCoordinates } = req.body;
+    // Send push notification to driver
+    if (ride.driver) {
+      const driver = await Driver.findById(ride.driver).select("fcmTokens");
+      await sendToUser({
+        user: driver,
+        title: 'Ride Cancelled',
+        body: `The ride has been cancelled by the passenger.`,
+        data: {
+          type: 'ride_cancelled',
+          rideId: ride._id.toString()
+        },
+        userType: "driver",
+      })
+    }
+    res.status(200).json({
+      success: true,
+      message: "Ride cancelled successfully",
+      ride,
+    });
+  } catch (error) {
+    next(error)
+  }
+};
 
-      // Get the ride first to check payment status
-      const ride = await Ride.findOne({ _id: rideId, passenger: passengerId });
+//-------------------------- End Ride --------------------------  
 
-      if (!ride) {
-        return res.status(404).json({ success: false, message: 'Ride not found' });
-      }
+export const endRide = async (req, res) => {
+  try {
+    const passengerId = req.passenger._id;
+    const { rideId, passengerLocationCoordinates } = req.body;
 
-      // For card/online payments after ride completion
-      if (ride.paymentMethod !== 'cash' && !ride.isPaymentRequiredBeforeRide) {
-        // Create payment intent for the final fare
-        const paymentResult = await createPaymentIntent(
-          ride.fareEstimate,
-          'inr',
-          {
-            rideId: ride._id.toString(),
-            passengerId: passengerId.toString(),
-            type: 'ride_payment'
-          },
-          req.passenger.stripeCustomerId
-        );
+    // Get the ride first to check payment status
+    const ride = await Ride.findOne({ _id: rideId, passenger: passengerId });
 
-        if (!paymentResult.success) {
-          return res.status(400).json({
-            success: false,
-            message: 'Payment processing failed',
-            error: paymentResult.error
-          });
-        }
+    if (!ride) {
+      return res.status(404).json({ success: false, message: 'Ride not found' });
+    }
 
-        // Update ride with payment intent
-        ride.paymentIntentId = paymentResult.paymentIntentId;
-        ride.paymentStatus = 'pending';
-        await ride.save();
+    // For card/online payments after ride completion
+    if (ride.paymentMethod !== 'cash' && !ride.isPaymentRequiredBeforeRide) {
+      // Create payment intent for the final fare
+      const paymentResult = await createPaymentIntent(
+        ride.fareEstimate,
+        'inr',
+        {
+          rideId: ride._id.toString(),
+          passengerId: passengerId.toString(),
+          type: 'ride_payment'
+        },
+        req.passenger.stripeCustomerId
+      );
 
-        // Send payment details to client
-        return res.status(200).json({
-          success: true,
-          requiresPayment: true,
-          clientSecret: paymentResult.clientSecret,
-          paymentIntentId: paymentResult.paymentIntentId,
-          requiresAction: paymentResult.requiresAction,
-          message: 'Payment required to complete ride',
-          ride
+      if (!paymentResult.success) {
+        return res.status(400).json({
+          success: false,
+          message: 'Payment processing failed',
+          error: paymentResult.error
         });
       }
 
-      // For cash payments or pre-paid rides, complete the ride
-      const completedRide = await endRideService({
-        rideId,
-        passengerId,
-        passengerLocationCoordinates,
+      // Update ride with payment intent
+      ride.paymentIntentId = paymentResult.paymentIntentId;
+      ride.paymentStatus = 'pending';
+      await ride.save();
+
+      // Send payment details to client
+      return res.status(200).json({
+        success: true,
+        requiresPayment: true,
+        clientSecret: paymentResult.clientSecret,
+        paymentIntentId: paymentResult.paymentIntentId,
+        requiresAction: paymentResult.requiresAction,
+        message: 'Payment required to complete ride',
+        ride
       });
+    }
 
-      const io = getIO();
+    // For cash payments or pre-paid rides, complete the ride
+    const completedRide = await endRideService({
+      rideId,
+      passengerId,
+      passengerLocationCoordinates,
+    });
 
-      // Notify passenger about ride completion
-      io.to(passengerId.toString()).emit("ride_ended", {
+    const io = getIO();
+
+    // Notify passenger about ride completion
+    io.to(passengerId.toString()).emit("ride_ended", {
+      rideId: completedRide._id,
+      status: completedRide.status,
+      paymentStatus: completedRide.paymentStatus,
+    });
+
+    // Send push notification to passenger
+    const passenger = await Passenger.findById(passengerId).select("fcmTokens");
+    await sendToUser({
+      user: passenger,
+      title: 'Ride Completed',
+      body: `Your ride has been completed successfully.`,
+      data: {
+        type: 'ride_ended',
+        rideId: completedRide._id.toString()
+      },
+      userType: "passenger"
+
+    })
+
+    // Notify driver about ride completion
+    if (completedRide.driver) {
+      io.to(completedRide.driver.toString()).emit("ride_ended", {
         rideId: completedRide._id,
         status: completedRide.status,
         paymentStatus: completedRide.paymentStatus,
-      }); 
-
-      // Send push notification to passenger
-      const passenger = await Passenger.findById(passengerId);
-      if (passenger?.fcmToken) {
-        await sendPushNotification({
-          token: passenger.fcmToken,
-          title: 'Ride Completed',
-          body: `Your ride has been completed successfully.`,
-          data: {
-            type: 'ride_ended',
-            rideId: completedRide._id.toString()
-          }
-        })
-      }
-
-      // Notify driver about ride completion
-      if (completedRide.driver) {
-        io.to(completedRide.driver.toString()).emit("ride_ended", {
-          rideId: completedRide._id,
-          status: completedRide.status,
-          paymentStatus: completedRide.paymentStatus,
-        });
-      } 
-
-      // Send push notification to driver
-      if (completedRide.driver) {
-        const driver = await Driver.findById(completedRide.driver);
-        if (driver?.fcmToken) {
-          await sendPushNotification({
-            token: driver.fcmToken,
-            title: 'Ride Completed',
-            body: `The ride has been completed successfully.`,
-            data: {
-              type: 'ride_ended',
-              rideId: completedRide._id.toString()
-            }
-          })
-        }
-      }
-
-      res.status(200).json({
-        success: true,
-        message: "Ride ended successfully",
-        ride: completedRide,
-      });
-    } catch (err) {
-      console.error('Error ending ride:', err);
-      res.status(400).json({
-        success: false,
-        message: err.message || 'Failed to end ride'
       });
     }
-  };
 
-  //------------------------------ Confirm Payment ------------------------------
-  export const confirmPayment = async (req, res) => {
-    try {
-      const passengerId = req.passenger._id;
-      const { rideId, paymentIntentId } = req.body;
+    // Send push notification to driver
+    if (completedRide.driver) {
+      const driver = await Driver.findById(completedRide.driver).select("fcmTokens");
+      await sendToUser({
+        user: driver,
+        title: 'Ride Completed',
+        body: `The ride has been completed successfully.`,
+        data: {
+          type: 'ride_ended',
+          rideId: completedRide._id.toString()
+        },
+        userType: "driver"
+      })
+    }
+    res.status(200).json({
+      success: true,
+      message: "Ride ended successfully",
+      ride: completedRide,
+    });
+  } catch (err) {
+    console.error('Error ending ride:', err);
+    res.status(400).json({
+      success: false,
+      message: err.message || 'Failed to end ride'
+    });
+  }
+};
 
-      // Verify the ride exists and belongs to the passenger
-      const ride = await Ride.findOne({ _id: rideId, passenger: passengerId });
+//------------------------ Get Passenger Cancellation Reason ------------------------
 
-      if (!ride) {
-        return res.status(404).json({ success: false, message: 'Ride not found' });
-      }
+export const getPassengerCancellationReasons = (req, res, next) => {
+  try {
+    const reasons = Object.entries(PASSENGER_CANCELLATION_REASONS).map(
+      ([code, text]) => ({ code, text })
+    )
+    res.json({
+      success: true,
+      message: "Passenger Cancellaition Reasons fetched succesfully",
+      reasons
+    })
+  } catch (error) {
+    next(error)
+  }
+}
 
-      // Verify the payment intent
-      const paymentResult = await confirmPaymentIntent(paymentIntentId || ride.paymentIntentId);
+//------------------------------ Confirm Payment ------------------------------
 
-      if (!paymentResult.success) {
-        // Update ride status if payment fails
-        if (ride.paymentStatus !== 'paid') {
-          ride.paymentStatus = 'failed';
-          await ride.save();
-        }
+export const confirmPayment = async (req, res) => {
+  try {
+    const passengerId = req.passenger._id;
+    const { rideId, paymentIntentId } = req.body;
 
-        return res.status(400).json({
-          success: false,
-          message: 'Payment confirmation failed',
-          error: paymentResult.error,
-          paymentStatus: 'failed'
-        });
-      }
+    // Verify the ride exists and belongs to the passenger
+    const ride = await Ride.findOne({ _id: rideId, passenger: passengerId });
 
-      // Update ride status based on payment result
-      if (paymentResult.status === 'succeeded') {
-        ride.paymentStatus = 'paid';
-        ride.transactionDate = new Date();
+    if (!ride) {
+      return res.status(404).json({ success: false, message: 'Ride not found' });
+    }
+
+    // Verify the payment intent
+    const paymentResult = await confirmPaymentIntent(paymentIntentId || ride.paymentIntentId);
+
+    if (!paymentResult.success) {
+      // Update ride status if payment fails
+      if (ride.paymentStatus !== 'paid') {
+        ride.paymentStatus = 'failed';
         await ride.save();
-
-        // Complete the ride if it was waiting for payment
-        if (ride.status === 'completed' && ride.paymentStatus === 'paid') {
-          await endRideService({
-            rideId: ride._id,
-            passengerId: ride.passenger,
-            paymentStatus: 'paid'
-          });
-        }
-
-        // Notify driver about successful payment
-        if (ride.driver) {
-          const io = getIO();
-          io.to(ride.driver.toString()).emit('payment:received', {
-            rideId: ride._id,
-            amount: ride.fareEstimate,
-            currency: 'inr'
-          });
-        }
       }
 
-      res.status(200).json({
-        success: true,
-        paymentStatus: ride.paymentStatus,
-        requiresAction: paymentResult.requiresAction,
-        clientSecret: paymentResult.clientSecret,
-        ride
-      });
-    } catch (err) {
-      console.error('Error confirming payment:', err);
-      res.status(400).json({
+      return res.status(400).json({
         success: false,
-        message: err.message || 'Failed to confirm payment'
+        message: 'Payment confirmation failed',
+        error: paymentResult.error,
+        paymentStatus: 'failed'
       });
     }
-  };
+
+    // Update ride status based on payment result
+    if (paymentResult.status === 'succeeded') {
+      ride.paymentStatus = 'paid';
+      ride.transactionDate = new Date();
+      await ride.save();
+
+      // Complete the ride if it was waiting for payment
+      if (ride.status === 'completed' && ride.paymentStatus === 'paid') {
+        await endRideService({
+          rideId: ride._id,
+          passengerId: ride.passenger,
+          paymentStatus: 'paid'
+        });
+      }
+
+      // Notify driver about successful payment
+      if (ride.driver) {
+        const io = getIO();
+        io.to(ride.driver.toString()).emit('payment:received', {
+          rideId: ride._id,
+          amount: ride.fareEstimate,
+          currency: 'inr'
+        });
+      }
+    }
+
+    res.status(200).json({
+      success: true,
+      paymentStatus: ride.paymentStatus,
+      requiresAction: paymentResult.requiresAction,
+      clientSecret: paymentResult.clientSecret,
+      ride
+    });
+  } catch (err) {
+    console.error('Error confirming payment:', err);
+    res.status(400).json({
+      success: false,
+      message: err.message || 'Failed to confirm payment'
+    });
+  }
+};

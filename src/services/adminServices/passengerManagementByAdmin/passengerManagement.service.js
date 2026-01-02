@@ -1,8 +1,10 @@
 import mongoose from "mongoose";
 import { Passenger } from "../../../models/passenger/passenger.model.js";
 import { getPassengerStats } from "../../../services/rideServices/rideStats.service.js";
+import { Ride } from "../../../models/ride/ride.model.js";
 
 // -------------------- Get All Passengers --------------------
+
 export async function getAllPassenger(filters = {}) {
   const {
     page = 1,
@@ -65,6 +67,7 @@ export async function getAllPassenger(filters = {}) {
 }
 
 // -------------------- Get Passenger by ID --------------------
+
 export async function getPassengerById(passengerId) {
   const passenger = await Passenger.findById(passengerId)
       .populate({
@@ -84,6 +87,7 @@ export async function getPassengerById(passengerId) {
 }
 
 // -------------------- Delete Passenger --------------------
+
 export async function deletePassenger(passengerId) {
   if (!passengerId) throw new Error("Passenger ID is required");
 
@@ -104,6 +108,7 @@ export async function deletePassenger(passengerId) {
 }
 
 // -------------------- Update Passenger Status --------------------
+
 export async function updatePassangerStatus(passengerId, newStatus) {
   if (!["active", "deactive", "pending"].includes(newStatus))
     throw new Error("Invalid status value");
@@ -121,6 +126,7 @@ export async function updatePassangerStatus(passengerId, newStatus) {
 }
 
 // -------------------- Get Passenger Profile Status --------------------
+
 export async function getPassengerProfileStatus(contactNumber) {
   if (!contactNumber.startsWith("+")) contactNumber = "+91" + contactNumber;
 
@@ -135,4 +141,4 @@ export async function getPassengerProfileStatus(contactNumber) {
     gender: passenger.gender,
     status: passenger.status,
   };
-}
+} 

@@ -48,7 +48,14 @@ const driverSchema = new mongoose.Schema(
       average: { type: Number, default: 0 },
       count: { type: Number, default: 0 }
     },
-    fcmToken: { type: String, default: null },
+    fcmTokens: [
+      {
+        token: { type: String },
+        platform: { type: String },
+        lastActiveAt: { type: Date, default: Date.now }
+      }
+    ],
+
     isOnline: { type: Boolean, default: false },
     lastOnline: { type: Date },
     lastOffline: { type: Date },

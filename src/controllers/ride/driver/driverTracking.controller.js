@@ -12,9 +12,11 @@ import { Ride } from "../../../models/ride/ride.model.js";
 import { refundPayment } from "../../../services/payment/payment.service.js";
 import { Driver } from "../../../models/driver/driver.model.js";
 import { Passenger } from "../../../models/passenger/passenger.model.js";
-import { sendPushNotification } from "../../../services/notification/notification.service.js"
+import { sendToUser } from "../../../services/notification/sendToUser.js";
+import { DRIVER_CANCELLATION_REASONS } from "../../../common/cancellationReasons.js";
 
 //----------------------------- Driver Accept Ride -----------------------------
+
 export const acceptRide = async (req, res, next) => {
   try {
     const driverId = req.driver._id;
@@ -46,21 +48,20 @@ export const acceptRide = async (req, res, next) => {
       fareEstimate: ride.fareEstimate,
     });
 
-    // Notify passenger that driver assigned via push notification
-    const passenger = await Passenger.findById(ride.passenger);
-    if (passenger?.fcmToken) {
-      await sendPushNotification({
-        token: passenger.fcmToken,
-        title: "Ride Accepted",
-        body: `Your ride has been accepted by ${req.driver.name}.`,
-        data: {
-          type: "driver_assigned",
-          rideId: ride._id.toString()
-        }
-      })
-    }
+    // Notify passenger that driver assigned via push notification 
+    const passengerId = ride.passenger;
 
-
+    const passenger = await Passenger.findById(passengerId).select("fcmTokens");
+    await sendToUser({
+      user: passenger,
+      title: "Ride Accepted",
+      body: `Your ride has been accepted by ${req.driver.name}.`,
+      data: {
+        type: "driver_assigned",
+        rideId: ride._id.toString()
+      },
+      userType: "passenger",
+    })
     res.json({ success: true, ride });
   } catch (error) {
     next(error);
@@ -68,6 +69,7 @@ export const acceptRide = async (req, res, next) => {
 };
 
 //------------------------- Driver Arrived -------------------------
+
 export const driverArrived = async (req, res, next) => {
   try {
     const driverId = req.driver._id;
@@ -85,18 +87,17 @@ export const driverArrived = async (req, res, next) => {
     });
 
     // Notify passenger that driver arrived via push notification
-    const passenger = await Passenger.findById(ride.passenger);
-    if (passenger?.fcmToken) {
-      await sendPushNotification({
-        token: passenger.fcmToken,
-        title: "Driver Arrived",
-        body: `Your driver has arrived. Please get ready.`,
-        data: {
-          type: "driver_arrived",
-          rideId: ride._id.toString()
-        }
-      })
-    }
+    const passenger = await Passenger.findById(ride.passenger).selec("fcmTokens");
+    await sendToUser({
+      user: passenger,
+      title: "Driver Arrived",
+      body: "Your driver has arrived. Please get ready.",
+      data: {
+        type: "driver_arrived",
+        rideId: ride._id.toString(),
+      },
+      userType: "passenger",
+    })
     res.json({ success: true, ride });
   } catch (error) {
     next(error);
@@ -104,6 +105,7 @@ export const driverArrived = async (req, res, next) => {
 };
 
 //------------------------- Driver Start Ride -------------------------
+
 export const startRide = async (req, res, next) => {
   try {
     const driverId = req.driver._id;
@@ -122,18 +124,17 @@ export const startRide = async (req, res, next) => {
     });
 
     // Notify passenger that ride started via push notification
-    const passenger = await Passenger.findById(ride.passenger);
-    if (passenger?.fcmToken) {
-      await sendPushNotification({
-        token: passenger.fcmToken,
-        title: "Ride Started",
-        body: `Your ride has started. Enjoy your trip!`,
-        data: {
-          type: "ride_started",
-          rideId: ride._id.toString()
-        }
-      })
-    }
+    const passenger = await Passenger.findById(ride.passenger).select("fcmTokens");;
+    await sendToUser({
+      user: passenger,
+      title: "Ride Started",
+      body: "Your ride has started. Enjoy your trip!",
+      data: {
+        type: "ride_started",
+        rideId: ride._id.toString(),
+      },
+      userType: "passenger",
+    });
     res.json({ success: true, ride });
   } catch (error) {
     next(error);
@@ -141,6 +142,7 @@ export const startRide = async (req, res, next) => {
 }
 
 //-------------------------- Driver Complete Ride --------------------------
+
 export const completeRide = async (req, res, next) => {
   try {
     const driverId = req.driver._id;
@@ -165,18 +167,17 @@ export const completeRide = async (req, res, next) => {
     });
 
     // Notify passenger that ride ended via push notification
-    const passenger = await Passenger.findById(ride.passenger);
-    if (passenger?.fcmToken) {
-      await sendPushNotification({
-        token: passenger.fcmToken,
-        title: "Ride Completed",
-        body: `Your ride has been completed. Please proceed with the payment.`,
-        data: {
-          type: "ride_ended",
-          rideId: ride._id.toString()
-        }
-      })
-    }
+    const passenger = await Passenger.findById(ride.passenger).select("fcmTokens");;
+    await sendToUser({
+      user: passenger,
+      title: "Ride Completed",
+      body: "Your ride has been completed. Please proceed with payment.",
+      data: {
+        type: "ride_ended",
+        rideId: ride._id.toString(),
+      },
+      userType: "passenger",
+    });
 
     // If payment is cash, mark as paid immediately
     if (ride.paymentMethod === 'cash') {
@@ -194,18 +195,17 @@ export const completeRide = async (req, res, next) => {
     }
 
     // Notify driver payment received via push notification
-    const driver = await Driver.findById(driverId);
-    if (driver?.fcmToken) {
-      await sendPushNotification({
-        token: driver.fcmToken,
-        title: "Payment Received",
-        body: `Payment for ride ${ride._id} has been received.`,
-        data: {
-          type: "payment_received",
-          rideId: ride._id.toString()
-        }
-      })
-    }
+    const driver = await Driver.findById(driverId).select("fcmTokens");;
+    await sendToUser({
+      user: driver,
+      title: "Payment Received",
+      body: "Payment for the ride has been received.",
+      data: {
+        type: "payment_received",
+        rideId: ride._id.toString(),
+      },
+      userType: "driver",
+    });
 
     // If payment was made online before ride, ensure it's captured
     if (ride.paymentMethod !== 'cash' && ride.isPaymentRequiredBeforeRide && ride.paymentStatus === 'pending') {
@@ -234,10 +234,18 @@ export const completeRide = async (req, res, next) => {
 };
 
 //------------------------------- Driver Cancel Ride -------------------------------
+
 export const cancelRide = async (req, res, next) => {
   try {
     const driverId = req.driver._id;
-    const { rideId } = req.body;
+    const { rideId, reasonCode, reasonText } = req.body;
+
+    if (!reasonCode) {
+      return res.status(400).json({
+        success: false,
+        message: "Cancellation reason is required"
+      });
+    }
 
     // Get the ride first to check payment status
     const ride = await Ride.findOne({ _id: rideId, driver: driverId });
@@ -263,32 +271,39 @@ export const cancelRide = async (req, res, next) => {
     }
 
     // Cancel the ride
-    const updatedRide = await cancelRideService({ rideId, driverId });
+    const updatedRide = await cancelRideService({ rideId, driverId, reasonCode, reasonText });
+
+    await Driver.findByIdAndUpdate(driverId, {
+      driverStatus: "available",
+      isOnline: true
+    });
 
     // Notify passenger about ride cancellation
     const io = getIO();
     io.to(updatedRide.passenger.toString()).emit("ride_cancelled", {
       rideId: updatedRide._id,
+      cancelledBy: "Driver",
+      reasonCode: updatedRide.cancellation.reasonCode,
+      reasonText: updatedRide.cancellation.reasonText,
       paymentStatus: updatedRide.paymentStatus,
       refundProcessed: updatedRide.paymentStatus === 'refunded'
     });
 
     // Notify passenger about ride cancellation via push notification
-    const passenger = await Passenger.findById(updatedRide.passenger);
-    if (passenger?.fcmToken) {
-      await sendPushNotification({
-        token: passenger.fcmToken,
-        title: "Ride Cancelled",
-        body: `Your ride has been cancelled by the driver.`,
-        data: {
-          type: "ride_cancelled",
-          rideId: updatedRide._id.toString()
-        }
-      })
-    }
-
+    const passenger = await Passenger.findById(updatedRide.passenger).select("fcmTokens");
+    await sendToUser({
+      user: passenger,
+      title: "Ride Cancelled",
+      body: "Your ride has been cancelled by the driver.",
+      data: {
+        type: "ride_cancelled",
+        rideId: updatedRide._id.toString(),
+      },
+      userType: "passenger",
+    });
     res.json({
       success: true,
+      message: "Ride cancelled successfully",
       ride: updatedRide,
       refundProcessed: updatedRide.paymentStatus === 'refunded'
     });
@@ -298,6 +313,7 @@ export const cancelRide = async (req, res, next) => {
 };
 
 //------------------------------ Update Driver Location ------------------------------
+
 export const updateDriverLocation = async (req, res, next) => {
   try {
     const { lng, lat, rideId } = req.body;
@@ -390,6 +406,22 @@ export const updateDriverLocation = async (req, res, next) => {
   }
 };
 
+//------------------------- Driver Cancellation Reasons ------------------------- 
+
+export const getDriverCancellationReasons = (req, res, next) => {
+  try {
+    const reasons = Object.entries(DRIVER_CANCELLATION_REASONS).map(
+      ([code, text]) => ({ code, text })
+    )
+    res.json({
+      success: true,
+      message: "Driver Cancellaition Reasons fetched succesfully",
+      reasons
+    })
+  } catch (error) {
+    next(error)
+  }
+}
 
 // export const updateDriverLocation = async (req, res) => {
 //   try {

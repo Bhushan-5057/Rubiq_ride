@@ -3,7 +3,9 @@ import { Passenger } from "../../../models/passenger/passenger.model.js";
 import { sendOtp } from "../../../services/otpService/otp.service.js";
 import { googleLogin, logout, otpLogin } from "../../../services/passengerServices/index.js";
 import { handleValidation } from "../../../validations/comman.validation.js";
-import {OAuth2Client} from "google-auth-library" 
+import {OAuth2Client} from "google-auth-library"  
+
+const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID)
 
 // -------------------- Send Otp --------------------
 export async function sendOtpController(req, res, next) {
@@ -72,7 +74,7 @@ export async function otpLoginController(req, res, next) {
 
     res.json({
       success: true,
-      message: "OTP login successfully",
+      message: "Passenger OTP login successfully",
       token: result.token,
       passenger: result.passenger,
       profileCompleted: result.profileCompleted,

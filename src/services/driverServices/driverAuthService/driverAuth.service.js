@@ -1,6 +1,6 @@
 import { sendOtp, verifyOtp } from "../../../services/otpService/otp.service.js";
 import { Driver } from "../../../models/driver/driver.model.js";
-import { normalizeNumber, signToken } from "../../../helpers/helper.js";
+import { normalizeNumber, driverToken } from "../../../helpers/helper.js";
 import { requiredFields } from "../../../common/utlis.js";
 import jwt from "jsonwebtoken";
 
@@ -74,7 +74,10 @@ export async function otpLogin(payload) {
   driver.profileCompleted = requiredFields.every(Boolean);
   await driver.save();
 
-  const token = signToken(driver);
+  const token = driverToken({
+    _id: driver._id,
+    role: "driver",
+  });
   return { driver, token, profileCompleted: driver.profileCompleted };
 }
 
@@ -120,4 +123,11 @@ export async function googleLogin(payload) {
     token, 
     profileCompleted: driver.profileCompleted 
   };
+} 
+
+//------------------------------- Driver Logout Service ------------------------------- 
+
+export async function logout(driverId) {
+  await Driver.findByIdAndUpdate(driverId, { lastLogoutAt: new Date() });
+  return { message: "Driver Logged out successfully" };
 }

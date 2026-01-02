@@ -4,8 +4,42 @@ import { Passenger } from "../../../models/passenger/passenger.model.js";
 import { calculateFare, calculateEarningsFromDistance } from "../../../helpers/rideHelpers.js";
 import { areCoordinatesClose } from "../../../common/utlis.js";
 import { addRideTimeoutJob } from "../../../queues/rideTimeout.queue.js";
+import { PASSENGER_CANCELLATION_REASONS, PASSENGER_REASON_CODES } from "../../../common/cancellationReasons.js"
+
+
+//--------------- Update Passengers Location ---------------
+
+export async function updatePassengerLocationService(passenger, lng, lat) {
+  if (!passenger?._id) {
+    throw new Error("Passenger not found or unauthorized");
+  }
+
+  if (typeof lng !== "number" || typeof lat !== "number") {
+    throw new Error("Latitude and longitude must be valid numbers");
+  }
+
+  const currentTime = new Date();
+
+  passenger.location = {
+    type: "Point",
+    coordinates: [lng, lat],
+  };
+
+  await passenger.save();
+
+  return {
+    id: passenger._id,
+    name: passenger.name,
+    coordinates: [lng, lat],
+    longitude: lng,
+    latitude: lat,
+    updatedAt: currentTime,
+    dbSaved: true,
+  };
+}
 
 //-------------------- Create Ride --------------------
+
 export async function createRideService({ passengerId, pickup, drop, vehicleType, paymentMethod, isPaymentRequiredBeforeRide }) {
   const fareDetails = calculateFare(pickup, drop, vehicleType);
   const { distanceInKm, totalFare } = fareDetails;
@@ -26,6 +60,11 @@ export async function createRideService({ passengerId, pickup, drop, vehicleType
     vehicleType: fareDetails.vehicleType,
     paymentMethod,
     isPaymentRequiredBeforeRide: paymentMethod !== 'cash',
+  });
+
+  await ride.populate({
+    path: "passenger",
+    select: "name contactNumber rating"
   });
 
   const nearbyDrivers = await Driver.find({
@@ -53,6 +92,7 @@ export async function createRideService({ passengerId, pickup, drop, vehicleType
 }
 
 //-------------------- Update Ride --------------------
+
 export async function updateRideService({ rideId, passengerId, drop }) {
   if (!rideId || !passengerId) {
     throw new Error("Ride ID and Passenger ID are required");
@@ -120,10 +160,8 @@ export async function updateRideService({ rideId, passengerId, drop }) {
 }
 
 //-------------------- Cancel Ride --------------------
-export async function cancelRideService(passengerId, rideId) {
-  if (!passengerId || !rideId) {
-    throw new Error("Passenger ID and Ride ID are required");
-  }
+
+export async function cancelRideService({ passengerId, rideId, reasonCode, reasonText, }) {
 
   const ride = await Ride.findById(rideId);
 
@@ -135,24 +173,37 @@ export async function cancelRideService(passengerId, rideId) {
     throw new Error("You are not authorized to cancel this ride");
   }
 
-  if (ride.status === "ongoing") {
-    throw new Error("Cannot cancel an ongoing ride");
+  if (["ongoing", "completed", "cancelled"].includes(ride.status)) {
+    throw new Error(`Cannot cancel the ride with status ${ride.status}`)
   }
 
-  if (ride.status === "cancelled") {
-    throw new Error("Ride is already cancelled");
+  if (!PASSENGER_REASON_CODES.includes(reasonCode)) {
+    throw new Error("Invalid cancellation reason");
   }
 
-  if (ride.status === "completed") {
-    throw new Error("Cannot cancel a completed ride");
+  let finalReasonText;
+  if (reasonCode === "OTHER") {
+    if (!reasonText || !reasonText.trim()) {
+      throw new Error("Reason text is required for Other")
+    }
+    finalReasonText = reasonText.trim()
+  } else {
+    finalReasonText = PASSENGER_CANCELLATION_REASONS[reasonCode]
   }
 
   ride.status = "cancelled";
+  ride.cancellation = {
+    cancelledBy: "Passenger",
+    reasonCode,
+    reasonText: finalReasonText,
+    cancelledAt: new Date()
+  }
   await ride.save();
   return ride;
 }
 
 //-------------------- End Ride --------------------
+
 export async function endRideService({ rideId, passengerId, passengerLocationCoordinates }) {
   if (!rideId || !passengerId) {
     throw new Error("Ride ID and Passenger ID are required");
@@ -216,3 +267,6 @@ export async function endRideService({ rideId, passengerId, passengerLocationCoo
 
   return ride;
 }
+
+
+

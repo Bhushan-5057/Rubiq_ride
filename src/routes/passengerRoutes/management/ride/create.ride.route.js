@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { authenticatePassenger } from "../../../../middleware/auth.middleware.js";
-import { createRide,cancelRide, updateRide,endRide  } from "../../../../controllers/ride/passenger/ride/passengerRide.controller.js";
-import { getPassengerRides, getRideStatus } from "../../../../controllers/ride/passenger/rideStatus/getRideStatus.controller.js";
+import { createRide,cancelRide, updateRide,endRide, getPassengerCancellationReasons } from "../../../../controllers/ride/passenger/ride/passengerRide.controller.js";
+import { getPassengerRides, getRideStatus,getPassengerRideById } from "../../../../controllers/ride/passenger/rideStatus/getRideStatus.controller.js";
 
 const router = Router()
 
@@ -11,16 +11,22 @@ router.get("/all", authenticatePassenger, getPassengerRides);
 //---------------------- Create Ride For Passenger ----------------------
 router.post("/create", authenticatePassenger, createRide);
 
-//--------------------- Get Ride Status --------------------- 
-router.get("/status/:rideId", authenticatePassenger, getRideStatus);
+//-------------------- End Ride Route --------------------
+router.post("/end-ride", authenticatePassenger, endRide);
+
+//---------------------- Get Cancel Reasons ---------------------- 
+router.get("/cancel-reasons", authenticatePassenger, getPassengerCancellationReasons);
+
+//---------------------- Cancel Ride Route ---------------------- 
+router.post("/cancel-ride", authenticatePassenger, cancelRide);
 
 //---------------------- Update Ride Route ---------------------- 
 router.put("/:rideId", authenticatePassenger, updateRide);
 
-//---------------------- Cancel Ride Route ---------------------- 
-router.post("/cancel/:rideId", authenticatePassenger, cancelRide);
+//--------------------- Get Ride Status --------------------- 
+router.get("/status/:rideId", authenticatePassenger, getRideStatus);
 
-//-------------------- End Ride Route --------------------
-router.post("/end-ride", authenticatePassenger, endRide);
+//--------------------- Get Ride By ID For Passenger --------------------- 
+router.get("/:rideId", authenticatePassenger, getPassengerRideById);
 
 export default router;

@@ -21,7 +21,6 @@ export async function register({ email, password, name, contactNumber, gender })
   });
 
   const token = adminToken(newAdmin);
-
   return { newAdmin, token };
 }
 

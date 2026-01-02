@@ -1,7 +1,7 @@
 
 import { Passenger } from "../../../models/passenger/passenger.model.js";
 import { verifyOtp } from "../../../services/otpService/otp.service.js";
-import { normalizeNumber, signToken } from "../../../helpers/helper.js";
+import { normalizeNumber, passengerToken } from "../../../helpers/helper.js";
 import jwt from "jsonwebtoken";
 
 
@@ -36,11 +36,10 @@ export async function googleLogin(payload) {
   }
   
   // Generate JWT token
-  const token = jwt.sign(
-    { id: passenger._id, email: passenger.email },
-    process.env.JWT_SECRET,
-    { expiresIn: "7d" }
-  );
+  const token = passengerToken({
+    _id: passenger._id,
+    role: "passenger",
+  });
   
   return { 
     passenger, 
@@ -87,6 +86,6 @@ export async function otpLogin({ contactNumber, otp, name, email, gender, fcmTok
     await passenger.save();
   }
 
-  const token = signToken(passenger);
+  const token = passengerToken(passenger);
   return { passenger: passenger, token, profileCompleted };
 }

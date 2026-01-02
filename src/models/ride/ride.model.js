@@ -42,15 +42,13 @@ const rideSchema = new mongoose.Schema(
       type: String,
       enum: ["pending", "accepted", "ongoing", "started", "completed", "cancelled", "missed"],
       default: "pending",
-    }, 
+    },
 
     acceptedAt: { type: Date },
 
     startedAt: { type: Date },
 
     completedAt: { type: Date },
-    
-    cancelledAt: { type: Date },
 
     notifiedDrivers: [{
       type: mongoose.Schema.Types.ObjectId,
@@ -63,32 +61,19 @@ const rideSchema = new mongoose.Schema(
       ref: "Driver"
     }],
 
-    // ---- Cancellation metadata ----
-    cancelledBy: {
-      type: String,
-      enum: ["Passenger", "Driver"],
-      default: null
-    },
-
-    cancellationCode: {
-      type: String,
-      enum: [
-        "changed_mind",
-        "payment_issue",
-        "other",
-        "driver_delay",
-        "driver_no_show",
-        "vehicle_issue",
-        "passenger_no_show",
-        "passenger_unreachable"
-      ],
-      default: null
-    },
-
-    cancellationReason: {
-      type: String,
-      trim: true,
-      default: null
+    cancellation: {
+      cancelledBy: {
+        type: String,
+        enum: ["Passenger", "Driver"],
+        default: null
+      },
+      reasonCode: {
+        type: String
+      },
+      reasonText: {
+        type: String
+      },
+      cancelledAt: { type: Date },
     },
 
     // Payment information
@@ -124,5 +109,19 @@ const rideSchema = new mongoose.Schema(
 
   { timestamps: true }
 );
+
+rideSchema.pre("validate", function (next) {
+  if (this.status === "cancelled") {
+    const { reasonCode, reasonText, cancelledBy, cancelledAt } =
+      this.cancellation || {};
+
+    if (!reasonCode || !reasonText || !cancelledBy || !cancelledAt) {
+      return next(new Error("Incomplete cancellation information"));
+    }
+  }
+
+  next();
+});
+
 
 export const Ride = mongoose.model("Ride", rideSchema);

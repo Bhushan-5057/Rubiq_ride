@@ -3,8 +3,10 @@ import { Driver } from "../../../models/driver/driver.model.js";
 import { areCoordinatesClose } from "../../../common/utlis.js";
 import { calculateEarningsFromDistance } from "../../../helpers/rideHelpers.js";
 import { rideTimeoutQueue } from "../../../queues/rideTimeout.queue.js";
+import {DRIVER_CANCELLATION_REASONS,DRIVER_REASON_CODES} from "../../../common/cancellationReasons.js"
 
 //-------------------- Accept Ride --------------------
+
 export async function acceptRideService({ rideId, driverId }) {
   const ride = await Ride.findOneAndUpdate(
     { _id: rideId, status: "pending" },
@@ -29,6 +31,7 @@ export async function acceptRideService({ rideId, driverId }) {
 }
 
 //-------------------- Driver Arrived --------------------
+
 export async function driverArrivedService({ rideId, driverId, driverLocationCoordinates }) {
 
   const ride = await Ride.findById(rideId);
@@ -70,6 +73,7 @@ export async function driverArrivedService({ rideId, driverId, driverLocationCoo
 }
 
 //-------------------- Start Ride --------------------
+
 export async function startRideService({ rideId, driverId, otpForStartRide, driverLocationCoordinates }) {
 
   const ride = await Ride.findById(rideId);
@@ -120,6 +124,7 @@ export async function startRideService({ rideId, driverId, otpForStartRide, driv
 }
 
 //-------------------- Complete Ride --------------------
+
 export async function completeRideService({ rideId, driverId, driverLocationCoordinates }) {
   const ride = await Ride.findById(rideId);
 
@@ -182,17 +187,47 @@ export async function completeRideService({ rideId, driverId, driverLocationCoor
 }
 
 //-------------------- Cancel Ride --------------------
-export async function cancelRideService({ rideId, driverId }) {
-  const ride = await Ride.findOneAndUpdate(
-    { _id: rideId, driver: driverId, status: "accepted" },
-    { driver: null, status: "pending", acceptedAt: null },
-    { new: true }
-  );
-  if (!ride) throw new Error("Ride not found or cannot be cancelled");
+
+export async function cancelRideService({ rideId, driverId,reasonCode,reasonText }) {
+  const ride = await Ride.findOne({
+    _id: rideId,
+    driver: driverId,
+    status: { $in: ["accepted", "pending"] }
+  });
+
+  if (!ride) {
+    throw new Error("Ride not found or cannot be cancelled");
+  }
+
+  if (!DRIVER_REASON_CODES.includes(reasonCode)) {
+    throw new Error("Invalid cancellation reason");
+  }
+
+  let finalReasonText;
+
+  if (reasonCode === "OTHER") {
+    if (!reasonText) {
+      throw new Error("Reason text is required for OTHER");
+    }
+    finalReasonText = reasonText.trim();
+  } else {
+    finalReasonText = DRIVER_CANCELLATION_REASONS[reasonCode];
+  }
+
+  ride.status = "cancelled";
+  ride.cancellation = {
+    cancelledBy: "Driver",
+    reasonCode,
+    reasonText: finalReasonText,
+    cancelledAt: new Date()
+  };
+
+  await ride.save();
   return ride;
 }
 
 //------------------------ Update Driver Location with Throttling------------------------
+
 export async function updateDriverLocationService(driver, lng, lat) {
   if (!driver?._id) {
     throw new Error("Driver not found or unauthorized");

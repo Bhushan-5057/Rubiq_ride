@@ -107,4 +107,17 @@ export async function getPassengerAllRideService(passengerId) {
     createdAt: ride.createdAt,
     updatedAt: ride.updatedAt,
   }));
+} 
+
+//--------------------- Get Passenger Ride By Id ---------------------
+
+export async function getPassengerRideByIdService(rideId,passengerId){
+  const ride = await Ride.findById(rideId)
+  if(!ride){
+    throw new Error("Ride not Found")
+  }
+  if(ride.passenger.toString()!== passengerId.toString()){
+    throw new Error("You Have Not Created This Ride")
+  }
+  return ride
 }

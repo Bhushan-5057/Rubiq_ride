@@ -1,6 +1,6 @@
 import { Router } from "express";
 import {  authenticateDriver } from "../../../middleware/auth.middleware.js";
-import {  otpLoginDriverController, sendOtpController,googleLoginController } from "../../../controllers/driver/driverAuth/driverAuth.controller.js";
+import {  otpLoginDriverController, sendOtpController,googleLoginController, logoutController } from "../../../controllers/driver/driverAuth/driverAuth.controller.js";
 import { checkDriverProfileStatusController } from "../../../controllers/driver/driverProfile/driverProfile.controller.js";
 import { otpLoginValidation, otpSendValidation } from "../../../validations/driver.validation.js";
 
@@ -14,6 +14,9 @@ router.post("/send-otp", otpSendValidation,sendOtpController);
 
 //------------------- Otp login For Driver ------------------- 
 router.post("/otp-login", otpLoginValidation,otpLoginDriverController);
+
+//------------------- Logout Route For Driver ------------------- 
+router.post("/logout",authenticateDriver,logoutController);
 
 //-------------------- Profile Status with Contact Number -------------------- 
 router.get("/check-profile-status/:contactNumber", authenticateDriver, checkDriverProfileStatusController);
