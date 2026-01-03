@@ -1,4 +1,4 @@
-import { getProfile, updateProfile } from "../../../services/adminServices/adminProfileService/adminProfile.service.js";
+import { getProfile } from "../../../services/adminServices/adminProfileService/adminProfile.service.js";
 
 //--------------------------------------- Get Profile Controller ---------------------------------------
 export async function profileController(req, res, next) {
@@ -14,21 +14,26 @@ export async function profileController(req, res, next) {
   catch (err) {
     next(err);
   }
-}
+} 
 
-//---------------------------------------- Update Profile Controller ----------------------------------------
-export async function updateProfileController(req, res, next) {
+//--------------------------------- Update Super Admin Profile --------------------------------- 
+
+export async function updateMyProfileController(req, res, next) {
   try {
-    const adminId = req.admin._id;
-    const updateData = req.body;
-    const updatedAdmin = await updateProfile(adminId, updateData);
-    res.json({
+    const admin = req.admin;
+
+    Object.assign(admin, req.body);
+    await admin.save();
+
+    const adminData = admin.toObject();
+    delete adminData.password;
+
+    res.status(200).json({
       success: true,
-      message: "Admin profile updated successfully",
-      user: updatedAdmin,
+      message: "Profile updated successfully",
+      data: adminData,
     });
-  }
-  catch (err) {
+  } catch (err) {
     next(err);
   }
 }

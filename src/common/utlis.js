@@ -118,4 +118,4 @@ export function areCoordinatesClose(coord1, coord2, thresholdMeters = 200) {
     console.error('Error calculating distance:', error);
     return false;
   }
-} 
+}  

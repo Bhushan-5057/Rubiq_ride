@@ -1,14 +1,13 @@
 import { Router } from "express";
-import { authenticateAdmin } from "../../../middleware/auth.middleware.js";
-import { profileController } from "../../../controllers/admin/adminProfile/adminProfile.controller.js";
-import { logoutController } from "../../../controllers/admin/adminAuth/adminAuth.controller.js";
+import { authenticateAdmin, authorizeAdmin } from "../../../middleware/auth.middleware.js";
+import { profileController, updateMyProfileController } from "../../../controllers/admin/adminProfile/adminProfile.controller.js";
 
 const router = Router();
 
 //--------------------- Profile Route ---------------------
-router.get("/profile",authenticateAdmin , profileController);
+router.get("/profile", authenticateAdmin, authorizeAdmin("super_admin", "admin"), profileController);
 
-//--------------------- Logout Route ---------------------
-router.post("/logout", authenticateAdmin, logoutController);
+//--------------------- Update Profile Route ---------------------
+router.put("/update-profile", authenticateAdmin, authorizeAdmin("super_admin", "admin"), updateMyProfileController);
 
 export default router;

@@ -7,6 +7,7 @@ import {
   getRideFeedback 
 } from "../../controllers/feedback/feedback.controller.js";
 import { authenticateDriver,authenticatePassenger,authenticateAdmin ,authenticateUser} from "../../middleware/auth.middleware.js";
+import { authorizeAdmin } from "../../middleware/auth.middleware.js";
 
 const router = express.Router();
 
@@ -20,7 +21,7 @@ router.post("/passenger-feedback", authenticateDriver,  submitPassengerFeedback)
 router.get("/me", authenticateUser, getMyFeedback);
 
 // Get feedback for a specific user (admin only)
-router.get("/user/:userId", authenticateAdmin, getUserFeedback);
+router.get("/user/:userId", authenticateAdmin,authorizeAdmin("super_admin","admin"), getUserFeedback);
 
 // Get feedback for a specific ride
 router.get("/ride/:rideId", authenticateUser, getRideFeedback);

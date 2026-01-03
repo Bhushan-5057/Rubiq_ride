@@ -1,26 +1,5 @@
-import { login,logout,register } from "../../../services/adminServices/adminAuthService/adminAuth.service.js";
+import { login } from "../../../services/adminServices/adminAuthService/adminAuth.service.js";
 import { handleValidation } from "../../../validations/comman.validation.js";
-
-//---------------------------- Register controller ----------------------------
-export async function registerController(req, res, next) {
-  try {
-    const { newAdmin, token } = await register(req.body);
-
-    const adminData = newAdmin._doc ? { ...newAdmin._doc } : { ...newAdmin };
-    delete adminData.password;
-
-    res.status(201).json({
-      success: true,
-      message: "Admin registered successfully",
-      data: {
-        admin: adminData,
-        token,
-      },
-    });
-  } catch (err) {
-    next(err);
-  }
-}
 
 //--------------------------------- Login Controller ---------------------------------
 export async function loginController(req, res, next) {
@@ -32,24 +11,14 @@ export async function loginController(req, res, next) {
     if (err.message === "Invalid credentials") {
       return res.status(401).json({ success: false, message: "Invalid credentials" });
     }
-    next(err); 
+    next(err);
   }
 }
 
-
 //--------------------------------- Logout Controller ---------------------------------
-export async function logoutController(req, res, next) {
-  try {
-    const token = req.headers.authorization?.split(' ')[1];
-    if (!token) {
-      const err = new Error('Token not provided');
-      err.status = 400;
-      throw err;
-    }
-
-    const result = await logout(req.admin.id, token);
-    res.json({ success: true, ...result });
-  } catch (err) {
-    next(err);
-  }
+export async function logoutController(req, res) {
+  res.status(200).json({
+    success: true,
+    message: "Admin Logout successful"
+  });
 }

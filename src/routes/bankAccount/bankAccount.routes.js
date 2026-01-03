@@ -10,7 +10,8 @@ import {
 } from '../../controllers/bankAccount/bankAccount.controller.js';
 import {
   bankAccountValidation,
-} from '../../validations/bankAccount.validations.js';
+} from '../../validations/bankAccount.validations.js'; 
+import { authorizeAdmin } from '../../middleware/auth.middleware.js';
 
 const router = express.Router();
 
@@ -45,6 +46,7 @@ router.put(
 router.get(
   '/admin/:userId/:userType',
   authenticateAdmin,
+  authorizeAdmin("super_admin","admin"),
   getBankAccountForAdminController
 );
 
@@ -52,6 +54,7 @@ router.get(
 router.get(
   '/admin/get-all-bank-accounts',
   authenticateAdmin,
+  authorizeAdmin("super_admin","admin"),
   getAllBankAccountsForAdminController
 );
 
@@ -59,6 +62,7 @@ router.get(
 router.put(
   '/admin/verify-bank-details/:userId/:userType',
   authenticateAdmin,
+  authorizeAdmin("super_admin","admin"),
   verifyBankAccountController
 );
 

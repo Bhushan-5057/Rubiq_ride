@@ -1,136 +1,130 @@
-import { Admin } from "../../../../models/admin/admin.model.js";
-import { register } from "../../../../services/adminServices/adminAuthService/adminAuth.service.js";
-import dotenv from "dotenv"
+import {
+  createAdmin,
+  deleteAdminService,
+  getAdminByIdService,
+  getAllAdminsService,
+  restoreAdminService,
+  updateAdminService
+}
+  from "../../../../services/adminServices/adminManagementService/admin.management.service.js";
 import bcrypt from "bcryptjs"
-dotenv.config();
 
-//----------------------------- Admin Register Controller -----------------------------
-export async function registerController(req, res, next) {
+
+//----------------------------- Admin Create Controller -----------------------------
+export async function createAdminController(req, res, next) {
   try {
-    const { newAdmin, token } = await register(req.body);
+    const { admin } = await createAdmin(req.body);
 
-    const adminData = newAdmin._doc ? { ...newAdmin._doc } : { ...newAdmin };
+    const adminData = admin.toObject()
     delete adminData.password;
 
     res.status(201).json({
       success: true,
       message: "Admin registered successfully",
-      data: {
-        admin: adminData,
-        token,
-      },
+      data: { admin: adminData, },
     });
-  } catch (err) {
-    next(err);
+  } catch (error) {
+    next(error);
   }
 }
 
 // ---------------------------------------- Get All Admin ----------------------------------------
 export async function getAllAdminsController(req, res, next) {
   try {
-    const admins = await Admin.find({ isDeleted: false }).select("-password");
+    const { page, limit, search } = req.query;
+
+    const result = await getAllAdminsService({
+      page,
+      limit,
+      search,
+      excludeAdminId: req.admin._id,
+    });
 
     res.status(200).json({
       success: true,
-      message: "All admins fetched successfully",
-      data: admins,
+      message: "Admins fetched successfully",
+      pagination: result.pagination,
+      data: result.admins,
     });
-  } catch (err) {
-    next(err);
+  } catch (error) {
+    next(error);
   }
 }
 
-//--------------------------------- Update Admin Profile --------------------------------- 
-export async function updateMyProfileController(req, res, next) {
+//------------------------ Get Admin By ID ------------------------
+
+export async function getAdminByIdController(req, res, next) {
   try {
-    const admin = req.admin;
+    const { adminId } = req.params;
 
-    Object.assign(admin, req.body);
-
-    await admin.save();
-
-    const adminData = admin.toObject();
-    delete adminData.password;
+    const admin = await getAdminByIdService(adminId);
 
     res.status(200).json({
       success: true,
-      message: "Profile updated successfully",
-      data: adminData,
+      message: "Admin fetched successfully",
+      data: admin,
     });
-  } catch (err) {
-    next(err);
+  } catch (error) {
+    next(error);
   }
 }
 
 //----------------------------- Updated Admin -----------------------------
+
 export async function updateAdminController(req, res, next) {
   try {
     const { adminId } = req.params;
-    const { name, email, password, role } = req.body;
-
-    const adminToUpdate = await Admin.findById(adminId);
-
-    if (!adminToUpdate) {
-      return res.status(404).json({
-        success: false,
-        message: "Admin not found",
-      });
-    }
-
-    // BLOCK SEEDED ADMIN UPDATE
-    if (adminToUpdate.email === process.env.ADMIN_EMAIL) {
-      return res.status(403).json({
-        success: false,
-        message: "This admin account is protected and cannot be updated.",
-      });
-    }
+    const { name, email, password} = req.body;
 
     const updateData = {};
-
     if (name) updateData.name = name;
     if (email) updateData.email = email;
-    if (role) updateData.role = role;
 
     if (password) {
-      const salt = await bcrypt.genSalt(10);
-      updateData.password = await bcrypt.hash(password, salt);
+      updateData.password = await bcrypt.hash(password, 10);
     }
 
-    const updatedAdmin = await Admin.findByIdAndUpdate(
-      adminId,
-      updateData,
-      { new: true, runValidators: true }
-    ).select("-password");
+    const admin = await updateAdminService(adminId, updateData);
 
     res.status(200).json({
       success: true,
       message: "Admin updated successfully",
-      data: updatedAdmin,
+      data: admin,
     });
-
-  } catch (err) {
-    next(err);
+  } catch (error) {
+    next(error);
   }
 }
-// ----------------------------------------- Delete Admin -----------------------------------------
+// --------------------------- Delete Admin -----------------------
 export async function deleteAdminController(req, res, next) {
   try {
     const { adminId } = req.params;
 
-    const admin = await Admin.findById(adminId);
-    if (!admin) {
-      return res.status(404).json({
-        success: false,
-        message: "Admin not found",
-      });
-    }
-    await Admin.findByIdAndDelete(adminId);
+    await deleteAdminService(adminId);
 
     res.status(200).json({
       success: true,
-      message: "Admin deleted permanently",
+      message: "Admin deleted successfully",
     });
-  } catch (err) {
-    next(err);
+  } catch (error) {
+    next(error);
+  }
+} 
+
+//--------------------------- Restore Admin ---------------------------
+
+export async function restoreAdminController(req, res, next) {
+  try {
+    const { adminId } = req.params;
+
+    const admin = await restoreAdminService(adminId);
+
+    res.status(200).json({
+      success: true,
+      message: "Admin restored successfully",
+      data: admin
+    });
+  } catch (error) {
+    next(error);
   }
 }

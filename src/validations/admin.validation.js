@@ -1,13 +1,13 @@
 import { body } from 'express-validator';
-import { ADMIN_ROLES } from '../models/admin/admin.model.js';
+// import { ADMIN_ROLES } from '../models/admin/admin.model.js';
 
-export const validateRegister = [
+export const validateCreate = [
   body('email').isEmail().withMessage('Valid email is required'),
   body('password').isLength({ min: 6 }).withMessage('Password min length 6'),
   body('name').isLength({ min: 2 }).withMessage('Name is required'),
   body('contactNumber').optional().isString(),
-  body('gender').optional().isIn(['male', 'female', 'other', 'prefer_not_to_say']).withMessage('Invalid gender'),
-  body('role').optional().isIn(ADMIN_ROLES).withMessage('Invalid role'),
+  body('gender').optional().isIn(['male', 'female', 'other']).withMessage('Invalid gender'),
+  // body('role').optional().isIn(ADMIN_ROLES).withMessage('Invalid role'),
 ];
 
 export const validateLogin = [

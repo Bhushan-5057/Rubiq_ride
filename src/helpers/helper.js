@@ -26,7 +26,7 @@ export function generateToken({ _id, role }) {
 export function adminToken(admin) {
   return generateToken({
     _id: admin._id,
-    role: "admin",
+    role: admin.role.name || admin.role
   });
 }
 

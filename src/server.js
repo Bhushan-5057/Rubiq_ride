@@ -4,7 +4,6 @@ import express from "express";
 import cors from "cors";
 import helmet from "helmet";
 import http from "http";
-import { seedAdmin } from "./scripts/seedAdmin.js";
 import routes from "./routes/index.js";
 import { initSocket } from "./config/socket/socket.js";
 import paymentRoutes from "./routes/payment/payment.routes.js";
@@ -80,12 +79,6 @@ const shutdown = async () => {
 // Start server
 server.listen(PORT, async () => {
   console.log(`Server running on port ${PORT}`);
-  try {
-    await seedAdmin();
-    console.log("Admin account verification completed successfully");
-  } catch (err) {
-    console.error("Admin account initialization failed:", err);
-  }
 });
 
 // Handle unhandled rejections

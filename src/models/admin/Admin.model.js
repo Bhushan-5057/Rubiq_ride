@@ -1,37 +1,40 @@
 import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
 
-const roles = ['admin'];
 const genders = ['male', 'female', 'other'];
 
 const AdminSchema = new mongoose.Schema(
   {
-    contactNumber: { 
-      type: String, 
-      required: false, 
-      unique: true, 
+    contactNumber: {
+      type: String,
+      required: false,
+      unique: true,
       sparse: true,
       trim: true,
-      index: true 
+      index: true
     },
-    email: { 
-      type: String, 
-      lowercase: true, 
-      trim: true, 
-      sparse: true 
+    email: {
+      type: String,
+      lowercase: true,
+      trim: true,
+      sparse: true
     },
-    password: { 
-      type: String, 
-      required: function() { return this.role === 'admin'; }, 
-      select: false 
+    password: {
+      type: String,
+      required: function () { return this.role === 'admin'; },
+      select: false
     },
     name: { type: String, trim: true },
     gender: { type: String, enum: genders },
-    role: { 
-      type: String, 
-      enum: roles, 
-      default: 'admin',
+    role: {
+      type: String,
+      enum: ['admin', 'super_admin'],
+      default: 'admin'
     },
+    isDeleted: {
+      type: Boolean,
+      default: false
+    }
   },
   { timestamps: true }
 );
@@ -51,4 +54,3 @@ AdminSchema.methods.comparePassword = async function (candidate) {
 };
 
 export const Admin = mongoose.model('Admin', AdminSchema);
-export const ADMIN_ROLES = roles;
