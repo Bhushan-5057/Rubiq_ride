@@ -22,7 +22,7 @@ export async function googleLogin(payload) {
       fcmToken: fcmToken || null,
       otpVerified: true,
       status: "active",
-      contactNumber:"pending",
+      contactNumber:null,
       profileCompleted: false,
     });
   } else {
@@ -50,7 +50,6 @@ export async function googleLogin(payload) {
 
 // -------------------- OTP Login --------------------
 export async function otpLogin({ contactNumber, otp, name, email, gender, fcmToken }) {
-  console.log("fcm token in service:", fcmToken); 
   contactNumber = normalizeNumber(contactNumber);
 
   const isValidOtp = await verifyOtp(contactNumber, otp ,"passenger");

@@ -23,11 +23,5 @@ export const saveFcmToken = async (req, res) => {
       }
     }
   );
-
-  console.log("✅ FCM token added:", fcmToken);
-
   res.json({ success: true });
 };
-
-
-

@@ -1,11 +1,14 @@
 import { validationResult } from "express-validator";
 
-export function handleValidation(req) {
+export function handleValidation(req, res, next) {
   const errors = validationResult(req);
+
   if (!errors.isEmpty()) {
-    const err = new Error('Validation failed');
-    err.status = 400;
-    err.details = errors.array();
-    throw err;
+    return res.status(400).json({
+      success: false,
+      message: "Validation failed",
+      errors: errors.array(),
+    });
   }
+  next();
 }

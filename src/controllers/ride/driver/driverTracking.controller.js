@@ -33,12 +33,12 @@ export const acceptRide = async (req, res, next) => {
 
     const io = getIO();
 
-    // Notify passenger about driver assignment
-    io.to(ride.passenger.toString()).emit("driver_assigned", {
+    const payload = {
       rideId: ride._id,
       driver: {
         id: driverId,
         name: req.driver.name,
+        contactNumber: req.driver.contactNumber,
         vehicleNumber: req.driver.vehicleNumber,
         vehicleType: req.driver.vehicleType,
       },
@@ -46,7 +46,10 @@ export const acceptRide = async (req, res, next) => {
       pickup: ride.pickup,
       drop: ride.drop,
       fareEstimate: ride.fareEstimate,
-    });
+    }
+
+    // Notify passenger about driver assignment
+    io.to(ride.passenger._id.toString()).emit("driver_assigned", payload)
 
     // Notify passenger that driver assigned via push notification 
     const passengerId = ride.passenger;
@@ -80,11 +83,25 @@ export const driverArrived = async (req, res, next) => {
       driverLocationCoordinates,
     });
 
+    const payload = {
+      rideId: ride._id,
+      driver: {
+        id: driverId,
+        name: req.driver.name,
+        contactNumber: req.driver.contactNumber,
+        vehicleNumber: req.driver.vehicleNumber,
+        vehicleType: req.driver.vehicleType,
+      },
+      status: ride.status,
+      pickup: ride.pickup,
+      drop: ride.drop,
+      fareEstimate: ride.fareEstimate,
+    }
+
     // Notify passenger that driver has arrived
     const io = getIO();
-    io.to(ride.passenger.toString()).emit("driver_arrived", {
-      rideId: ride._id,
-    });
+
+    io.to(ride.passenger._id.toString()).emit("driver_arrived",payload)
 
     // Notify passenger that driver arrived via push notification
     const passenger = await Passenger.findById(ride.passenger).selec("fcmTokens");
@@ -119,7 +136,7 @@ export const startRide = async (req, res, next) => {
 
     // Notify passenger that ride has started
     const io = getIO();
-    io.to(ride.passenger.toString()).emit("ride_started", {
+    io.to(ride.passenger._id.toString()).emit("ride_started", {
       rideId: ride._id,
     });
 
@@ -158,7 +175,7 @@ export const completeRide = async (req, res, next) => {
     const io = getIO();
 
     // Emit ride ended event with payment status
-    io.to(ride.passenger.toString()).emit("ride_ended", {
+    io.to(ride.passenger._id.toString()).emit("ride_ended", {
       rideId: ride._id,
       status: ride.status,
       paymentStatus: ride.paymentStatus,
@@ -280,7 +297,7 @@ export const cancelRide = async (req, res, next) => {
 
     // Notify passenger about ride cancellation
     const io = getIO();
-    io.to(updatedRide.passenger.toString()).emit("ride_cancelled", {
+    io.to(updatedRide.passenger._id.toString()).emit("ride_cancelled", {
       rideId: updatedRide._id,
       cancelledBy: "Driver",
       reasonCode: updatedRide.cancellation.reasonCode,

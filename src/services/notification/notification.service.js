@@ -1,6 +1,4 @@
 import admin from "../../config/firebase.js";
-import { Passenger } from "../../models/passenger/passenger.model.js";
-import { Driver } from "../../models/driver/driver.model.js";
 
 export const sendPushNotification = async ({
   token,
@@ -9,9 +7,6 @@ export const sendPushNotification = async ({
   data = {},
   userType = "passenger",
 }) => {
-  console.log("📤 Sending FCM to:", token);
-  console.log("📦 Payload data:", data);
-
   if (!token) {
     const error = new Error("FCM token is required");
     error.code = "missing-token";
@@ -63,7 +58,6 @@ export const sendPushNotification = async ({
 
   try {
     const response = await admin.messaging().send(message);
-    console.log("✅ FCM sent successfully:", response);
     return response;
   } catch (error) {
     console.error("❌ FCM error:", error.code, error.message);

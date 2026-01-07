@@ -2,6 +2,7 @@ import { requiredFields, updatableFields, documentStatus, requiredDocs, required
 import { getDriverStats } from "../../../services/rideServices/rideStats.service.js"
 import { Driver } from "../../../models/driver/driver.model.js"
 import { Ride } from "../../../models/ride/ride.model.js";
+import { sendEmail,renderTemplate } from "../../../utils/mailer.js";
 
 
 //---------------------- Driver Online ----------------------
@@ -84,7 +85,9 @@ export async function getProfile(driver) {
 
 //----------------------- Update Profile -----------------------
 export async function updateProfile(driver, data = {}) {
-  if (!driver) throw new Error("Driver not found");
+  if (!driver) throw new Error("Driver not found"); 
+
+    const wasProfileCompleted = driver.profileCompleted;
 
   if (typeof data.dateOfBirth === "string" && data.dateOfBirth.trim() === "") {
     driver.dateOfBirth = null;
@@ -157,8 +160,33 @@ export async function updateProfile(driver, data = {}) {
     allDocsUploaded &&
     allDocsApproved &&
     allDocNumbersPresent;
-  driver.updatedAt = new Date();
 
+      const profileJustCompleted =
+    !wasProfileCompleted && driver.profileCompleted === true;
+
+  if (
+    profileJustCompleted &&
+    driver.email &&
+    !driver.welcomeEmailSent
+  ) {
+    try {
+      const html = renderTemplate("driver.welcome.html", {
+        name: driver.name || "Captain",
+      });
+
+      await sendEmail({
+        to: driver.email,
+        subject: "Welcome to Rubiq Ride – You’re Ready to Drive 🚗",
+        html,
+      });
+
+      driver.welcomeEmailSent = true;
+    } catch (err) {
+      console.error("Welcome email failed:", err.message);
+    }
+  }
+
+  driver.updatedAt = new Date();
   await driver.save();
 
   const result = driver.toObject ? driver.toObject() : driver;

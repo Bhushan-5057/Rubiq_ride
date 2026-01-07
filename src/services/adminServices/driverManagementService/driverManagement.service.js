@@ -100,7 +100,6 @@ export async function getDriverById(driverId) {
   if (!driver) throw new Error("Driver not found");
 
   const rideStats = await getDriverStats(driver._id);
-  console.log("ride status :", rideStats);
   const driverObj = driver.toObject();
 
   return {

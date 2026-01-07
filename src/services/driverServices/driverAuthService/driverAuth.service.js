@@ -2,12 +2,13 @@ import { sendOtp, verifyOtp } from "../../../services/otpService/otp.service.js"
 import { Driver } from "../../../models/driver/driver.model.js";
 import { normalizeNumber, driverToken } from "../../../helpers/helper.js";
 import { requiredFields } from "../../../common/utlis.js";
+import { sendEmail, renderTemplate } from "../../../utils/mailer.js";
 import jwt from "jsonwebtoken";
 
 
 //----------------------- Send Otp -----------------------
 export async function sendDriverOtp(contactNumber) {
-  return await sendOtp(contactNumber,"driver");
+  return await sendOtp(contactNumber, "driver");
 }
 
 //----------------------- otp Login -----------------------
@@ -18,7 +19,6 @@ export async function otpLogin(payload) {
     name,
     email,
     vehicleNumber,
-    licenseNumber,
     dateOfBirth,
     gender,
     vehicleType,
@@ -34,11 +34,10 @@ export async function otpLogin(payload) {
 
   if (!driver) {
     driver = await Driver.create({
-      contactNumber,
       name,
       email,
+      contactNumber,
       vehicleNumber,
-      licenseNumber,
       dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : null,
       gender,
       vehicleType,
@@ -55,7 +54,6 @@ export async function otpLogin(payload) {
       name,
       email,
       vehicleNumber,
-      licenseNumber,
       dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : null,
       gender,
       vehicleType,
@@ -83,22 +81,42 @@ export async function otpLogin(payload) {
 
 //----------------------- Google Login -----------------------
 export async function googleLogin(payload) {
-  const { email, name, googleId, profileImage, fcmToken } = payload;
-  
+  let {
+    name,
+    email,
+    contactNumber,
+    dateOfBirth,
+    googleId,
+    profileImage,
+    fcmToken,
+    otpVerified,
+    gender,
+    vehicleType,
+    city,
+    status,
+    vehicleNumber,
+    profileCompleted,
+  } = payload;
+
   // Check if driver exists with this email
   let driver = await Driver.findOne({ email });
-  
+
   if (!driver) {
     // Create new driver with Google OAuth data
     driver = await Driver.create({
-      email,
       name,
+      email,
+      contactNumber: null,
+      dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : null,
       googleId,
       profileImage,
       fcmToken: fcmToken || null,
       otpVerified: true,
+      gender,
+      vehicleType,
+      city,
       status: "pending",
-      contactNumber:"pending",
+      vehicleNumber,
       profileCompleted: false,
     });
   } else {
@@ -110,20 +128,39 @@ export async function googleLogin(payload) {
     driver.otpVerified = true;
     await driver.save();
   }
-  
+
+  if (driver.email && !driver.welcomeEmailSent) {
+    try {
+      const html = renderTemplate("driver.welcome.html", {
+        name: driver.name || "Captain",
+      });
+
+      await sendEmail({
+        to: driver.email,
+        subject: " Welcome to Rubiq Ride – Start Driving 🚗",
+        html,
+      });
+
+      driver.welcomeEmailSent = true;
+    } catch (error) {
+      console.error("Welcome email failed:", error.message);
+    }
+  }
+  await driver.save();
+
   // Generate JWT token
   const token = jwt.sign(
-    { id: driver._id, email: driver.email },
+    { sub: driver._id, email: driver.email },
     process.env.JWT_SECRET,
     { expiresIn: "7d" }
   );
-  
-  return { 
-    driver, 
-    token, 
-    profileCompleted: driver.profileCompleted 
+
+  return {
+    driver,
+    token,
+    profileCompleted: driver.profileCompleted
   };
-} 
+}
 
 //------------------------------- Driver Logout Service ------------------------------- 
 

@@ -108,7 +108,6 @@ export const createRide = async (req, res) => {
 
     // Notify nearby drivers about the new ride request
     nearbyDrivers.forEach((driver) => {
-      console.log("driver List", driver)
       io.to(driver._id.toString()).emit("new_ride_request", {
         rideId: ride._id,
         pickup,
@@ -123,8 +122,7 @@ export const createRide = async (req, res) => {
           rating:ride.passenger.rating,
         }
       });
-    });
-
+    }); 
     // Send push notifications to nearby drivers
     for (const driver of nearbyDrivers) {
       const driverData = await Driver.findById(driver._id).select("fcmTokens");

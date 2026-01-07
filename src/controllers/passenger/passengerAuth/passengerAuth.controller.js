@@ -1,8 +1,5 @@
-import { generateToken } from "../../../common/utlis.js";
-import { Passenger } from "../../../models/passenger/passenger.model.js";
 import { sendOtp } from "../../../services/otpService/otp.service.js";
 import { googleLogin, logout, otpLogin } from "../../../services/passengerServices/index.js";
-import { handleValidation } from "../../../validations/comman.validation.js";
 import {OAuth2Client} from "google-auth-library"  
 
 const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID)
@@ -10,7 +7,6 @@ const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID)
 // -------------------- Send Otp --------------------
 export async function sendOtpController(req, res, next) {
   try {
-     handleValidation(req);  
     const { contactNumber } = req.body;
     if (!contactNumber) return res.status(400).json({ success: false, message: "Contact number required" });
 
@@ -58,16 +54,15 @@ export async function googleLoginController(req, res, next) {
       passenger: result.passenger,
       profileCompleted: result.profileCompleted,
     });
-  } catch (err) {
-    console.log(err);
-    next(err);
+  } catch (error) {
+    console.log(error);
+    next(error);
   }
 }
 
 // -------------------- OTP Login (auto-create or auto-login) --------------------
 export async function otpLoginController(req, res, next) {
   try {
-    handleValidation(req);
     const { contactNumber, otp, name, email, gender ,fcmToken} = req.body;
 
     const result = await otpLogin({ contactNumber, otp, name, email, gender, fcmToken });

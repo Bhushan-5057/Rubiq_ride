@@ -1,10 +1,8 @@
 import { login } from "../../../services/adminServices/adminAuthService/adminAuth.service.js";
-import { handleValidation } from "../../../validations/comman.validation.js";
 
 //--------------------------------- Login Controller ---------------------------------
 export async function loginController(req, res, next) {
   try {
-    handleValidation(req);
     const result = await login(req.body);
     res.json(result);
   } catch (err) {

@@ -104,8 +104,6 @@ export async function startRideService({ rideId, driverId, otpForStartRide, driv
     driverLocationCoordinates[1]
   ];
 
-  console.log(driverLocation)
-
   if (!areCoordinatesClose(driverLocation, ride.pickup.coordinates)) {
     throw new Error("Driver is not at the passenger pickup location");
   }

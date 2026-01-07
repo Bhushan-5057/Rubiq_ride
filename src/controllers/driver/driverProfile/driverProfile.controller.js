@@ -57,13 +57,13 @@ export async function profileController(req, res, next) {
 // -------------------- Update Driver Profile --------------------
 export async function updateProfileController(req, res, next) {
   try {
-    // Handle multer file parsing
-    await new Promise((resolve, reject) => {
-      upload.any()(req, res, (err) => {
-        if (err) return reject(err);
-        resolve();
-      });
-    });
+    // // Handle multer file parsing
+    // await new Promise((resolve, reject) => {
+    //   upload.any()(req, res, (err) => {
+    //     if (err) return reject(err);
+    //     resolve();
+    //   });
+    // });
 
     const data = { ...req.body, documents: {} };
 

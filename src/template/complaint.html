@@ -1,0 +1,52 @@
+<!-- subject : Your Rubiq Ride Complaint Has Been Resolved -->
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Complaint Resolved</title>
+  <style>
+    body { margin:0; background:#f4f6f8; font-family:Arial,sans-serif; }
+    .container { max-width:600px; margin:auto; background:#fff; border-radius:8px; overflow:hidden; }
+    .header { background:#0f172a; color:#fff; padding:20px; text-align:center; }
+    .content { padding:24px; color:#333; }
+    .footer { background:#f1f1f1; padding:14px; font-size:12px; text-align:center; color:#666; }
+    .box { background:#f9fafb; padding:16px; border-radius:6px; margin-top:12px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>Complaint Resolved ✔️</h1>
+    </div>
+
+    <div class="content">
+      <p>Hello {{name}},</p>
+
+      <p>
+        Thank you for reaching out to Rubiq Ride support.
+      </p>
+
+      <div class="box">
+        <p><strong>Your Issue:</strong></p>
+        <p>{{issue}}</p>
+
+        <p><strong>Our Resolution:</strong></p>
+        <p>{{resolution}}</p>
+      </div>
+
+      <p>
+        If you need further assistance, feel free to reply to this email.
+      </p>
+
+      <p>
+        We appreciate your patience and trust in Rubiq Ride.
+      </p>
+    </div>
+
+    <div class="footer">
+      © {{year}} Rubiq Ride Support Team
+    </div>
+  </div>
+</body>
+</html>

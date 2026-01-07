@@ -1,5 +1,8 @@
 import nodemailer from "nodemailer";
 import dotenv from "dotenv";
+import fs from "fs"
+import path from "path"
+
 dotenv.config();
 
 //---------------------- Create Gmail ----------------------
@@ -67,4 +70,26 @@ export async function sendEmail({ to, subject, text, html }) {
     console.error("Ethereal fallback failed:", err);
     throw new Error("All email providers failed");
   }
+} 
+
+//---------------------------- Render Email Template ---------------------------- 
+
+export function renderTemplate(templateName, variables = {}) {
+  const filePath = path.join(
+    process.cwd(),
+    "src",
+    "template",
+    templateName
+  );
+
+  let html = fs.readFileSync(filePath, "utf8");
+
+  Object.keys(variables).forEach((key) => {
+    html = html.replace(
+      new RegExp(`{{${key}}}`, "g"),
+      variables[key] ?? ""
+    );
+  });
+
+  return html;
 }

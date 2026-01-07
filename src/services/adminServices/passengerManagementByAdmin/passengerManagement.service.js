@@ -74,7 +74,6 @@ export async function getPassengerById(passengerId) {
       path: "bankDetails",
       // select: "-accountNumber" 
     });
-    console.log(passenger)
   if (!passenger) throw new Error("Passenger not found");
 
   // Get passenger stats

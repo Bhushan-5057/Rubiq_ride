@@ -1,0 +1,47 @@
+<!-- subject : Welcome to Rubiq Ride – Start Driving 🚗 -->
+
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Welcome Driver</title>
+  <style>
+    body { margin:0; background:#f4f6f8; font-family:Arial,sans-serif; }
+    .container { max-width:600px; margin:auto; background:#fff; border-radius:8px; overflow:hidden; }
+    .header { background:#1e40af; color:#fff; padding:20px; text-align:center; }
+    .content { padding:24px; color:#333; }
+    .footer { background:#f1f1f1; padding:14px; font-size:12px; text-align:center; color:#666; }
+    .btn { display:inline-block; padding:12px 20px; background:#1e40af; color:#fff; text-decoration:none; border-radius:6px; margin-top:16px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>Rubiq Ride</h1>
+    </div>
+
+    <div class="content">
+      <h2>Welcome, {{driverName}} 👋</h2>
+
+      <p>
+        We’re excited to have you as a <strong>Rubiq Ride Driver</strong>.
+      </p>
+
+      <p>
+        You can now start receiving ride requests and help passengers reach their destinations safely.
+      </p>
+
+      <p>
+        Drive responsibly and follow all community guidelines to ensure a great experience for everyone.
+      </p>
+
+      <a href="{{appLink}}" class="btn">Open Driver App</a>
+    </div>
+
+    <div class="footer">
+      © {{year}} Rubiq Ride. Drive safe.
+    </div>
+  </div>
+</body>
+</html>

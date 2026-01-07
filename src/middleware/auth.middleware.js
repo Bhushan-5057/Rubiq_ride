@@ -65,7 +65,7 @@ export async function authenticateDriver(req, res, next) {
       return res.status(401).json({ success: false, message: "Missing token" });
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const driver = await Driver.findOne({ _id: decoded.sub });
+    const driver = await Driver.findById(decoded.sub);
 
     if (!driver)
       return res.status(404).json({ success: false, message: "Driver not found" });

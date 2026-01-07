@@ -1,0 +1,47 @@
+<!-- subject : Welcome to Rubiq Ride – Let’s Get Moving 🚕 -->
+
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Welcome Passenger</title>
+  <style>
+    body { margin:0; background:#f4f6f8; font-family:Arial,sans-serif; }
+    .container { max-width:600px; margin:auto; background:#fff; border-radius:8px; overflow:hidden; }
+    .header { background:#4f46e5; color:#fff; padding:20px; text-align:center; }
+    .content { padding:24px; color:#333; }
+    .footer { background:#f1f1f1; padding:14px; font-size:12px; text-align:center; color:#666; }
+    .btn { display:inline-block; padding:12px 20px; background:#4f46e5; color:#fff; text-decoration:none; border-radius:6px; margin-top:16px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>Rubiq Ride</h1>
+    </div>
+
+    <div class="content">
+      <h2>Welcome, {{userName}} 🎉</h2>
+
+      <p>
+        Thank you for joining <strong>Rubiq Ride</strong>.
+      </p>
+
+      <p>
+        You can now book rides easily, track your trips, and travel with confidence.
+      </p>
+
+      <p>
+        We’re happy to have you with us.
+      </p>
+
+      <a href="{{appLink}}" class="btn">Book Your First Ride</a>
+    </div>
+
+    <div class="footer">
+      © {{year}} Rubiq Ride. Ride safe.
+    </div>
+  </div>
+</body>
+</html>

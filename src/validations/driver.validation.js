@@ -1,15 +1,18 @@
 import { body } from "express-validator";
+import { driverDocumentValidation } from "./driverDocument.validation.js";
 
 export const updateProfileValidation = [
   body("name").optional().isString().trim(),
-  body("email").optional().isEmail().normalizeEmail(),
+  body("email").optional().isEmail().customSanitizer(value => value.trim().toLowerCase()),
   body("vehicleNumber").optional().isString().trim().toUpperCase(),
   body("licenseNumber").optional().isString().trim().toUpperCase(),
   body("dateOfBirth").optional().isISO8601().toDate(),
   body("gender").optional().isIn(["male", "female", "other"]),
   body("vehicleType").optional().isIn(["cab", "bike", "auto"]),
   body("city").optional().isString().trim(),
-]; 
+
+  ...driverDocumentValidation
+];
 
 
 export const otpSendValidation = [
@@ -19,7 +22,7 @@ export const otpSendValidation = [
     .withMessage("Contact number is required")
     .isMobilePhone("en-IN")
     .withMessage("Invalid contact number"),
-]; 
+];
 
 export const otpLoginValidation = [
   body("contactNumber")

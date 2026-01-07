@@ -26,6 +26,7 @@ const driverSchema = new mongoose.Schema(
     documentsVerified: { type: Boolean, default: false },
     verificationRemarks: { type: String },
     profileCompleted: { type: Boolean, default: false },
+    welcomeEmailSent: { type: Boolean, default: false, },
     status: { type: String, enum: ["active", "pending", "deactive"], default: "pending" },
     location: {
       type: {

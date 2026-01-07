@@ -1,5 +1,4 @@
 import { googleLogin, otpLogin, sendDriverOtp } from "../../../services/driverServices/index.js";
-import { handleValidation } from "../../../validations/comman.validation.js";
 import {OAuth2Client} from "google-auth-library" 
 import {logout} from "../../../services/driverServices/driverAuthService/driverAuth.service.js"
 
@@ -8,19 +7,17 @@ const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID)
 // -------------------- Send Otp --------------------
 export async function sendOtpController(req, res, next) {
   try {
-    handleValidation(req);
     const { contactNumber } = req.body;
     const result = await sendDriverOtp(contactNumber);
     res.json({ success: true, message: "OTP sent successfully", ...result });
-  } catch (err) {
-    next(err);
+  } catch (error) {
+    next(error);
   }
 }
 
 // -------------------- Otp Login --------------------
 export async function otpLoginDriverController(req, res, next) {
   try {
-    handleValidation(req);
     const { contactNumber, otp, name, email, vehicleNumber, licenseNumber, fcmToken } = req.body;
     const result = await otpLogin({ contactNumber, otp, name, email, vehicleNumber, licenseNumber, fcmToken });
 
@@ -73,9 +70,9 @@ export async function googleLoginController(req, res, next) {
       driver: result.driver,
       profileCompleted: result.profileCompleted,
     });
-  } catch (err) {
-    console.log(err);
-    next(err);
+  } catch (error) {
+    console.log(error);
+    next(error);
   }
 } 
 
