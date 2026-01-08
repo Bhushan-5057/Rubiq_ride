@@ -1,10 +1,10 @@
 import { Router } from "express";
-import { authenticateDriver } from "../../../middleware/auth.middleware.js";
-import { updateProfileValidation } from "../../../validations/driver.validation.js";
-import { profileController, updateProfileController } from "../../../controllers/driver/driverProfile/driverProfile.controller.js";
-import {setDriverOfflineController,setDriverOnlineController} from "../../../controllers/driver/driverProfile/driverProfile.controller.js"
-import { handleValidation } from "../../../validations/comman.validation.js";
-import { upload } from "../../../middleware/upload.middleware.js";
+import { authenticateDriver } from "../../middleware/auth.middleware.js";
+import { updateProfileValidation } from "../../validations/driver.validation.js";
+import { profileController, updateProfileController } from "../../controllers/driver/driverProfile/driverProfile.controller.js";
+import {setDriverOfflineController,setDriverOnlineController} from "../../controllers/driver/driverProfile/driverProfile.controller.js"
+import { handleValidation } from "../../validations/comman.validation.js";
+import { upload } from "../../middleware/upload.middleware.js";
 
 const router = Router();
 

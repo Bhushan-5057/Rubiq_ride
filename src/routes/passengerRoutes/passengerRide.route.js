@@ -1,7 +1,7 @@
 import { Router } from "express";
-import { authenticatePassenger } from "../../../../middleware/auth.middleware.js";
-import { createRide,cancelRide, updateRide,endRide, getPassengerCancellationReasons } from "../../../../controllers/ride/passenger/ride/passengerRide.controller.js";
-import { getPassengerRides, getRideStatus,getPassengerRideById } from "../../../../controllers/ride/passenger/rideStatus/getRideStatus.controller.js";
+import { authenticatePassenger } from "../../middleware/auth.middleware.js";
+import { createRide,cancelRide, updateRide,endRide, getPassengerCancellationReasons } from "../../controllers/ride/passenger/ride/passengerRide.controller.js";
+import { getPassengerRides, getRideStatus,getPassengerRideById } from "../../controllers/ride/passenger/rideStatus/getRideStatus.controller.js";
 
 const router = Router()
 

@@ -1,7 +1,7 @@
 import { Router } from "express";
-import driverAuthRoutes from "./driverAuthRoutes/driverAuth.routes.js";
-import driverProfileRoutes from "./driverProfileRoutes/driverProfile.routes.js";
-import driverManagementRoutes from "./management/driverManagementRoutes/driverManagement.routes.js";
+import driverAuthRoutes from "./driverAuth.routes.js";
+import driverProfileRoutes from "./driverProfile.routes.js";
+import driverManagementRoutes from "./driverManagement.routes.js";
 import driverRoutes from "../feedback/feedback.routes.js"
 
 const router = Router();

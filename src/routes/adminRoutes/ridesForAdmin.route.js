@@ -1,7 +1,6 @@
 import { Router } from "express";
-import { authenticateAdmin } from "../../../../middleware/auth.middleware.js";
-import { deleteAllRides, deleteRide, getAllRides, getRideById, } from "../../../../controllers/admin/management/rideManagement/ride.management.controller.js";
-import { authorizeAdmin } from "../../../../middleware/auth.middleware.js";
+import { authenticateAdmin,authorizeAdmin } from "../../middleware/auth.middleware.js";
+import { deleteAllRides, deleteRide, getAllRides, getRideById, } from "../../controllers/admin/management/rideManagement/ride.management.controller.js";
 
 const router = Router();
 

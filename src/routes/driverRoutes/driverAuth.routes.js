@@ -1,9 +1,9 @@
 import { Router } from "express";
-import {  authenticateDriver } from "../../../middleware/auth.middleware.js";
-import {  otpLoginDriverController, sendOtpController,googleLoginController, logoutController } from "../../../controllers/driver/driverAuth/driverAuth.controller.js";
-import { checkDriverProfileStatusController } from "../../../controllers/driver/driverProfile/driverProfile.controller.js";
-import { otpLoginValidation, otpSendValidation } from "../../../validations/driver.validation.js";
-import { handleValidation } from "../../../validations/comman.validation.js";
+import {  authenticateDriver } from "../../middleware/auth.middleware.js";
+import {  otpLoginDriverController, sendOtpController,googleLoginController, logoutController } from "../../controllers/driver/driverAuth/driverAuth.controller.js";
+import { checkDriverProfileStatusController } from "../../controllers/driver/driverProfile/driverProfile.controller.js";
+import { otpLoginValidation, otpSendValidation } from "../../validations/driver.validation.js";
+import { handleValidation } from "../../validations/comman.validation.js";
 
 const router = Router();
 

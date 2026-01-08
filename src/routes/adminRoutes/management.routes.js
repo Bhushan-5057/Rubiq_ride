@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { authenticateAdmin, authorizeAdmin } from "../../../middleware/auth.middleware.js";
+import { authenticateAdmin, authorizeAdmin } from "../../middleware/auth.middleware.js";
 import {
     deleteAdminController,
     getAllAdminsController,
@@ -8,7 +8,7 @@ import {
     getAdminByIdController,
     restoreAdminController
 }
-    from "../../../controllers/admin/management/adminManagement/admin.management.controller.js";
+    from "../../controllers/admin/management/adminManagement/admin.management.controller.js";
 
 const router = Router();
 
