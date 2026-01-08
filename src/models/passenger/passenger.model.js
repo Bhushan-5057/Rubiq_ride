@@ -24,6 +24,7 @@ const passengerSchema = new mongoose.Schema(
     bankDetails: { type: mongoose.Schema.Types.ObjectId, ref: "BankAccount" },
     lastLogoutAt: { type: Date },
     profileCompleted: { type: Boolean, default: false },
+    welcomeEmailSent: { type: Boolean, default: false, },
     status: { type: String, enum: ["active", "deactive"], default: "active" },
     location: {
       type: {

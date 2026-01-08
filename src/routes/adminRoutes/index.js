@@ -1,10 +1,10 @@
 import { Router } from "express";
-import adminAuthRoutes from "./adminAuthRoutes/adminAuth.routes.js";
-import adminProfileRoutes from "./adminProfileRoutes/adminProfile.routes.js";
-import managementRoutes from "./createAdminRoutes/management.routes.js";
-import driverManagementRoutes from "./management/driver/driverManagementRoutes/driverManagement.route.js";
-import passengerManagementRoutes from "./management/passenger/passengerManagement.route.js";
-import RidesManagment from "./management/rideRoutesForAdmin/ridesForAdmin.route.js";
+import adminAuthRoutes from "./adminAuth.routes.js";
+import adminProfileRoutes from "./adminProfile.routes.js";
+import managementRoutes from "./management.routes.js";
+import driverManagementRoutes from "./driverManagement.route.js";
+import passengerManagementRoutes from "./passengerManagement.route.js";
+import RidesManagment from "./ridesForAdmin.route.js";
 
 const router = Router();
 

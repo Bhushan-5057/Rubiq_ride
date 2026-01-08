@@ -47,6 +47,8 @@
     "razorpay": "^2.9.6",
     "socket.io": "^4.8.1",
     "stripe": "^20.0.0",
+    "swagger-jsdoc": "^6.2.8",
+    "swagger-ui-express": "^5.0.1",
     "twilio": "^5.10.3"
   },
   "devDependencies": {

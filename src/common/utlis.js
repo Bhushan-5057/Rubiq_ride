@@ -25,6 +25,7 @@ export const updatableFields = [
   "vehicleType",
   "city",
   "profileImage",
+  "contactNumber"
 ];
 
 // Fields required to mark profile as complete for driver 
@@ -43,30 +44,30 @@ export const requiredFields = [
 export const requiredDocs = [
   "aadhaarFront",
   "aadhaarBack",
-  // "panFront",
+  "panFront",
   "licenseFront",
   "licenseBack",
   "rcFront",
   "rcBack",
-  // "insurance",
+  "insurance",
 ];
 
 // Document numbers required for driver verification
 export const requiredDocsNumber = [
   "aadhaarNumber",
-  // "panNumber",
+  "panNumber",
   "licenseNumber",
   "rcNumber",
-  // "insuranceNumber",
+  "insuranceNumber",
 ]
 
 // Document status fields for driver verification
 export const documentStatus = [
   "aadhaarStatus",
-  // "panStatus",
+  "panStatus",
   "licenseStatus",
   "rcStatus",
-  // "insuranceStatus"
+  "insuranceStatus"
 ];
 
 // Fields that can be updated dynamically in Passenger Profile

@@ -7,9 +7,9 @@ import {
   startRide,
   completeRide,
   getDriverCancellationReasons,
-} from "../../../../controllers/ride/driver/driverTracking.controller.js";
-import { authenticateDriver } from "../../../../middleware/auth.middleware.js";
-import { getAllRidesForDriver, getRideById, } from "../../../../controllers/driver/driverManagment/driverManagement.controller.js"
+} from "../../controllers/ride/driver/driverTracking.controller.js";
+import { authenticateDriver } from "../../middleware/auth.middleware.js";
+import { getAllRidesForDriver, getRideById, } from "../../controllers/driver/driverManagment/driverManagement.controller.js"
 
 const router = express.Router();
 

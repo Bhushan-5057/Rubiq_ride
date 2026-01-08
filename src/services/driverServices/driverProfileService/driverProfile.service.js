@@ -2,7 +2,7 @@ import { requiredFields, updatableFields, documentStatus, requiredDocs, required
 import { getDriverStats } from "../../../services/rideServices/rideStats.service.js"
 import { Driver } from "../../../models/driver/driver.model.js"
 import { Ride } from "../../../models/ride/ride.model.js";
-import { sendEmail,renderTemplate } from "../../../utils/mailer.js";
+import { sendEmail, renderTemplate } from "../../../utils/mailer.js";
 
 
 //---------------------- Driver Online ----------------------
@@ -31,7 +31,7 @@ export const setDriverOnlineService = async (driverId) => {
     driver.isOnline = true;
     driver.driverStatus = "available";
     driver.lastOnline = new Date();
-    await driver.save(); 
+    await driver.save();
     return driver;
   } catch (error) {
     throw error;
@@ -42,19 +42,19 @@ export const setDriverOnlineService = async (driverId) => {
 export const setDriverOfflineService = async (driverId) => {
   try {
     const driver = await Driver.findById(driverId);
-    if(!driver) {
+    if (!driver) {
       throw new Error("Driver not found");
-    }  
+    }
 
     if (driver.driverStatus === "on_trip") {
       throw new Error("Cannot go offline while on a trip");
-    } 
+    }
 
     const selectedRides = await Ride.find({ driver: driverId, status: { $in: ["accepted", "ongoing"] } });
     if (selectedRides.length > 0) {
       throw new Error("Cannot go offline with active rides");
     }
-    
+
     driver.isOnline = false;
     driver.driverStatus = "unavailable";
     driver.lastOffline = new Date();
@@ -85,9 +85,9 @@ export async function getProfile(driver) {
 
 //----------------------- Update Profile -----------------------
 export async function updateProfile(driver, data = {}) {
-  if (!driver) throw new Error("Driver not found"); 
+  if (!driver) throw new Error("Driver not found");
 
-    const wasProfileCompleted = driver.profileCompleted;
+  const wasProfileCompleted = driver.profileCompleted;
 
   if (typeof data.dateOfBirth === "string" && data.dateOfBirth.trim() === "") {
     driver.dateOfBirth = null;
@@ -112,7 +112,7 @@ export async function updateProfile(driver, data = {}) {
   });
 
   if (data.documents && typeof data.documents === "object") {
-    
+
     driver.documents = { ...(driver.documents || {}), ...data.documents };
 
     const docToStatusMap = {
@@ -159,32 +159,83 @@ export async function updateProfile(driver, data = {}) {
     allFieldsFilled &&
     allDocsUploaded &&
     allDocsApproved &&
-    allDocNumbersPresent;
+    allDocNumbersPresent; 
 
-      const profileJustCompleted =
-    !wasProfileCompleted && driver.profileCompleted === true;
+    console.log("all fields filled ",allFieldsFilled)
+    console.log("all docs Uploaded ",allDocsUploaded)
+    console.log("all docs approved ",allDocsApproved)
+    console.log("all docs number present ",allFieldsFilled)
 
-  if (
-    profileJustCompleted &&
-    driver.email &&
-    !driver.welcomeEmailSent
-  ) {
-    try {
-      const html = renderTemplate("driver.welcome.html", {
-        name: driver.name || "Captain",
-      });
+  // const profileJustCompleted =
+  //   !wasProfileCompleted && driver.profileCompleted === true;
 
-      await sendEmail({
-        to: driver.email,
-        subject: "Welcome to Rubiq Ride – You’re Ready to Drive 🚗",
-        html,
-      });
+  // if (
+  //   profileJustCompleted &&
+  //   driver.email &&
+  //   !driver.welcomeEmailSent
+  // ) {
+  //   try {
+  //     const html = renderTemplate("driver.welcome.html", {
+  //       name: driver.name || "Captain",
+  //     });
 
+  //     await sendEmail({
+  //       to: driver.email,
+  //       subject: "Welcome to Rubiq Ride – You’re Ready to Drive 🚗",
+  //       html,
+  //     });
+
+  //     driver.welcomeEmailSent = true;
+  //   } catch (err) {
+  //     console.error("Welcome email failed:", err.message);
+  //   }
+  // } 
+
+  const forceEmail = data.forceEmail === true;
+
+// true only when profile transitions from false → true
+const profileJustCompleted =
+  !wasProfileCompleted && driver.profileCompleted === true;
+
+// Decide if email is allowed to send
+const shouldSendEmail =
+  driver.email &&
+  (
+    // normal production flow
+    (profileJustCompleted && !driver.welcomeEmailSent) ||
+    // testing flow
+    forceEmail
+  );
+
+console.log({
+  wasProfileCompleted,
+  profileCompleted: driver.profileCompleted,
+  profileJustCompleted,
+  welcomeEmailSent: driver.welcomeEmailSent,
+  forceEmail,
+});
+
+if (shouldSendEmail) {
+  try {
+    const html = renderTemplate("driver.welcome.html", {
+      name: driver.name || "Captain",
+      year: new Date().getFullYear(),
+    });
+
+    await sendEmail({
+      to: driver.email,
+      subject: "Welcome to Rubiq Ride – You’re Ready to Drive 🚗",
+      html,
+    });
+
+    // Only mark sent in real flow
+    if (!forceEmail) {
       driver.welcomeEmailSent = true;
-    } catch (err) {
-      console.error("Welcome email failed:", err.message);
     }
+  } catch (err) {
+    console.error("Welcome email failed:", err.message);
   }
+}
 
   driver.updatedAt = new Date();
   await driver.save();

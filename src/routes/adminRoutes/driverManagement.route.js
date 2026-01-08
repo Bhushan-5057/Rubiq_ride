@@ -1,9 +1,9 @@
 import { Router } from "express";
-import { authenticateAdmin } from "../../../../../middleware/auth.middleware.js";
+import { authenticateAdmin } from "../../middleware/auth.middleware.js";
 import { getAllDriversController, getDriverByIdController, updateStatusController } 
-from "../../../../../controllers/admin/management/driverManagement/driver.management.controller.js";
+from "../../controllers/admin/management/driverManagement/driver.management.controller.js";
 import documentsRoute from "../driverDocumentsRoutes/driverDocument.route.js"
-import { authorizeAdmin } from "../../../../../middleware/auth.middleware.js";
+import { authorizeAdmin } from "../../middleware/auth.middleware.js";
 
 const router = Router();
 //admin get all drivers

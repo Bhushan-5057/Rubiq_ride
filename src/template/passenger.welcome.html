@@ -2,19 +2,63 @@
 
 <!DOCTYPE html>
 <html>
+
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Josefin+Sans:ital,wght@0,100..700;1,100..700&family=Playfair+Display:ital,wght@0,400..900;1,400..900&family=Sekuya&display=swap"
+    rel="stylesheet">
   <title>Welcome Passenger</title>
   <style>
-    body { margin:0; background:#f4f6f8; font-family:Arial,sans-serif; }
-    .container { max-width:600px; margin:auto; background:#fff; border-radius:8px; overflow:hidden; }
-    .header { background:#4f46e5; color:#fff; padding:20px; text-align:center; }
-    .content { padding:24px; color:#333; }
-    .footer { background:#f1f1f1; padding:14px; font-size:12px; text-align:center; color:#666; }
-    .btn { display:inline-block; padding:12px 20px; background:#4f46e5; color:#fff; text-decoration:none; border-radius:6px; margin-top:16px; }
+    body {
+      margin: 0;
+      background: #f4f6f8;
+      font-family: 'Alan Sans', 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+    }
+
+    .container {
+      max-width: 600px;
+      margin: auto;
+      background: #fff;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .header {
+      background: #5D3A1A;
+      color: #fff;
+      padding: 20px;
+      text-align: center;
+    }
+
+    .content {
+      padding: 24px;
+      color: #333;
+    }
+
+    .footer {
+      background: #5D3A1A;
+      padding: 14px;
+      font-size: 12px;
+      text-align: center;
+      color: #fffdfd;
+    }
+
+    .btn {
+      display: inline-block;
+      padding: 12px 20px;
+      background: #5D3A1A;
+      color: #fff;
+      text-decoration: none;
+      border-radius: 6px;
+      margin-top: 16px;
+    }
   </style>
 </head>
+
 <body>
   <div class="container">
     <div class="header">
@@ -22,8 +66,7 @@
     </div>
 
     <div class="content">
-      <h2>Welcome, {{userName}} 🎉</h2>
-
+      <h2>Welcome, {{name}} &#127881;</h2>
       <p>
         Thank you for joining <strong>Rubiq Ride</strong>.
       </p>
@@ -40,8 +83,9 @@
     </div>
 
     <div class="footer">
-      © {{year}} Rubiq Ride. Ride safe.
+      &copy; {{year}} Rubiq Ride. Ride safe.
     </div>
   </div>
 </body>
+
 </html>

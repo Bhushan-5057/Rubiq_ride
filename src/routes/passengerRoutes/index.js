@@ -1,7 +1,7 @@
 import { Router } from "express";
-import passengerAuthRoutes from "./passengerAuthRoutes/passengerAuth.routes.js";
-import passengerProfileRoutes from "./passengerProfileRoutes/pasengerProfile.routes.js";
-import managementRoutes from "./management/management.routes.js";
+import passengerAuthRoutes from "./passengerAuth.routes.js";
+import passengerProfileRoutes from "./pasengerProfile.routes.js";
+import managementRoutes from "./management.routes.js";
 import paymentRoutes from "../payment/payment.routes.js";
 import feedbackRoutes from "../feedback/feedback.routes.js"
 

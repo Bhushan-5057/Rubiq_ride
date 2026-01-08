@@ -9,6 +9,8 @@ import { initSocket } from "./config/socket/socket.js";
 import paymentRoutes from "./routes/payment/payment.routes.js";
 import "../src/config/firebase.js";
 import './workers/rideTimeout.worker.js';
+import swaggerUI from "swagger-ui-express"
+import swaggerSpec from "./config/swagger.config.js";
 
 const PORT = process.env.PORT || 3000;
 const app = express();
@@ -48,6 +50,7 @@ app.use((req, res, next) => {
 app.use("/api/payment", paymentRoutes);
 app.use("/api", routes);
 app.get("/health", (req, res) => res.json({ status: "ok" }));
+app.use("/api-docs", swaggerUI.serve, swaggerUI.setup(swaggerSpec));
 
 // 404 handler
 app.use((req, res) => res.status(404).json({ message: "Route not found" }));
