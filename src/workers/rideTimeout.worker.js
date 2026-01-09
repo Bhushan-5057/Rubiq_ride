@@ -17,7 +17,7 @@ const shutdownWorker = async (worker) => {
     await mongoose.connection.close();
     console.log('MongoDB connection closed');
   }
-  process.exit(0);
+  setTimeout(() => process.exit(0), 500);
 };
 
 const createWorker = async () => {

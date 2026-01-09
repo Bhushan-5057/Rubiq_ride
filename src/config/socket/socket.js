@@ -1,4 +1,5 @@
 import { Server } from "socket.io";
+import { registerChatEvents } from "./chat.socket.js";
 
 let ioInstance;
 
@@ -23,9 +24,12 @@ export const initSocket = (server) => {
     socket.on("register", ({ userId }) => {
       if (userId) {
         socket.join(userId.toString());
+         console.log("🧩 Rooms:", socket.rooms);
         console.log(`✅ User ${userId} joined their personal room`);
       }
     });
+
+    registerChatEvents(io, socket);
 
     socket.on("disconnect", () => {
       console.log("🔴 Socket disconnected:", socket.id);

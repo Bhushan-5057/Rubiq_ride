@@ -104,7 +104,7 @@ export const driverArrived = async (req, res, next) => {
     io.to(ride.passenger._id.toString()).emit("driver_arrived",payload)
 
     // Notify passenger that driver arrived via push notification
-    const passenger = await Passenger.findById(ride.passenger).selec("fcmTokens");
+    const passenger = await Passenger.findById(ride.passenger).select("fcmTokens");
     await sendToUser({
       user: passenger,
       title: "Driver Arrived",
@@ -439,84 +439,3 @@ export const getDriverCancellationReasons = (req, res, next) => {
     next(error)
   }
 }
-
-// export const updateDriverLocation = async (req, res) => {
-//   try {
-//     const { lng, lat, rideId } = req.body;
-
-//     if (typeof lng !== 'number' || typeof lat !== 'number') {
-//       throw new Error('Latitude and longitude are required and must be numbers');
-//     }
-
-//     const updatedDriver = await updateDriverLocationService(req.driver, lng, lat, rideId);
-
-//     // Only proceed with ride-specific updates if rideId is provided
-//     if (rideId) {
-//       const ride = await Ride.findOne({
-//         _id: rideId,
-//         driver: req.driver._id,
-//         passenger: { $exists: true, $ne: null },
-//         status: { $in: ["accepted", "on_the_way", "driver_arrived", "ongoing", "completed"] }
-//       }).select('passenger status paymentStatus paymentMethod').lean();
-
-//       if (ride && ride.passenger) {
-//         // Notify passenger with driver's updated location
-//         const io = getIO();
-//         const updateData = {
-//           rideId,
-//           driver: {
-//             id: req.driver._id,
-//             name: req.driver.name,
-//             vehicleType: req.driver.vehicleType,
-//             vehicleNumber: req.driver.vehicleNumber,
-//           },
-//           coordinates: [lng, lat],
-//           longitude: lng,
-//           latitude: lat,
-//           updatedAt: new Date(),
-//           status: ride.status,
-//           paymentStatus: ride.paymentStatus,
-//           paymentMethod: ride.paymentMethod
-//         };
-
-//         // Send update to passenger
-//         io.to(ride.passenger.toString()).emit("driver_location_update", updateData);
-
-//         // Notify passenger about driver's location update via push notification
-//         const passenger = await Passenger.findById(ride.passenger);
-//         if (passenger?.fcmToken) {
-//           await sendPushNotification({
-//             token: passenger.fcmToken,
-//             title: "Driver Location Update",
-//             body: `Your driver's location has been updated.`,
-//             data: {
-//               type: "driver_location_update",
-//               rideId: ride._id.toString()
-//             }
-//           })
-//         }
-
-//         // If ride is completed but payment is pending, notify passenger
-//         if (ride.status === 'completed' && ride.paymentStatus === 'pending' && ride.paymentMethod !== 'cash') {
-//           io.to(ride.passenger.toString()).emit("payment:required", {
-//             rideId,
-//             amount: ride.fareEstimate,
-//             currency: 'inr'
-//           });
-//         }
-//       }
-//     }
-
-//     res.json({
-//       success: true,
-//       message: "Location updated successfully",
-//       driver: updatedDriver,
-//     });
-//   } catch (err) {
-//     console.error('Error updating driver location:', err);
-//     res.status(400).json({
-//       success: false,
-//       message: err.message || 'Failed to update location'
-//     });
-//   }
-// };

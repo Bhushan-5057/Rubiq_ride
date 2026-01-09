@@ -108,21 +108,26 @@ export const createRide = async (req, res) => {
 
     // Notify nearby drivers about the new ride request
     nearbyDrivers.forEach((driver) => {
-      io.to(driver._id.toString()).emit("new_ride_request", {
+      const driverId = driver._id.toString();
+        console.log("📡 Emitting new_ride_request to driver room:", driverId);
+      io.to(driverId).emit("new_ride_request", {
         rideId: ride._id,
         pickup,
         drop,
         fareEstimate: ride.fareEstimate,
+        distance:ride.distance,
         vehicleType: ride.vehicleType,
         paymentMethod: ride.paymentMethod,
         paymentStatus: ride.paymentStatus,
-        passenger:{
-          name:ride.passenger.name,
-          contactNumber:ride.passenger.contactNumber,
-          rating:ride.passenger.rating,
+        passenger: {
+          name: ride.passenger.name,
+          contactNumber: ride.passenger.contactNumber,
+          rating: ride.passenger.rating,
         }
       });
-    }); 
+    });
+console.log("Nearby drivers:", nearbyDrivers.map(d => d._id.toString()));
+console.log("All socket rooms:", [...io.sockets.adapter.rooms.keys()]);
     // Send push notifications to nearby drivers
     for (const driver of nearbyDrivers) {
       const driverData = await Driver.findById(driver._id).select("fcmTokens");
@@ -231,6 +236,14 @@ export const updateRide = async (req, res) => {
         drop: ride.drop,
         distance: ride.distance,
         fareEstimate: ride.fareEstimate,
+         vehicleType: ride.vehicleType,
+        paymentMethod: ride.paymentMethod,
+        paymentStatus: ride.paymentStatus,
+        passenger: {
+          name: ride.passenger.name,
+          contactNumber: ride.passenger.contactNumber,
+          rating: ride.passenger.rating,
+        }
       });
     }
 

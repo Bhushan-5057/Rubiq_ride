@@ -4,6 +4,12 @@ import {
   getUserFeedbackService,
   getRideFeedbackService
 } from '../../services/feedback/feedback.service.js';
+import { getIO } from '../../config/socket/socket.js';
+import { Ride } from '../../models/ride/ride.model.js';
+import { sendToUser } from '../../services/notification/sendToUser.js';
+import { Driver } from '../../models/driver/driver.model.js';
+import { Passenger } from '../../models/passenger/passenger.model.js';
+
 
 //---------------------- Passenger Feedback To Driver ----------------------
 export const submitDriverFeedback = async (req, res) => {
@@ -13,13 +19,35 @@ export const submitDriverFeedback = async (req, res) => {
     }
 
     const { rideId, rating, comment } = req.body;
-    
+
     const feedback = await submitDriverFeedbackService({
       rideId,
       passengerId: req.passenger._id,
       rating: parseInt(rating),
       comment
     });
+
+    const ride = await Ride.findById(rideId).select("driver")
+    const io = getIO()
+
+    io.to(ride.driver.toString()).emit("passenger_feedback_received", {
+      rideId,
+      rating: feedback.rating,
+      comment: feedback.comment,
+      fromPassenger: req.passenger._id
+    })
+
+    const driver = await Driver.findById(ride.driver).select("fcmTokens")
+    await sendToUser({
+      user: driver,
+      title: "New Passenger feedback",
+      body: `${req.passenger.name} rated you ${feedback.rating} ⭐`,
+      data: {
+        type: "passenger_feedback_received",
+        rideId
+      },
+      userType: "driver"
+    })
 
     return res.status(201).json({
       success: true,
@@ -43,13 +71,35 @@ export const submitPassengerFeedback = async (req, res) => {
     }
 
     const { rideId, rating, comment } = req.body;
-    
+
     const feedback = await submitPassengerFeedbackService({
       rideId,
       driverId: req.driver._id,
       rating: parseInt(rating),
       comment
     });
+
+    const ride = await Ride.findById(rideId).select("passenger")
+    const io = getIO()
+
+    io.to(ride.passenger.toString()).emit("driver_feedback_received", {
+      rideId,
+      rating: feedback.rating,
+      comment: feedback.comment,
+      fromDriver: req.driver._id
+    })
+
+    const passenger = await Passenger.findById(ride.passenger).select("fcmTokens")
+    await sendToUser({
+      user: passenger,
+      title: "New Driver feedback",
+      body: `${req.driver.name} rated you ${feedback.rating} ⭐`,
+      data: {
+        type: "driver_feedback_received",
+        rideId
+      },
+      userType: "passenger"
+    })
 
     return res.status(201).json({
       success: true,
@@ -69,7 +119,7 @@ export const submitPassengerFeedback = async (req, res) => {
 export const getMyFeedback = async (req, res) => {
   try {
     const user = req.user || req.driver || req.passenger;
-    
+
     if (!user) {
       return res.status(401).json({ success: false, message: 'User not authenticated' });
     }
@@ -84,7 +134,7 @@ export const getMyFeedback = async (req, res) => {
     }
 
     const feedback = await getUserFeedbackService(userType, user._id);
-    
+
     return res.status(200).json({
       success: true,
       data: feedback
@@ -105,14 +155,14 @@ export const getUserFeedback = async (req, res) => {
     const { userType } = req.query; // 'driver' or 'passenger'
 
     if (!['driver', 'passenger'].includes(userType)) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'Invalid user type. Must be either "driver" or "passenger"' 
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid user type. Must be either "driver" or "passenger"'
       });
     }
 
     const feedback = await getUserFeedbackService(userType, userId);
-    
+
     return res.status(200).json({
       success: true,
       data: feedback
@@ -131,13 +181,13 @@ export const getRideFeedback = async (req, res) => {
   try {
     const { rideId } = req.params;
     const user = req.user || req.driver || req.passenger;
-    
+
     if (!user) {
       return res.status(401).json({ success: false, message: 'User not authenticated' });
     }
 
     const feedback = await getRideFeedbackService(rideId, user._id);
-    
+
     return res.status(200).json({
       success: true,
       data: feedback

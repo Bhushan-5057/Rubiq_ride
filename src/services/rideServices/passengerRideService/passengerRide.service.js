@@ -72,6 +72,7 @@ export async function createRideService({ passengerId, pickup, drop, vehicleType
     activationStatus: "ready",
     vehicleType: vehicleType,
     isOnline:true,
+    driverStatus: "available",
     location: {
       $near: {
         $geometry: { type: "Point", coordinates: [pickup.lng, pickup.lat] },

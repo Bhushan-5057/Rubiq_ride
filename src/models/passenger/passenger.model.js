@@ -2,7 +2,7 @@ import mongoose from "mongoose";
 
 const passengerSchema = new mongoose.Schema(
   {
-    contactNumber: { type: String, unique: true, required: false },
+    contactNumber: { type: String, required: false,default:null },
     otp: { type: String, select: false },
     otpExpiry: { type: Date, select: false },
     otpVerified: { type: Boolean, default: false },

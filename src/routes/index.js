@@ -5,6 +5,7 @@ import driverRoutes from "./driverRoutes/index.js";
 import notificationRoutes from "./notificationRoutes/notification.routes.js"
 import  complaintRoutes  from "./complaintRoutes/complaint.routes.js";
 import bankAccountRoutes from "./bankAccount/bankAccount.routes.js";
+import chatMessageRoute from "./chatMessage/chatMessage.routes.js"
 
 const router = Router();
 
@@ -30,5 +31,8 @@ router.use("/complaint", complaintRoutes);
 
 //--------------- Bank Account Route ---------------
 router.use("/bank-account", bankAccountRoutes);
+
+//--------------- Chat Message Route ---------------
+router.use("/rides", chatMessageRoute);
 
 export default router;

@@ -86,9 +86,9 @@ export async function startRideService({ rideId, driverId, otpForStartRide, driv
     throw new Error("You are not assigned to this ride");
   }
 
-  if (ride.status !== "driver_arrived") {
-    throw new Error(`Ride cannot be started in current status: ${ride.status}`);
-  }
+  // if (ride.status !== "driver_arrived") {
+  //   throw new Error(`Ride cannot be started in current status: ${ride.status}`);
+  // }
 
   if (!driverLocationCoordinates || driverLocationCoordinates.length !== 2) {
     throw new Error("Driver location is required to start the ride");

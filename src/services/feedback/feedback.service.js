@@ -16,7 +16,7 @@ export async function submitPassengerFeedbackService({ rideId, driverId, rating,
     throw new Error('Cannot give feedback for an incomplete ride');
   }
 
-  return submitFeedback({
+  return Feedback.create({
     ride: rideId,
     givenBy: 'driver',
     givenByUser: driverId,
@@ -46,7 +46,7 @@ export async function submitDriverFeedbackService({ rideId, passengerId, rating,
     throw new Error('No driver assigned to this ride');
   }
 
-  return submitFeedback({
+  return Feedback.create({
     ride: rideId,
     givenBy: 'passenger',
     givenByUser: passengerId,

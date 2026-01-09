@@ -8,7 +8,9 @@ import routes from "./routes/index.js";
 import { initSocket } from "./config/socket/socket.js";
 import paymentRoutes from "./routes/payment/payment.routes.js";
 import "../src/config/firebase.js";
-import './workers/rideTimeout.worker.js';
+// import './workers/rideTimeout.worker.js';
+import { mongoose } from "./config/dbConnect.js";
+import { connectDB } from "./config/dbConnect.js";
 
 const PORT = process.env.PORT || 3000;
 const app = express();
@@ -65,21 +67,31 @@ app.use((err, req, res, next) => {
 
 // Graceful shutdown
 const shutdown = async () => {
-  console.log('Shutting down server...');
-  if (dbConnection) {
-    await dbConnection.close();
-    console.log('MongoDB connection closed');
+  console.log("Shutting down server...");
+
+  try {
+    if (mongoose.connection.readyState === 1) {
+      await mongoose.connection.close();
+      console.log("MongoDB connection closed");
+    }
+  } catch (err) {
+    console.error("Error closing MongoDB:", err);
   }
+
   server.close(() => {
-    console.log('Server closed');
+    console.log("Server closed");
     process.exit(0);
   });
 };
 
 // Start server
-server.listen(PORT, async () => {
-  console.log(`Server running on port ${PORT}`);
-});
+(async () => {
+  await connectDB();
+
+  server.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+  });
+})();
 
 // Handle unhandled rejections
 process.on('unhandledRejection', (err) => {
