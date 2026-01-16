@@ -11,6 +11,9 @@ import "../src/config/firebase.js";
 // import './workers/rideTimeout.worker.js';
 import { mongoose } from "./config/dbConnect.js";
 import { connectDB } from "./config/dbConnect.js";
+import config from "./helpers/systemConfig.helper.js"
+import { initCloudinary } from "./config/cloudinary.config.js";
+import { initRedis } from "./config/redis.js";
 
 const PORT = process.env.PORT || 3000;
 const app = express();
@@ -87,6 +90,9 @@ const shutdown = async () => {
 // Start server
 (async () => {
   await connectDB();
+  await config.load();
+  initRedis();
+  initCloudinary();
 
   server.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
@@ -98,6 +104,12 @@ process.on('unhandledRejection', (err) => {
   console.error('Unhandled Rejection:', err);
   shutdown();
 });
+
+process.on("uncaughtException", (err) => {
+  console.error("Uncaught Exception:", err);
+  shutdown()
+});
+
 
 // Handle termination signals
 process.on('SIGTERM', shutdown);

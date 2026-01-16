@@ -1,8 +1,8 @@
 import { googleLogin, otpLogin, sendDriverOtp } from "../../../services/driverServices/index.js";
-import {OAuth2Client} from "google-auth-library" 
-import {logout} from "../../../services/driverServices/driverAuthService/driverAuth.service.js"
+import { getGoogleClient } from "../../../config/googleOAuth.js"
+import { logout } from "../../../services/driverServices/driverAuthService/driverAuth.service.js"
 
-const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID)
+// const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID)
 
 // -------------------- Send Otp --------------------
 export async function sendOtpController(req, res, next) {
@@ -42,10 +42,12 @@ export async function googleLoginController(req, res, next) {
       return res.status(400).json({ success: false, message: "idToken is required" });
     }
 
+    const client = getGoogleClient();
+
     // Verify ID Token with Google
     const ticket = await client.verifyIdToken({
       idToken,
-      audience: process.env.GOOGLE_CLIENT_ID,
+      audience: config.get("GOOGLE_CLIENT_ID"),
     });
 
     const payload = ticket.getPayload();
@@ -74,7 +76,7 @@ export async function googleLoginController(req, res, next) {
     console.log(error);
     next(error);
   }
-} 
+}
 
 //-------------------------- Driver Logout --------------------------
 

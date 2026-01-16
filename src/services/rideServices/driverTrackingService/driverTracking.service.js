@@ -2,7 +2,7 @@ import { Ride } from "../../../models/ride/ride.model.js";
 import { Driver } from "../../../models/driver/driver.model.js";
 import { areCoordinatesClose } from "../../../common/utlis.js";
 import { calculateEarningsFromDistance } from "../../../helpers/rideHelpers.js";
-import { rideTimeoutQueue } from "../../../queues/rideTimeout.queue.js";
+import { getRideTimeoutQueue } from "../../../queues/rideTimeout.queue.js";
 import {DRIVER_CANCELLATION_REASONS,DRIVER_REASON_CODES} from "../../../common/cancellationReasons.js"
 
 //-------------------- Accept Ride --------------------
@@ -16,7 +16,7 @@ export async function acceptRideService({ rideId, driverId }) {
 
   if (!ride) throw new Error("Ride not available or already accepted");
 
-  const jobs = await rideTimeoutQueue.getDelayed();
+  const jobs = await getRideTimeoutQueue.getDelayed();
   for (const job of jobs) {
     if (job.data.rideId.toString() === rideId.toString()) {
       await job.remove();

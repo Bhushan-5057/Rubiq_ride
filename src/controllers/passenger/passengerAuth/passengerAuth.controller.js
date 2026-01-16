@@ -1,8 +1,8 @@
 import { sendOtp } from "../../../services/otpService/otp.service.js";
 import { googleLogin, logout, otpLogin } from "../../../services/passengerServices/index.js";
-import {OAuth2Client} from "google-auth-library"  
+import { getGoogleClient } from "../../../config/googleOAuth.js"
 
-const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID)
+// const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID)
 
 // -------------------- Send Otp --------------------
 export async function sendOtpController(req, res, next) {
@@ -10,7 +10,7 @@ export async function sendOtpController(req, res, next) {
     const { contactNumber } = req.body;
     if (!contactNumber) return res.status(400).json({ success: false, message: "Contact number required" });
 
-    const result = await sendOtp(contactNumber ,"passenger");
+    const result = await sendOtp(contactNumber, "passenger");
     res.json({ success: true, message: "OTP sent successfully", otp: result.otp });
   } catch (err) {
     next(err);
@@ -26,10 +26,11 @@ export async function googleLoginController(req, res, next) {
       return res.status(400).json({ success: false, message: "idToken is required" });
     }
 
+    const client = getGoogleClient();
     // Verify ID Token with Google
     const ticket = await client.verifyIdToken({
       idToken,
-      audience: process.env.GOOGLE_CLIENT_ID,
+      audience: config.get("GOOGLE_CLIENT_ID"),
     });
 
     const payload = ticket.getPayload();
@@ -63,7 +64,7 @@ export async function googleLoginController(req, res, next) {
 // -------------------- OTP Login (auto-create or auto-login) --------------------
 export async function otpLoginController(req, res, next) {
   try {
-    const { contactNumber, otp, name, email, gender ,fcmToken} = req.body;
+    const { contactNumber, otp, name, email, gender, fcmToken } = req.body;
 
     const result = await otpLogin({ contactNumber, otp, name, email, gender, fcmToken });
 
@@ -91,7 +92,7 @@ export async function otpLoginController(req, res, next) {
       });
     }
 
-    next(err); 
+    next(err);
   }
 }
 

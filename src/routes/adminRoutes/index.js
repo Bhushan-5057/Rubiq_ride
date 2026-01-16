@@ -5,6 +5,7 @@ import managementRoutes from "./management.routes.js";
 import driverManagementRoutes from "./driverManagement.route.js";
 import passengerManagementRoutes from "./passengerManagement.route.js";
 import RidesManagment from "./ridesForAdmin.route.js";
+import SystemConfigRoutes from "../configRoutes/systemConfig.routes.js"
 
 const router = Router();
 
@@ -25,5 +26,8 @@ router.use("/manage/passengers", passengerManagementRoutes);
 
 //------------------ Ride Management Route ------------------
 router.use("/manage/rides", RidesManagment);
+
+//------------------ Configuration Management Route ------------------
+router.use("/manage/system-config", SystemConfigRoutes);
 
 export default router;

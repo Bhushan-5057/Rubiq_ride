@@ -2,22 +2,28 @@ import nodemailer from "nodemailer";
 import dotenv from "dotenv";
 import fs from "fs"
 import path from "path"
-
+import systemConfig from "../helpers/systemConfig.helper.js"
+import { decrypt } from "./crypto.js";
 dotenv.config();
 
 //---------------------- Create Gmail ----------------------
 async function createGmailTransporter() {
+  const encryptedUser = systemConfig.get("EMAIL_USER")
+  const encryptedPass = systemConfig.get("EMAIL_PASS")
+
+  if (!encryptedPass || !encryptedUser) {
+    throw new Error("EMAIL_USER or EMAIL_PASS not found in systemConfig")
+  }
+
+  const user = decrypt(encryptedUser)
+  const pass = decrypt(encryptedPass)
+
   return nodemailer.createTransport({
     host: "smtp.gmail.com",
     port: 587,
-    secure: false, 
-    auth: {
-      user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_PASS,
-    },
-    tls: {
-      rejectUnauthorized: false,
-    },
+    secure: false,
+    auth: { user, pass },
+    tls: { rejectUnauthorized: false, },
   });
 }
 
@@ -39,23 +45,23 @@ export async function sendEmail({ to, subject, text, html }) {
   if (!to) throw new Error("sendEmail: 'to' is required");
   if (!subject) subject = "No subject";
 
-  if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
-    try {
-      const gmailTransporter = await createGmailTransporter();
-      const info = await gmailTransporter.sendMail({
-        from: `"Ride App" <${process.env.EMAIL_USER}>`,
-        to,
-        subject,
-        text,
-        html,
-      });
-      return { ok: true, provider: "gmail", info };
-    } catch (err) {
-      console.error("Gmail send failed:", err && err.message ? err.message : err);
-    }
-  } else {
-    console.warn("EMAIL_USER/EMAIL_PASS not set — skipping Gmail, using Ethereal for dev.");
+  try {
+    const gmailTransporter = await createGmailTransporter();
+    const info = await gmailTransporter.sendMail({
+      from: `"Ride App" <${decrypt(systemConfig.get("EMAIL_USER"))}>`,
+      to,
+      subject,
+      text,
+      html,
+    });
+    return { ok: true, provider: "gmail", info };
+  } catch (err) {
+    console.error(
+      "Gmail send failed:",
+      err && err.message ? err.message : err
+    );
   }
+
   try {
     const { transporter, testAccount } = await createEtherealTransporter();
     const info = await transporter.sendMail({
@@ -65,12 +71,18 @@ export async function sendEmail({ to, subject, text, html }) {
       text,
       html,
     });
-    return { ok: true, provider: "ethereal", previewUrl: nodemailer.getTestMessageUrl(info), info, testAccount };
+    return {
+      ok: true,
+      provider: "ethereal",
+      previewUrl: nodemailer.getTestMessageUrl(info),
+      info,
+      testAccount,
+    };
   } catch (err) {
     console.error("Ethereal fallback failed:", err);
     throw new Error("All email providers failed");
   }
-} 
+}
 
 //---------------------------- Render Email Template ---------------------------- 
 

@@ -1,9 +1,15 @@
 // src/queues/rideTimeout.queue.js
 import { Queue } from "bullmq";
-import { redis } from "../config/redis.js";
+import { getRedis } from "../config/redis.js";
+
+let redis
+const getRedisConnection = () => {
+  if (!redis) redis = getRedis()
+  return redis
+}
 
 const queueOptions = {
-  connection: redis,
+  connection: getRedisConnection(),
   defaultJobOptions: {
     removeOnComplete: true,
     attempts: 3,
@@ -14,7 +20,14 @@ const queueOptions = {
   },
 };
 
-export const rideTimeoutQueue = new Queue("rideTimeoutQueue", queueOptions);
+let rideTimeoutQueue;
+
+export const getRideTimeoutQueue = () => {
+  if (!rideTimeoutQueue) {
+    rideTimeoutQueue = new Queue("rideTimeoutQueue", queueOptions);
+  }
+  return rideTimeoutQueue;
+};
 
 // Add job with retry logic
 export const addRideTimeoutJob = async (rideId, delay = 60000) => {
@@ -30,7 +43,7 @@ export const addRideTimeoutJob = async (rideId, delay = 60000) => {
   );
 
   try {
-    const job = await rideTimeoutQueue.add(
+    const job = await getRideTimeoutQueue().add(
       "rideTimeout",
       {
         rideId,
@@ -58,6 +71,7 @@ export const addRideTimeoutJob = async (rideId, delay = 60000) => {
 
 // Clean up function
 export const cleanupQueue = async () => {
+   const queue = getRideTimeoutQueue();
   await rideTimeoutQueue.clean(0, 1000, "completed");
   await rideTimeoutQueue.clean(0, 1000, "failed");
 };
