@@ -1,3 +1,4 @@
+console.log("CWD:", process.cwd());
 import dotenv from "dotenv";
 dotenv.config();
 import express from "express";
