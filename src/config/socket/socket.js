@@ -10,20 +10,37 @@ export const initSocket = (server) => {
   ].filter(Boolean);
 
   const io = new Server(server, {
+    transports: ["websocket", "polling"],
     cors: {
       origin: allowedOrigins,
       credentials: true,
       methods: ["GET", "POST", "PATCH", "PUT", "DELETE"],
       allowedHeaders: ["Content-Type", "Authorization"],
     },
+  }); 
+
+    io.use((socket, next) => {
+    const token = socket.handshake.auth?.token;
+
+    if (!token) {
+      console.log("❌ Socket connection rejected: no token");
+      return next(new Error("Unauthorized"));
+    }
+
+    // 🔜 Later: verify JWT here
+    // socket.user = decodedUser;
+
+    next();
   });
 
   io.on("connection", (socket) => {
     console.log("🟢 Socket connected:", socket.id);
 
     socket.on("register", ({ userId }) => {
-      if (userId) {
-        socket.join(userId.toString());
+      if(!userId) return ;
+      const room =userId.toString();
+      if (!socket.rooms.has(room)) {
+        socket.join(room);
          console.log("🧩 Rooms:", socket.rooms);
         console.log(`✅ User ${userId} joined their personal room`);
       }

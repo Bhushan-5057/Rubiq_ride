@@ -37,7 +37,8 @@ const ENV_KEYS = [
   "GOOGLE_CLIENT_ID",
   "CLIENT_SECRET",
   "REDIS_HOST",
-  "REDIS_PORT"
+  "REDIS_PORT",
+  "REDIS_PASSWORD"
 ];
 
 console.log("🚀 Starting ENV migration...");
@@ -58,7 +59,7 @@ for (const key of ENV_KEYS) {
       key,
       value: encrypted,
       isActive: true,
-       createdBy: SYSTEM_ADMIN_ID,
+      createdBy: SYSTEM_ADMIN_ID,
       updatedBy: SYSTEM_ADMIN_ID
     },
     { upsert: true, new: true }
