@@ -7,7 +7,7 @@ import http from "http";
 import routes from "./routes/index.js";
 import { initSocket } from "./config/socket/socket.js";
 import paymentRoutes from "./routes/payment/payment.routes.js";
-import "../src/config/firebase.js";
+import "./config/firebase.js";
 // import './workers/rideTimeout.worker.js';
 import { mongoose } from "./config/dbConnect.js";
 import { connectDB } from "./config/dbConnect.js";
