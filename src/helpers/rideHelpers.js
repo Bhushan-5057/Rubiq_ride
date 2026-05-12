@@ -31,6 +31,13 @@ const pricingConfig = {
 //-------------------------------- Fare Calculations --------------------------------
 export function calculateFare(pickup, drop, vehicleType) {
   const distance = calculateDistance(pickup, drop);
+  return calculateFareFromDistance(distance, vehicleType);
+}
+
+export function calculateFareFromDistance(distance, vehicleType) {
+  if (!Number.isFinite(Number(distance)) || Number(distance) < 0) {
+    throw new Error("Distance must be a valid positive number");
+  }
 
   const type = (vehicleType || "").toString().toLowerCase();
 
@@ -39,9 +46,10 @@ export function calculateFare(pickup, drop, vehicleType) {
     throw new Error(`Unsupported vehicle type: ${vehicleType}`);
   }
 
-  const baseFare = distance * config.baseFarePerKm;
-  const platformFee = distance * config.platformFeePerKm;
-  const driverShare = distance * config.driverSharePerKm;
+  const distanceInKm = Number(distance);
+  const baseFare = distanceInKm * config.baseFarePerKm;
+  const platformFee = distanceInKm * config.platformFeePerKm;
+  const driverShare = distanceInKm * config.driverSharePerKm;
 
   const round2 = (value) => parseFloat(value.toFixed(2));
 
@@ -51,7 +59,7 @@ export function calculateFare(pickup, drop, vehicleType) {
   const totalFare = Math.round(roundedBaseFare + roundedPlatformFee);
 
   return {
-    distanceInKm: distance,
+    distanceInKm,
     vehicleType: type,
     baseFare: roundedBaseFare,
     platformFee: roundedPlatformFee,

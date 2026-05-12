@@ -55,7 +55,7 @@ export const createRide = async (req, res) => {
       });
     }
 
-    const { ride, nearbyDrivers } = await createRideService({
+    const { ride, nearbyDrivers, driverEtas } = await createRideService({
       passengerId,
       pickup,
       drop,
@@ -112,10 +112,12 @@ export const createRide = async (req, res) => {
         console.log("📡 Emitting new_ride_request to driver room:", driverId);
       io.to(driverId).emit("new_ride_request", {
         rideId: ride._id,
-        pickup,
-        drop,
+        pickup: ride.pickup,
+        drop: ride.drop,
         fareEstimate: ride.fareEstimate,
         distance:ride.distance,
+        routeDetails: ride.routeDetails,
+        driverEta: driverEtas.find((eta) => eta.driverId.toString() === driverId) || null,
         vehicleType: ride.vehicleType,
         paymentMethod: ride.paymentMethod,
         paymentStatus: ride.paymentStatus,
@@ -154,9 +156,12 @@ console.log("All socket rooms:", [...io.sockets.adapter.rooms.keys()]);
     // Notify passenger about ride creation
     io.to(passengerId.toString()).emit("ride_created", {
       rideId: ride._id,
-      pickup,
-      drop,
+      pickup: ride.pickup,
+      drop: ride.drop,
       fareEstimate: ride.fareEstimate,
+      distance: ride.distance,
+      routeDetails: ride.routeDetails,
+      driverEtas,
       vehicleType: ride.vehicleType,
       paymentMethod: ride.paymentMethod,
       paymentStatus: ride.paymentStatus,
@@ -181,13 +186,14 @@ console.log("All socket rooms:", [...io.sockets.adapter.rooms.keys()]);
     res.status(201).json({
       success: true,
       ride,
+      driverEtas,
       ...paymentData
     });
   } catch (error) {
     console.error('Error creating ride:', error);
-    res.status(500).json({
+    res.status(error.status || 500).json({
       success: false,
-      message: e.message || 'Failed to create ride'
+      message: error.message || 'Failed to create ride'
     });
   }
 };
@@ -212,6 +218,7 @@ export const updateRide = async (req, res) => {
       drop: ride.drop,
       distance: ride.distance,
       fareEstimate: ride.fareEstimate,
+      routeDetails: ride.routeDetails,
     });
 
     // Send push notification to passenger
@@ -236,6 +243,7 @@ export const updateRide = async (req, res) => {
         drop: ride.drop,
         distance: ride.distance,
         fareEstimate: ride.fareEstimate,
+        routeDetails: ride.routeDetails,
          vehicleType: ride.vehicleType,
         paymentMethod: ride.paymentMethod,
         paymentStatus: ride.paymentStatus,

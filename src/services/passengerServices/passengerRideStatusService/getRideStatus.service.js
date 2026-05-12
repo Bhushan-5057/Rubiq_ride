@@ -1,7 +1,7 @@
 
-import { getDistance } from "geolib";
 import { Ride } from "../../../models/ride/ride.model.js";
 import { Driver } from "../../../models/driver/driver.model.js";
+import { getDistanceMatrix } from "../../googleMaps/googleMaps.service.js";
 
 //------------------------ Get Ride Status ------------------------
 export async function getRideStatusService({ rideId, passengerId }) {
@@ -52,18 +52,19 @@ export async function getRideStatusService({ rideId, passengerId }) {
   }
 
   let distanceFromPickup = "N/A";
+  let etaToPickupMinutes = null;
   if (driver.location.coordinates?.length === 2 && ride.pickup?.coordinates?.length === 2) {
-    const distance = getDistance(
-      {
-        latitude: ride.pickup.coordinates[1],
-        longitude: ride.pickup.coordinates[0],
-      },
-      {
-        latitude: driver.location.coordinates[1],
-        longitude: driver.location.coordinates[0],
-      }
-    );
-    distanceFromPickup = distance < 50 ? "less than 0.05 km" : (distance / 1000).toFixed(2) + " km";
+    try {
+      const matrix = await getDistanceMatrix({
+        origins: [driver.location.coordinates],
+        destinations: [ride.pickup.coordinates],
+      });
+      const element = matrix.rows[0]?.elements[0];
+      distanceFromPickup = element?.distance?.text || "N/A";
+      etaToPickupMinutes = element?.durationInTraffic?.minutes || element?.duration?.minutes || null;
+    } catch (error) {
+      distanceFromPickup = "N/A";
+    }
 
   }
 
@@ -78,6 +79,7 @@ export async function getRideStatusService({ rideId, passengerId }) {
       coordinates: driver.location.coordinates,
     },
     distanceFromPickup,
+    etaToPickupMinutes,
   };
 }
 

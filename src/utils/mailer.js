@@ -2,21 +2,16 @@ import nodemailer from "nodemailer";
 import dotenv from "dotenv";
 import fs from "fs"
 import path from "path"
-import systemConfig from "../helpers/systemConfig.helper.js"
-import { decrypt } from "./crypto.js";
 dotenv.config();
 
 //---------------------- Create Gmail ----------------------
 async function createGmailTransporter() {
-  const encryptedUser = systemConfig.get("EMAIL_USER")
-  const encryptedPass = systemConfig.get("EMAIL_PASS")
+  const user = process.env.EMAIL_USER;
+  const pass = process.env.EMAIL_PASS;
 
-  if (!encryptedPass || !encryptedUser) {
-    throw new Error("EMAIL_USER or EMAIL_PASS not found in systemConfig")
+  if (!pass || !user) {
+    throw new Error("EMAIL_USER or EMAIL_PASS not found in environment")
   }
-
-  const user = decrypt(encryptedUser)
-  const pass = decrypt(encryptedPass)
 
   return nodemailer.createTransport({
     host: "smtp.gmail.com",
@@ -48,7 +43,7 @@ export async function sendEmail({ to, subject, text, html }) {
   try {
     const gmailTransporter = await createGmailTransporter();
     const info = await gmailTransporter.sendMail({
-      from: `"Ride App" <${decrypt(systemConfig.get("EMAIL_USER"))}>`,
+      from: `"Ride App" <${process.env.EMAIL_USER}>`,
       to,
       subject,
       text,

@@ -11,9 +11,11 @@ import "./config/firebase.js";
 // import './workers/rideTimeout.worker.js';
 import { mongoose } from "./config/dbConnect.js";
 import { connectDB } from "./config/dbConnect.js";
-import config from "./helpers/systemConfig.helper.js"
 import { initCloudinary } from "./config/cloudinary.config.js";
-import { initRedis } from "./config/redis.js";
+// Redis is temporarily disabled so the API server can run without a Redis
+// instance. Re-enable this import and the startup call below when queues are
+// needed again.
+// import { initRedis } from "./config/redis.js";
 
 const PORT = process.env.PORT || 3000;
 const app = express();
@@ -90,8 +92,7 @@ const shutdown = async () => {
 // Start server
 (async () => {
   await connectDB();
-  await config.load();
-  initRedis();
+  // initRedis();
   initCloudinary();
 
   server.listen(PORT, () => {

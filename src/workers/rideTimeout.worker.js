@@ -2,7 +2,6 @@ import dotenv from 'dotenv';
 dotenv.config();
 import { Worker } from "bullmq";
 import { connectDB, mongoose } from "../config/dbConnect.js";
-import config from "../helpers/systemConfig.helper.js"
 import { initRedis, getRedis } from '../config/redis.js';
 import { Ride } from "../models/ride/ride.model.js";
 import { autoAssignRideToNextDriver } from "../helpers/autoAssignRide.helper.js";
@@ -24,7 +23,6 @@ const shutdownWorker = async (worker) => {
 const createWorker = async () => {
   try {
     await connectDB();
-    await config.load();
     initRedis();
 
     const redis = getRedis();

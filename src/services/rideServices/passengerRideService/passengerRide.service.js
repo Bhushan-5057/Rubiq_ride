@@ -1,10 +1,15 @@
 import { Ride } from "../../../models/ride/ride.model.js";
 import { Driver } from "../../../models/driver/driver.model.js";
 import { Passenger } from "../../../models/passenger/passenger.model.js";
-import { calculateFare, calculateEarningsFromDistance } from "../../../helpers/rideHelpers.js";
+import { calculateFareFromDistance, calculateEarningsFromDistance } from "../../../helpers/rideHelpers.js";
 import { areCoordinatesClose } from "../../../common/utlis.js";
 import { addRideTimeoutJob } from "../../../queues/rideTimeout.queue.js";
 import { PASSENGER_CANCELLATION_REASONS, PASSENGER_REASON_CODES } from "../../../common/cancellationReasons.js"
+import {
+  getDriverEtasToDestination,
+  getPrimaryRoute,
+  resolveRideLocation,
+} from "../../googleMaps/googleMaps.service.js";
 
 
 //--------------- Update Passengers Location ---------------
@@ -41,7 +46,15 @@ export async function updatePassengerLocationService(passenger, lng, lat) {
 //-------------------- Create Ride --------------------
 
 export async function createRideService({ passengerId, pickup, drop, vehicleType, paymentMethod, isPaymentRequiredBeforeRide }) {
-  const fareDetails = calculateFare(pickup, drop, vehicleType);
+  const [resolvedPickup, resolvedDrop] = await Promise.all([
+    resolveRideLocation(pickup, "pickup"),
+    resolveRideLocation(drop, "drop"),
+  ]);
+  const route = await getPrimaryRoute({
+    origin: resolvedPickup.coordinates,
+    destination: resolvedDrop.coordinates,
+  });
+  const fareDetails = calculateFareFromDistance(route.distance.km, vehicleType);
   const { distanceInKm, totalFare } = fareDetails;
 
   function fourDigitNumber() {
@@ -52,11 +65,28 @@ export async function createRideService({ passengerId, pickup, drop, vehicleType
 
   const ride = await Ride.create({
     passenger: passengerId,
-    pickup: { address: pickup.address, coordinates: [pickup.lng, pickup.lat] },
-    drop: { address: drop.address, coordinates: [drop.lng, drop.lat] },
+    pickup: {
+      address: resolvedPickup.address,
+      coordinates: resolvedPickup.coordinates,
+      placeId: resolvedPickup.placeId,
+    },
+    drop: {
+      address: resolvedDrop.address,
+      coordinates: resolvedDrop.coordinates,
+      placeId: resolvedDrop.placeId,
+    },
     otpForStartRide,
     distance: distanceInKm,
     fareEstimate: totalFare,
+    routeDetails: {
+      distanceMeters: route.distance.meters,
+      durationSeconds: route.duration.seconds,
+      durationInTrafficSeconds: route.durationInTraffic.seconds,
+      polyline: route.polyline,
+      summary: route.summary,
+      bounds: route.bounds,
+      legs: route.legs,
+    },
     vehicleType: fareDetails.vehicleType,
     paymentMethod,
     isPaymentRequiredBeforeRide: paymentMethod !== 'cash',
@@ -75,11 +105,18 @@ export async function createRideService({ passengerId, pickup, drop, vehicleType
     driverStatus: "available",
     location: {
       $near: {
-        $geometry: { type: "Point", coordinates: [pickup.lng, pickup.lat] },
+        $geometry: { type: "Point", coordinates: resolvedPickup.coordinates },
         $maxDistance: 5000,
       },
     },
-  }).select("_id");
+  }).select("_id location");
+
+  let driverEtas = [];
+  try {
+    driverEtas = await getDriverEtasToDestination(nearbyDrivers, resolvedPickup.coordinates);
+  } catch (error) {
+    console.error("Unable to calculate nearby driver ETAs:", error.message);
+  }
 
   ride.notifiedDrivers = nearbyDrivers.map(d => d._id);
   await ride.save();
@@ -87,10 +124,10 @@ export async function createRideService({ passengerId, pickup, drop, vehicleType
   await addRideTimeoutJob(ride._id.toString(), 60000);
 
   await Passenger.findByIdAndUpdate(passengerId, {
-    location: { type: "Point", coordinates: [pickup.lng, pickup.lat] },
+    location: { type: "Point", coordinates: resolvedPickup.coordinates },
   });
 
-  return { ride, nearbyDrivers };
+  return { ride, nearbyDrivers, driverEtas };
 }
 
 //-------------------- Update Ride --------------------
@@ -119,15 +156,15 @@ export async function updateRideService({ rideId, passengerId, drop }) {
   }
 
   if (drop) {
+    const resolvedDrop = await resolveRideLocation(drop, "drop");
     ride.drop = {
-      address: drop.address,
-      coordinates: [drop.lng, drop.lat],
+      address: resolvedDrop.address,
+      coordinates: resolvedDrop.coordinates,
+      placeId: resolvedDrop.placeId,
     };
   }
 
-  const dropCoords = drop
-    ? [drop.lng, drop.lat]
-    : ride.drop?.coordinates;
+  const dropCoords = ride.drop?.coordinates;
 
   const pickupCoords = ride.pickup?.coordinates;
 
@@ -137,24 +174,23 @@ export async function updateRideService({ rideId, passengerId, drop }) {
     Array.isArray(pickupCoords) &&
     pickupCoords.length === 2
   ) {
-    const pickupPoint = {
-      lat: pickupCoords[1],
-      lng: pickupCoords[0],
-    };
-
-    const dropPoint = {
-      lat: dropCoords[1],
-      lng: dropCoords[0],
-    };
-
-    const fareDetails = calculateFare(
-      pickupPoint,
-      dropPoint,
-      ride.vehicleType
-    );
+    const route = await getPrimaryRoute({
+      origin: pickupCoords,
+      destination: dropCoords,
+    });
+    const fareDetails = calculateFareFromDistance(route.distance.km, ride.vehicleType);
 
     ride.distance = fareDetails.distanceInKm;
     ride.fareEstimate = fareDetails.totalFare;
+    ride.routeDetails = {
+      distanceMeters: route.distance.meters,
+      durationSeconds: route.duration.seconds,
+      durationInTrafficSeconds: route.durationInTraffic.seconds,
+      polyline: route.polyline,
+      summary: route.summary,
+      bounds: route.bounds,
+      legs: route.legs,
+    };
   }
 
   await ride.save();

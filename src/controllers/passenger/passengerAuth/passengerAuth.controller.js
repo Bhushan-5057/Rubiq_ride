@@ -1,7 +1,6 @@
 import { sendOtp } from "../../../services/otpService/otp.service.js";
 import { googleLogin, logout, otpLogin } from "../../../services/passengerServices/index.js";
 import { getGoogleClient } from "../../../config/googleOAuth.js"
-import config from "../../../helpers/systemConfig.helper.js";
 
 // const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID)
 
@@ -31,7 +30,7 @@ export async function googleLoginController(req, res, next) {
     // Verify ID Token with Google
     const ticket = await client.verifyIdToken({
       idToken,
-      audience: config.get("GOOGLE_CLIENT_ID"),
+      audience: process.env.GOOGLE_CLIENT_ID,
     });
 
     const payload = ticket.getPayload();

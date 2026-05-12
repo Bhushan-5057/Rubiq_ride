@@ -7,7 +7,7 @@ import {
   completeRideService,
   updateDriverLocationService
 } from "../../../services/rideServices/driverTrackingService/driverTracking.service.js";
-import { getDistanceInMeters } from "../../../common/utlis.js";
+import { getDistanceMatrix } from "../../../services/googleMaps/googleMaps.service.js";
 import { Ride } from "../../../models/ride/ride.model.js";
 import { refundPayment } from "../../../services/payment/payment.service.js";
 import { Driver } from "../../../models/driver/driver.model.js";
@@ -367,12 +367,16 @@ export const updateDriverLocation = async (req, res, next) => {
 
         if (ride.status === "accepted") {
           let etaMinutes = null;
+          let distanceToPickup = null;
           try {
-            if (ride.pickup?.coordinates?.length === 2 && updatedDriver?.coordinates) {
-              const meters = getDistanceInMeters(updatedDriver.coordinates, ride.pickup.coordinates);
-              const avgSpeedMps = 8; // ~28.8 km/h estimate
-              const etaSec = meters / avgSpeedMps;
-              etaMinutes = Math.max(1, Math.round(etaSec / 60));
+            if (updatedDriver.dbSaved && ride.pickup?.coordinates?.length === 2 && updatedDriver?.coordinates) {
+              const matrix = await getDistanceMatrix({
+                origins: [updatedDriver.coordinates],
+                destinations: [ride.pickup.coordinates],
+              });
+              const element = matrix.rows[0]?.elements[0];
+              etaMinutes = element?.durationInTraffic?.minutes || element?.duration?.minutes || null;
+              distanceToPickup = element?.distance || null;
             }
           } catch (e) {
             etaMinutes = null;
@@ -384,18 +388,23 @@ export const updateDriverLocation = async (req, res, next) => {
             driver: updatedDriver,
             pickupLocation: ride.pickup,
             etaMinutes,
+            distanceToPickup,
             message: "Your driver is on the way",
           });
         }
 
         if (ride.status === "ongoing" || ride.status === "started") {
           let etaToDrop = null;
+          let distanceToDrop = null;
           try {
-            if (ride.drop?.coordinates?.length === 2 && updatedDriver?.coordinates) {
-              const meters = getDistanceInMeters(updatedDriver.coordinates, ride.drop.coordinates);
-              const avgSpeedMps = 8;
-              const etaSec = meters / avgSpeedMps;
-              etaToDrop = Math.max(1, Math.round(etaSec / 60));
+            if (updatedDriver.dbSaved && ride.drop?.coordinates?.length === 2 && updatedDriver?.coordinates) {
+              const matrix = await getDistanceMatrix({
+                origins: [updatedDriver.coordinates],
+                destinations: [ride.drop.coordinates],
+              });
+              const element = matrix.rows[0]?.elements[0];
+              etaToDrop = element?.durationInTraffic?.minutes || element?.duration?.minutes || null;
+              distanceToDrop = element?.distance || null;
             }
           } catch (e) {
             etaToDrop = null;
@@ -406,6 +415,7 @@ export const updateDriverLocation = async (req, res, next) => {
             driver: updatedDriver,
             dropLocation: ride.drop,
             etaToDropMinutes: etaToDrop,
+            distanceToDrop,
             message: "Your ride is in progress",
           });
         }

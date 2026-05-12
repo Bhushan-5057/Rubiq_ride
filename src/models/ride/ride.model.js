@@ -15,11 +15,13 @@ const rideSchema = new mongoose.Schema(
 
     pickup: {
       address: String,
+      placeId: String,
       coordinates: { type: [Number], index: "2dsphere" },
     },
 
     drop: {
       address: String,
+      placeId: String,
       coordinates: { type: [Number], index: "2dsphere" },
     },
 
@@ -30,6 +32,16 @@ const rideSchema = new mongoose.Schema(
     },
 
     distance: Number,
+
+    routeDetails: {
+      distanceMeters: Number,
+      durationSeconds: Number,
+      durationInTrafficSeconds: Number,
+      polyline: String,
+      summary: String,
+      bounds: mongoose.Schema.Types.Mixed,
+      legs: [mongoose.Schema.Types.Mixed],
+    },
 
     fareEstimate: Number,
 
