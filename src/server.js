@@ -1,5 +1,4 @@
-import dotenv from "dotenv";
-dotenv.config();
+import "dotenv/config";
 import express from "express";
 import cors from "cors";
 import helmet from "helmet";
@@ -11,7 +10,6 @@ import "./config/firebase.js";
 // import './workers/rideTimeout.worker.js';
 import { mongoose } from "./config/dbConnect.js";
 import { connectDB } from "./config/dbConnect.js";
-import { initCloudinary } from "./config/cloudinary.config.js";
 // Redis is temporarily disabled so the API server can run without a Redis
 // instance. Re-enable this import and the startup call below when queues are
 // needed again.
@@ -39,9 +37,6 @@ app.use(cors({
 }));
 app.use(helmet());
 
-// Webhook needs raw body
-app.use("/api/payment/webhook", express.raw({ type: "application/json" }));
-
 // Regular JSON body parser
 app.use(express.json());
 
@@ -62,7 +57,7 @@ app.use((req, res) => res.status(404).json({ message: "Route not found" }));
 // Error handler
 app.use((err, req, res, next) => {
   console.error('Error:', err);
-  const status = err.status || 500;
+  const status = err.status || (err.name === "MulterError" ? 400 : 500);
   res.status(status).json({
     success: false,
     message: err.message || "Internal Server Error",
@@ -93,7 +88,6 @@ const shutdown = async () => {
 (async () => {
   await connectDB();
   // initRedis();
-  initCloudinary();
 
   server.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);

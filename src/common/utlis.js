@@ -1,4 +1,3 @@
-// import twilio from "twilio";
 import jwt from "jsonwebtoken";
 
 // Function to generate a 6-digit OTP
@@ -8,12 +7,6 @@ export function generateOTP() {
 
 // OTP expiry time in minutes
 export const OTP_EXPIRY_MINUTES = 5;
-
-// //twilo credentials
-// export const { TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_PHONE_NUMBER, NODE_ENV } =
-//   process.env;
-
-//  export const client = twilio(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN);
 
 // Fields that can be updated dynamically in Driver Profile
 export const updatableFields = [

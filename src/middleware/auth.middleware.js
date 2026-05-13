@@ -19,9 +19,11 @@ export async function authenticateAdmin(req, res, next) {
 
     const admin = await Admin.findOne({
       _id: decoded.sub,
-      isDeleted: false
-    })
-      .select("-password")
+      $or: [
+        { isDeleted: false },
+        { isDeleted: { $exists: false } }
+      ]
+    }).select("-password");
 
     if (!admin) {
       return res.status(401).json({
@@ -32,7 +34,7 @@ export async function authenticateAdmin(req, res, next) {
 
     req.admin = admin;
     req.adminRole = admin.role;
-    
+
     next();
   } catch (err) {
     if (err.name === "TokenExpiredError") {
@@ -40,7 +42,7 @@ export async function authenticateAdmin(req, res, next) {
     }
     return res.status(401).json({ message: "Invalid token" });
   }
-} 
+}
 
 //---------------------- Authorize Admin ----------------------
 export const authorizeAdmin = (...allowedRoles) => {

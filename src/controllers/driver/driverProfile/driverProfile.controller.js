@@ -1,5 +1,4 @@
-import { uploadToCloudinary } from "../../../helpers/cloudinary.helper.js";
-import { upload } from "../../../middleware/upload.middleware.js";
+import { uploadFileToS3 } from "../../../utils/s3Upload.js";
 import { getDriverProfileStatus } from "../../../services/adminServices/driverManagementService/driverManagement.service.js";
 import { updateProfile, getProfile } from "../../../services/driverServices/driverProfileService/driverProfile.service.js";
 import { setDriverOfflineService, setDriverOnlineService } from ".././../../services/driverServices/driverProfileService/driverProfile.service.js";
@@ -67,7 +66,6 @@ export async function updateProfileController(req, res, next) {
 
     const data = { ...req.body, documents: {} };
 
-    // Upload files to Cloudinary
     if (req.files && req.files.length > 0) {
       for (const file of req.files) {
         const folder =
@@ -75,12 +73,12 @@ export async function updateProfileController(req, res, next) {
             ? "driver_profile_images"
             : "driver_documents";
 
-        const url = await uploadToCloudinary(file.buffer, folder);
+        const uploadedFile = await uploadFileToS3(file, folder);
 
         if (file.fieldname === "profileImage") {
-          data.profileImage = url;
+          data.profileImage = uploadedFile.url;
         } else {
-          data.documents[file.fieldname] = url;
+          data.documents[file.fieldname] = uploadedFile.url;
         }
       }
     }

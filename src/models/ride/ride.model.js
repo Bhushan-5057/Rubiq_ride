@@ -96,7 +96,13 @@ const rideSchema = new mongoose.Schema(
       required: true
     },
 
-    paymentIntentId: {
+    paymentProvider: {
+      type: String,
+      enum: ["cash", "razorpay", null],
+      default: null
+    },
+
+    paymentOrderId: {
       type: String,
       default: null
     },
@@ -111,11 +117,9 @@ const rideSchema = new mongoose.Schema(
       type: Boolean,
       default: false
     },
-    // Legacy Stripe fields (keep for backward compatibility)
-    stripePaymentIntentId: { type: String },
-    stripePaymentMethod: { type: String },
-    stripeCustomerId: { type: String },
-    stripeChargeId: { type: String },
+    razorpayOrderId: { type: String },
+    razorpayPaymentId: { type: String },
+    razorpaySignature: { type: String },
     transactionDate: { type: Date },
   },
 

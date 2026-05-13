@@ -1,16 +1,15 @@
 import { Router } from "express";
-import { confirmPaymentIntent, createPaymentIntent,handleStripeWebhook } from "../../controllers/payment/payment.controller.js";
+import {
+  createPaymentOrder,
+  refundPayment,
+  verifyPayment,
+} from "../../controllers/payment/payment.controller.js";
 import { authenticatePassenger } from "../../middleware/auth.middleware.js";
 
 const router = Router();
 
-//------------------------  Create Payment ------------------------
-router.post("/create-payment", authenticatePassenger, createPaymentIntent);
-
-//-------------------- Confirm Payment--------------------
-router.post("/confirm-payment/:paymentIntentId", authenticatePassenger, confirmPaymentIntent);
-
-//------------------ Webhook ------------------
-router.post("/webhook", handleStripeWebhook);
+router.post("/create-order", authenticatePassenger, createPaymentOrder);
+router.post("/verify", authenticatePassenger, verifyPayment);
+router.post("/refund/:rideId", authenticatePassenger, refundPayment);
 
 export default router;

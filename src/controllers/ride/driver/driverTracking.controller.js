@@ -201,41 +201,27 @@ export const completeRide = async (req, res, next) => {
       ride.paymentStatus = 'paid';
       ride.transactionDate = new Date();
       await ride.save();
-
-      // Notify driver about successful cash payment
-      io.to(driverId.toString()).emit('payment_received', {
-        rideId: ride._id,
-        amount: ride.fareEstimate,
-        currency: 'inr',
-        paymentMethod: 'cash'
-      });
     }
 
-    // Notify driver payment received via push notification
-    const driver = await Driver.findById(driverId).select("fcmTokens");;
-    await sendToUser({
-      user: driver,
-      title: "Payment Received",
-      body: "Payment for the ride has been received.",
-      data: {
-        type: "payment_received",
-        rideId: ride._id.toString(),
-      },
-      userType: "driver",
-    });
+    if (ride.paymentStatus === 'paid') {
+      const driver = await Driver.findById(driverId).select("fcmTokens");
 
-    // If payment was made online before ride, ensure it's captured
-    if (ride.paymentMethod !== 'cash' && ride.isPaymentRequiredBeforeRide && ride.paymentStatus === 'pending') {
-      ride.paymentStatus = 'paid';
-      ride.transactionDate = new Date();
-      await ride.save();
-
-      // Notify driver about successful payment
       io.to(driverId.toString()).emit('payment_received', {
         rideId: ride._id,
         amount: ride.fareEstimate,
         currency: 'inr',
         paymentMethod: ride.paymentMethod
+      });
+
+      await sendToUser({
+        user: driver,
+        title: "Payment Received",
+        body: "Payment for the ride has been received.",
+        data: {
+          type: "payment_received",
+          rideId: ride._id.toString(),
+        },
+        userType: "driver",
       });
     }
 
@@ -271,11 +257,14 @@ export const cancelRide = async (req, res, next) => {
       return res.status(404).json({ success: false, message: 'Ride not found' });
     }
 
-    // If payment was made in advance, process refund
-    if (ride.paymentStatus === 'paid' || ride.paymentStatus === 'pending') {
-      if (ride.paymentIntentId) {
+    // If payment was captured in advance, process refund.
+    if (ride.paymentStatus === 'paid') {
+      if (ride.razorpayPaymentId) {
         try {
-          await refundPayment(ride.paymentIntentId, null, 'ride_cancelled');
+          await refundPayment(ride.razorpayPaymentId, null, {
+            rideId: ride._id.toString(),
+            reason: 'ride_cancelled',
+          });
         } catch (error) {
           console.error('Error processing refund:', error);
           // Continue with rejection even if refund fails
@@ -284,6 +273,9 @@ export const cancelRide = async (req, res, next) => {
 
       // Update payment status
       ride.paymentStatus = 'refunded';
+      await ride.save();
+    } else if (ride.paymentStatus === 'pending') {
+      ride.paymentStatus = 'failed';
       await ride.save();
     }
 

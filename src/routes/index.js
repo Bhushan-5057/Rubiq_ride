@@ -7,6 +7,7 @@ import  complaintRoutes  from "./complaintRoutes/complaint.routes.js";
 import bankAccountRoutes from "./bankAccount/bankAccount.routes.js";
 import chatMessageRoute from "./chatMessage/chatMessage.routes.js"
 import googleMapsRoutes from "./maps/googleMaps.routes.js";
+import uploadRoutes from "./upload.route.js";
 
 const router = Router();
 
@@ -38,5 +39,8 @@ router.use("/rides", chatMessageRoute);
 
 //--------------- Google Maps Route ---------------
 router.use("/maps", googleMapsRoutes);
+
+//--------------- Upload Route ---------------
+router.use("/upload", uploadRoutes);
 
 export default router;

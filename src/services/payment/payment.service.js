@@ -1,233 +1,224 @@
-import Stripe from 'stripe';
-import { Ride } from '../../models/ride/ride.model.js';
+import crypto from "crypto";
+import Razorpay from "razorpay";
+import { Ride } from "../../models/ride/ride.model.js";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
-
-//------------------------ Create Payment Method  ------------------------
-export const createPaymentMethod=async (paymentMethodId)=>{
-  try {
-    return{
-      success:true,
-      paymentMethodId:paymentMethodId
-    }
-  } catch (error) {
-    console.error("Error creating payment method : ",error)
-    return{
-      success:false,
-      error:error.message
-    }
-  }
-}
-
-//------------------------ Create Payment Intent  ------------------------
-export const createPaymentIntent = async (amount, currency = 'inr', metadata = {}, customerId = null) => {
-  try {
-    const paymentIntentParams = {
-      amount: Math.round(amount * 100), // Convert to cents
-      currency,
-      metadata: {
-        ...metadata,
-        integration_check: 'accept_a_payment',
-      },
-      payment_method_types: ['card'],
-      capture_method: 'automatic',
-      confirm: false,
-    };
-
-    if (customerId) {
-      paymentIntentParams.customer = customerId;
-    }
-
-    const paymentIntent = await stripe.paymentIntents.create(paymentIntentParams);
-
-    return {
-      success: true,
-      clientSecret: paymentIntent.client_secret,
-      paymentIntentId: paymentIntent.id,
-      status: paymentIntent.status,
-      requiresAction: paymentIntent.status === 'requires_action',
-      amount: paymentIntent.amount / 100,
-      currency: paymentIntent.currency,
-    };
-  } catch (error) {
-    console.error('Error creating payment intent:', error);
-    return {
-      success: false,
-      error: error.message,
-      code: error.code || 'payment_intent_error',
-    };
-  }
+const isRazorpayConfigured = () => {
+  const { RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET } = process.env;
+  return Boolean(RAZORPAY_KEY_ID && RAZORPAY_KEY_SECRET);
 };
 
-//------------------------ Confirm Payment Intent  ------------------------
-export const confirmPaymentIntent = async (paymentIntentId) => {
-  try {
-    const paymentMethod = await stripe.paymentMethods.create({
-      type: 'card',
-      card: {
-        token: 'tok_visa'
-      }
-    });
+const getRazorpayClient = () => {
+  const { RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET } = process.env;
 
-    // Confirm the payment intent with the test payment method
-    const paymentIntent = await stripe.paymentIntents.confirm(paymentIntentId, {
-      payment_method: paymentMethod.id,
-    });
-
-    return {
-      success: true,
-      status: paymentIntent.status,
-      requiresAction: paymentIntent.status === 'requires_action',
-      clientSecret: paymentIntent.client_secret,
-    };
-  } catch (error) {
-    console.error('Error confirming payment intent:', error);
-    return {
-      success: false,
-      error: error.message,
-      code: error.code || 'payment_confirmation_error',
-    };
+  if (!RAZORPAY_KEY_ID || !RAZORPAY_KEY_SECRET) {
+    return null;
   }
+
+  return new Razorpay({
+    key_id: RAZORPAY_KEY_ID,
+    key_secret: RAZORPAY_KEY_SECRET,
+  });
 };
 
-//------------------------ Retrieve Payment Intent  ------------------------
-export const retrievePaymentIntent = async (paymentIntentId) => {
-  try {
-    const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
-    return {
-      success: true,
-      paymentIntent: {
-        id: paymentIntent.id,
-        amount: paymentIntent.amount / 100,
-        status: paymentIntent.status,
-        clientSecret: paymentIntent.client_secret,
-        currency: paymentIntent.currency,
-        created: paymentIntent.created,
-        paymentMethod: paymentIntent.payment_method,
-        requiresAction: paymentIntent.status === 'requires_action',
-        lastPaymentError: paymentIntent.last_payment_error,
-      },
-    };
-  } catch (error) {
-    console.error('Error retrieving payment intent:', error);
-    return {
-      success: false,
-      error: error.message,
-      code: error.code || 'retrieve_payment_error',
-    };
-  }
+const toPaise = (amount) => Math.round(Number(amount || 0) * 100);
+
+const createLocalPaymentOrder = (amount, currency, notes) => {
+  const amountInPaise = toPaise(amount);
+  const rideId = notes.rideId || "manual";
+
+  return {
+    success: true,
+    provider: "razorpay",
+    isMock: true,
+    orderId: `local_order_${rideId}_${Date.now()}`.slice(0, 40),
+    amount: amountInPaise / 100,
+    amountInPaise,
+    currency,
+    status: "created",
+    keyId: null,
+  };
 };
 
-//----------------------- Stripe Webhook -----------------------
-export const handleStripeWebhook = async (req, res) => {
-  const sig = req.headers["stripe-signature"];
-  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
-
-  let event;
-
+export const createPaymentOrder = async (
+  amount,
+  currency = "INR",
+  notes = {}
+) => {
   try {
-    event = stripe.webhooks.constructEvent(req.body, sig, webhookSecret);
-  } catch (error) {
-    console.error("❌ Webhook signature verification failed:", error.message);
-    return res.status(400).send(`Webhook Error: ${error.message}`);
-  }
-
-  console.log(`🔔 Stripe Event Received: ${event.type}`);
-
-  try {
-    switch (event.type) {
-      case "payment_intent.succeeded": {
-        const paymentIntent = event.data.object;
-
-        console.log("✅ PaymentIntent Success:", paymentIntent.id);
-
-        const ride = await Ride.findOneAndUpdate(
-          { paymentIntentId: paymentIntent.id },
-          {
-            paymentStatus: "paid",
-            stripePaymentIntentId: paymentIntent.id,
-            transactionDate: new Date(),
-          },
-          { new: true }
-        );
-
-        if (ride) {
-          req.io.to(ride.passenger.toString()).emit("payment:success", {
-            rideId: ride._id,
-            amount: paymentIntent.amount / 100,
-            currency: paymentIntent.currency,
-          });
-
-          if (ride.driver) {
-            req.io.to(ride.driver.toString()).emit("payment:received", {
-              rideId: ride._id,
-              amount: paymentIntent.amount / 100,
-              currency: paymentIntent.currency,
-            });
-          }
-        }
-
-        break;
-      }
-
-      case "payment_intent.payment_failed": {
-        const failedPayment = event.data.object;
-        console.log("❌ Payment Failed:", failedPayment.id);
-
-        await Ride.findOneAndUpdate(
-          { paymentIntentId: failedPayment.id },
-          {
-            paymentStatus: "failed",
-            stripePaymentIntentId: failedPayment.id,
-          }
-        );
-
-        const ride = await Ride.findOne({ paymentIntentId: failedPayment.id });
-
-        if (ride) {
-          req.io.to(ride.passenger.toString()).emit("payment:failed", {
-            rideId: ride._id,
-            error:
-              failedPayment.last_payment_error?.message || "Payment failed",
-          });
-        }
-
-        break;
-      }
-
-      case "charge.refunded":
-        console.log("↩️ Charge refunded:", event.data.object.id);
-        await Ride.updateOne(
-          { stripeChargeId: event.data.object.id },
-          { paymentStatus: "refunded" }
-        );
-        break;
-
-      default:
-        console.log(`⚠️ Unhandled Stripe event: ${event.type}`);
+    if (!amount || Number(amount) <= 0) {
+      throw new Error("Valid payment amount is required");
     }
 
-    res.json({ received: true });
-  } catch (error) {
-    console.error("🔥 Webhook processing error:", error);
-    res.status(500).send("Webhook handler failed");
-  }
-};
-export const refundPayment = async (paymentIntentId, amount = null, reason = 'requested_by_customer') => {
-  try {
-    const refund = await stripe.refunds.create({
-      payment_intent: paymentIntentId,
-      amount,
-      reason,
-    });
-
-    // Update ride status if refund is successful
-    if (refund.status === 'succeeded') {
-      await Ride.findOneAndUpdate(
-        { paymentIntentId },
-        { paymentStatus: 'refunded' }
+    const razorpay = getRazorpayClient();
+    if (!razorpay) {
+      console.warn(
+        "Razorpay keys are missing. Using a local mock payment order."
       );
+      return createLocalPaymentOrder(amount, currency, notes);
     }
+
+    const order = await razorpay.orders.create({
+      amount: toPaise(amount),
+      currency,
+      receipt: notes.rideId ? `ride_${notes.rideId}`.slice(0, 40) : undefined,
+      notes,
+    });
+
+    return {
+      success: true,
+      provider: "razorpay",
+      orderId: order.id,
+      amount: order.amount / 100,
+      amountInPaise: order.amount,
+      currency: order.currency,
+      status: order.status,
+      keyId: process.env.RAZORPAY_KEY_ID,
+    };
+  } catch (error) {
+    console.error("Error creating Razorpay order:", error);
+    return {
+      success: false,
+      error: error.message,
+      code: error.code || "razorpay_order_error",
+    };
+  }
+};
+
+export const verifyPaymentSignature = ({
+  razorpayOrderId,
+  razorpayPaymentId,
+  razorpaySignature,
+}) => {
+  if (!razorpayOrderId || !razorpayPaymentId || !razorpaySignature) {
+    return false;
+  }
+
+  if (!isRazorpayConfigured()) {
+    return false;
+  }
+
+  const expectedSignature = crypto
+    .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET)
+    .update(`${razorpayOrderId}|${razorpayPaymentId}`)
+    .digest("hex");
+
+  if (expectedSignature.length !== razorpaySignature.length) {
+    return false;
+  }
+
+  return crypto.timingSafeEqual(
+    Buffer.from(expectedSignature),
+    Buffer.from(razorpaySignature)
+  );
+};
+
+export const verifyPayment = async ({
+  rideId,
+  passengerId,
+  razorpayOrderId,
+  razorpayPaymentId,
+  razorpaySignature,
+}) => {
+  try {
+    const isValidSignature = verifyPaymentSignature({
+      razorpayOrderId,
+      razorpayPaymentId,
+      razorpaySignature,
+    });
+
+    if (!isValidSignature) {
+      return {
+        success: false,
+        error: "Invalid payment signature",
+        code: "invalid_payment_signature",
+      };
+    }
+
+    const rideQuery = { _id: rideId };
+    if (passengerId) rideQuery.passenger = passengerId;
+
+    const ride = await Ride.findOne(rideQuery);
+    if (!ride) {
+      return {
+        success: false,
+        error: "Ride not found",
+        code: "ride_not_found",
+      };
+    }
+
+    if (ride.razorpayOrderId && ride.razorpayOrderId !== razorpayOrderId) {
+      return {
+        success: false,
+        error: "Payment order does not match this ride",
+        code: "order_mismatch",
+      };
+    }
+
+    ride.paymentProvider = "razorpay";
+    ride.paymentOrderId = razorpayOrderId;
+    ride.razorpayOrderId = razorpayOrderId;
+    ride.razorpayPaymentId = razorpayPaymentId;
+    ride.razorpaySignature = razorpaySignature;
+    ride.paymentStatus = "paid";
+    ride.transactionDate = new Date();
+    await ride.save();
+
+    return {
+      success: true,
+      ride,
+      paymentStatus: ride.paymentStatus,
+      paymentId: razorpayPaymentId,
+      orderId: razorpayOrderId,
+    };
+  } catch (error) {
+    console.error("Error verifying Razorpay payment:", error);
+    return {
+      success: false,
+      error: error.message,
+      code: error.code || "payment_verification_error",
+    };
+  }
+};
+
+export const refundPayment = async (
+  razorpayPaymentId,
+  amount = null,
+  notes = {}
+) => {
+  try {
+    if (!razorpayPaymentId) {
+      return {
+        success: false,
+        error: "Razorpay payment ID is required for refund",
+        code: "payment_id_required",
+      };
+    }
+
+    const razorpay = getRazorpayClient();
+    if (!razorpay) {
+      console.warn("Razorpay keys are missing. Skipping refund API call.");
+      return {
+        success: true,
+        isMock: true,
+        refundId: `local_refund_${Date.now()}`,
+        status: "processed",
+        amount,
+        currency: "INR",
+      };
+    }
+
+    const refundPayload = {
+      notes,
+    };
+
+    if (amount) {
+      refundPayload.amount = toPaise(amount);
+    }
+
+    const refund = await razorpay.payments.refund(
+      razorpayPaymentId,
+      refundPayload
+    );
 
     return {
       success: true,
@@ -237,11 +228,11 @@ export const refundPayment = async (paymentIntentId, amount = null, reason = 're
       currency: refund.currency,
     };
   } catch (error) {
-    console.error('Error processing refund:', error);
+    console.error("Error processing Razorpay refund:", error);
     return {
       success: false,
       error: error.message,
-      code: error.code || 'refund_error',
+      code: error.code || "refund_error",
     };
   }
 };

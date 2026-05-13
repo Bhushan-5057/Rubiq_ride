@@ -11,7 +11,7 @@ export async function sendOtpController(req, res, next) {
     if (!contactNumber) return res.status(400).json({ success: false, message: "Contact number required" });
 
     const result = await sendOtp(contactNumber, "passenger");
-    res.json({ success: true, message: "OTP sent successfully", otp: result.otp });
+    res.json({ success: true, message: "OTP sent successfully", ...result });
   } catch (err) {
     next(err);
   }

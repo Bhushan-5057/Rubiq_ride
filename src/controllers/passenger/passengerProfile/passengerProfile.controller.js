@@ -1,4 +1,4 @@
-import { uploadToCloudinary } from "../../../helpers/cloudinary.helper.js";
+import { uploadFileToS3 } from "../../../utils/s3Upload.js";
 import { updateProfile } from "../../../services/passengerServices/passengerProfileService/passengerProfile.service.js";
 import {getPassengerStats} from "../../../services/rideServices/rideStats.service.js"
 
@@ -45,12 +45,12 @@ export async function updateProfileController(req, res, next) {
             ? "passenger_profile_images"
             : "passenger_documents";
 
-        const url = await uploadToCloudinary(file.buffer, folder);
+        const uploadedFile = await uploadFileToS3(file, folder);
 
         if (file.fieldname === "profileImage") {
-          data.profileImage = url;
+          data.profileImage = uploadedFile.url;
         } else {
-          data.documents[file.fieldname] = url;
+          data.documents[file.fieldname] = uploadedFile.url;
         }
       }
     }

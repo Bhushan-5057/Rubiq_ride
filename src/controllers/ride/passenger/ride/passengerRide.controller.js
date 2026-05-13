@@ -1,6 +1,6 @@
 import { createRideService, cancelRideService, updateRideService, endRideService, updatePassengerLocationService }
   from "../../../../services/rideServices/passengerRideService/passengerRide.service.js";
-import { createPaymentIntent, confirmPaymentIntent } from "../../../../services/payment/payment.service.js";
+import { createPaymentOrder, verifyPayment as verifyRazorpayPayment } from "../../../../services/payment/payment.service.js";
 import { getIO } from "../../../../config/socket/socket.js";
 import { Ride } from "../../../../models/ride/ride.model.js";
 import { Passenger } from "../../../../models/passenger/passenger.model.js";
@@ -67,15 +67,14 @@ export const createRide = async (req, res) => {
 
     // Handle card/online payment if required before ride
     if (paymentMethod !== 'cash' && ride.isPaymentRequiredBeforeRide) {
-      const paymentResult = await createPaymentIntent(
+      const paymentResult = await createPaymentOrder(
         ride.fareEstimate,
-        'inr',
+        'INR',
         {
           rideId: ride._id.toString(),
           passengerId: passengerId.toString(),
           type: 'ride_payment'
-        },
-        req.passenger.stripeCustomerId
+        }
       );
 
       if (!paymentResult.success) {
@@ -91,15 +90,18 @@ export const createRide = async (req, res) => {
         });
       }
 
-      // Update ride with payment intent
-      ride.paymentIntentId = paymentResult.paymentIntentId;
+      ride.paymentProvider = 'razorpay';
+      ride.paymentOrderId = paymentResult.orderId;
+      ride.razorpayOrderId = paymentResult.orderId;
       ride.paymentStatus = 'pending';
       await ride.save();
 
       paymentData = {
-        clientSecret: paymentResult.clientSecret,
-        paymentIntentId: paymentResult.paymentIntentId,
-        requiresAction: paymentResult.requiresAction,
+        provider: 'razorpay',
+        keyId: paymentResult.keyId,
+        orderId: paymentResult.orderId,
+        amountInPaise: paymentResult.amountInPaise,
+        currency: paymentResult.currency,
         paymentStatus: 'pending'
       };
     }
@@ -374,16 +376,14 @@ export const endRide = async (req, res) => {
 
     // For card/online payments after ride completion
     if (ride.paymentMethod !== 'cash' && !ride.isPaymentRequiredBeforeRide) {
-      // Create payment intent for the final fare
-      const paymentResult = await createPaymentIntent(
+      const paymentResult = await createPaymentOrder(
         ride.fareEstimate,
-        'inr',
+        'INR',
         {
           rideId: ride._id.toString(),
           passengerId: passengerId.toString(),
           type: 'ride_payment'
-        },
-        req.passenger.stripeCustomerId
+        }
       );
 
       if (!paymentResult.success) {
@@ -394,8 +394,9 @@ export const endRide = async (req, res) => {
         });
       }
 
-      // Update ride with payment intent
-      ride.paymentIntentId = paymentResult.paymentIntentId;
+      ride.paymentProvider = 'razorpay';
+      ride.paymentOrderId = paymentResult.orderId;
+      ride.razorpayOrderId = paymentResult.orderId;
       ride.paymentStatus = 'pending';
       await ride.save();
 
@@ -403,9 +404,11 @@ export const endRide = async (req, res) => {
       return res.status(200).json({
         success: true,
         requiresPayment: true,
-        clientSecret: paymentResult.clientSecret,
-        paymentIntentId: paymentResult.paymentIntentId,
-        requiresAction: paymentResult.requiresAction,
+        provider: 'razorpay',
+        keyId: paymentResult.keyId,
+        orderId: paymentResult.orderId,
+        amountInPaise: paymentResult.amountInPaise,
+        currency: paymentResult.currency,
         message: 'Payment required to complete ride',
         ride
       });
@@ -500,7 +503,7 @@ export const getPassengerCancellationReasons = (req, res, next) => {
 export const confirmPayment = async (req, res) => {
   try {
     const passengerId = req.passenger._id;
-    const { rideId, paymentIntentId } = req.body;
+    const { rideId, razorpayOrderId, razorpayPaymentId, razorpaySignature } = req.body;
 
     // Verify the ride exists and belongs to the passenger
     const ride = await Ride.findOne({ _id: rideId, passenger: passengerId });
@@ -509,8 +512,13 @@ export const confirmPayment = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Ride not found' });
     }
 
-    // Verify the payment intent
-    const paymentResult = await confirmPaymentIntent(paymentIntentId || ride.paymentIntentId);
+    const paymentResult = await verifyRazorpayPayment({
+      rideId,
+      passengerId,
+      razorpayOrderId: razorpayOrderId || ride.razorpayOrderId,
+      razorpayPaymentId,
+      razorpaySignature,
+    });
 
     if (!paymentResult.success) {
       // Update ride status if payment fails
@@ -527,9 +535,13 @@ export const confirmPayment = async (req, res) => {
       });
     }
 
-    // Update ride status based on payment result
-    if (paymentResult.status === 'succeeded') {
+    if (paymentResult.paymentStatus === 'paid') {
       ride.paymentStatus = 'paid';
+      ride.paymentProvider = 'razorpay';
+      ride.paymentOrderId = paymentResult.orderId;
+      ride.razorpayOrderId = paymentResult.orderId;
+      ride.razorpayPaymentId = paymentResult.paymentId;
+      ride.razorpaySignature = razorpaySignature;
       ride.transactionDate = new Date();
       await ride.save();
 
@@ -556,8 +568,9 @@ export const confirmPayment = async (req, res) => {
     res.status(200).json({
       success: true,
       paymentStatus: ride.paymentStatus,
-      requiresAction: paymentResult.requiresAction,
-      clientSecret: paymentResult.clientSecret,
+      provider: 'razorpay',
+      orderId: paymentResult.orderId,
+      paymentId: paymentResult.paymentId,
       ride
     });
   } catch (err) {
