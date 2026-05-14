@@ -25,6 +25,7 @@ export const io = initSocket(server);
 const allowedOrigins = [
   "http://localhost:5173",
   "http://localhost:3000",
+  "http://localhost:8080",
   process.env.FRONTEND_URL,
 ].filter(Boolean);
 
