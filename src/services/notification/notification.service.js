@@ -60,7 +60,7 @@ export const sendPushNotification = async ({
     const response = await admin.messaging().send(message);
     return response;
   } catch (error) {
-    console.error("❌ FCM error:", error.code, error.message);
+    console.error("FCM error:", error.code, error.message);
     
     // Attach the token to the error for easier handling upstream
     error.token = token;

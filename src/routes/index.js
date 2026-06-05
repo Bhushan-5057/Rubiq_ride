@@ -3,7 +3,7 @@ import adminRoutes from "./adminRoutes/index.js";
 import passengerRoutes from "./passengerRoutes/index.js";
 import driverRoutes from "./driverRoutes/index.js";
 import notificationRoutes from "./notificationRoutes/notification.routes.js"
-import  complaintRoutes  from "./complaintRoutes/complaint.routes.js";
+import complaintRoutes from "./complaintRoutes/complaint.routes.js";
 import bankAccountRoutes from "./bankAccount/bankAccount.routes.js";
 import chatMessageRoute from "./chatMessage/chatMessage.routes.js"
 import googleMapsRoutes from "./maps/googleMaps.routes.js";
@@ -20,10 +20,10 @@ router.use((req, res, next) => {
 router.use("/admin", adminRoutes);
 
 //--------------- Passenger Route ---------------
-router.use("/v1/passenger", passengerRoutes);
+router.use("/passenger", passengerRoutes);
 
 //--------------- Driver Route ---------------
-router.use("/v2/drivers", driverRoutes);
+router.use("/drivers", driverRoutes);
 
 //--------------- Notification Route ---------------
 router.use("/notification", notificationRoutes);

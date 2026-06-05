@@ -1,51 +1,43 @@
 import {
-  createAdmin,
-  deleteAdminService,
   getAdminByIdService,
   getAllAdminsService,
-  restoreAdminService,
-  updateAdminService
+  registerAdmin,
+  updateAdminStatusService,
 }
   from "../../../../services/adminServices/adminManagementService/admin.management.service.js";
-import bcrypt from "bcryptjs"
+import { sendSuccess } from "../../../../utils/apiResponse.js";
 
 
 //----------------------------- Admin Create Controller -----------------------------
 export async function createAdminController(req, res, next) {
   try {
-    const { admin } = await createAdmin(req.body);
+    const { admin } = await registerAdmin(req.body, req.admin);
 
     const adminData = admin.toObject()
     delete adminData.password;
 
-    res.status(201).json({
-      success: true,
-      message: "Admin registered successfully",
-      data: { admin: adminData, },
-    });
+    return sendSuccess(res, 201, "Admin registered successfully", { admin: adminData });
   } catch (error) {
     next(error);
   }
 }
 
+export const registerAdminController = createAdminController;
+
 // ---------------------------------------- Get All Admin ----------------------------------------
 export async function getAllAdminsController(req, res, next) {
   try {
-    const { page, limit, search } = req.query;
+    const { page, limit, search, isActive } = req.query;
 
     const result = await getAllAdminsService({
       page,
       limit,
       search,
+      isActive,
       excludeAdminId: req.admin._id,
     });
 
-    res.status(200).json({
-      success: true,
-      message: "Admins fetched successfully",
-      pagination: result.pagination,
-      data: result.admins,
-    });
+    return sendSuccess(res, 200, "Admins fetched successfully", result.admins, { pagination: result.pagination });
   } catch (error) {
     next(error);
   }
@@ -59,71 +51,21 @@ export async function getAdminByIdController(req, res, next) {
 
     const admin = await getAdminByIdService(adminId);
 
-    res.status(200).json({
-      success: true,
-      message: "Admin fetched successfully",
-      data: admin,
-    });
+    return sendSuccess(res, 200, "Admin fetched successfully", admin);
   } catch (error) {
     next(error);
   }
 }
 
-//----------------------------- Updated Admin -----------------------------
-
-export async function updateAdminController(req, res, next) {
-  try {
-    const { adminId } = req.params;
-    const { name, email, password} = req.body;
-
-    const updateData = {};
-    if (name) updateData.name = name;
-    if (email) updateData.email = email;
-
-    if (password) {
-      updateData.password = await bcrypt.hash(password, 10);
-    }
-
-    const admin = await updateAdminService(adminId, updateData);
-
-    res.status(200).json({
-      success: true,
-      message: "Admin updated successfully",
-      data: admin,
-    });
-  } catch (error) {
-    next(error);
-  }
-}
 // --------------------------- Delete Admin -----------------------
-export async function deleteAdminController(req, res, next) {
+export async function updateAdminStatusController(req, res, next) {
   try {
     const { adminId } = req.params;
+    const { isActive } = req.body;
 
-    await deleteAdminService(adminId);
+    const result = await updateAdminStatusService(adminId, isActive, req.admin);
 
-    res.status(200).json({
-      success: true,
-      message: "Admin deleted successfully",
-    });
-  } catch (error) {
-    next(error);
-  }
-} 
-
-//--------------------------- Restore Admin ---------------------------
-
-export async function restoreAdminController(req, res, next) {
-  try {
-    const { adminId } = req.params;
-
-    const admin = await restoreAdminService(adminId);
-
-    res.status(200).json({
-      success: true,
-      message: "Admin restored successfully",
-      data: admin
-    });
+    return sendSuccess(res, 200, result.message, result.admin);
   } catch (error) {
     next(error);
   }

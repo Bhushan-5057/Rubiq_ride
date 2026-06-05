@@ -5,6 +5,7 @@ import {
   updateComplaintStatusService,
   getMyComplaintsService
 } from '../../services/complaint/complaint.service.js';
+import { emitAdminComplaintEvent, emitAdminEvent } from '../../helpers/admin-realtime.helper.js';
 
 //-------------------------- Create Complaint --------------------------
 export const createComplaint = async (req, res, next) => {
@@ -16,6 +17,7 @@ export const createComplaint = async (req, res, next) => {
     };
 
     const complaint = await createComplaintService(complaintData);
+    await emitAdminComplaintEvent(complaint);
     res.status(201).json({
       success: true,
       message:"Complaint created successfully",
@@ -59,6 +61,11 @@ export const updateComplaintStatus = async (req, res, next) => {
       req.params.complaintId,
       req.body
     );
+    emitAdminEvent("admin:complaint_updated", {
+      complaintId: updatedComplaint._id.toString(),
+      status: updatedComplaint.status,
+      updatedBy: req.admin?._id?.toString?.() || req.user?.id,
+    });
 
     res.json({
       success: true,

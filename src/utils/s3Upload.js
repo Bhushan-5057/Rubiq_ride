@@ -2,6 +2,7 @@ import crypto from "crypto";
 import path from "path";
 import { PutObjectCommand } from "@aws-sdk/client-s3";
 import s3Client from "../config/s3.config.js";
+import { getPublicMediaUrl } from "./mediaUrl.js";
 
 const allowedImageMimeTypes = new Set([
   "image/jpeg",
@@ -62,6 +63,8 @@ export const getPublicS3Url = (key) => {
   return `https://${bucketName}.s3.${awsRegion}.amazonaws.com/${encodedKey}`;
 };
 
+export const getPublicS3OrCloudFrontUrl = (key) => getPublicMediaUrl(key);
+
 export const uploadFileToS3 = async (file, folder = "uploads") => {
   const bucketName = process.env.AWS_BUCKET_NAME;
   const awsRegion = process.env.AWS_REGION;
@@ -97,7 +100,7 @@ export const uploadFileToS3 = async (file, folder = "uploads") => {
 
     return {
       key,
-      url: getPublicS3Url(key),
+      url: getPublicS3OrCloudFrontUrl(key),
       bucket: bucketName,
       contentType: file.mimetype,
       size: file.size,

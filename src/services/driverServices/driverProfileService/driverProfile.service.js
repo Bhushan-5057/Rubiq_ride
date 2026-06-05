@@ -3,6 +3,13 @@ import { getDriverStats } from "../../../services/rideServices/rideStats.service
 import { Driver } from "../../../models/driver/driver.model.js"
 import { Ride } from "../../../models/ride/ride.model.js";
 import { sendEmail, renderTemplate } from "../../../utils/mailer.js";
+import { normalizeDriverMediaUrls } from "../../../utils/mediaUrl.js";
+import {
+  DRIVER_ACTIVATION_STATUS,
+  DRIVER_APPROVAL_STATUS,
+  DRIVER_AVAILABILITY_STATUS,
+  USER_STATUS,
+} from "../../../constants/userStatus.constants.js";
 
 
 //---------------------- Driver Online ----------------------
@@ -12,11 +19,14 @@ export const setDriverOnlineService = async (driverId) => {
     if (!driver) {
       throw new Error("Driver not found");
     }
-    if (driver.activationStatus !== "ready") {
+    if (driver.isActive === false) {
+      throw new Error("Driver account is inactive");
+    }
+    if (driver.activationStatus !== DRIVER_ACTIVATION_STATUS.READY) {
       throw new Error("Driver is not ready to go online");
     }
 
-    if (driver.approvalStatus !== "approved") {
+    if (driver.approvalStatus !== DRIVER_APPROVAL_STATUS.APPROVED) {
       throw new Error("Driver is not approved to go online");
     }
     if (driver.profileCompleted !== true) {
@@ -25,11 +35,11 @@ export const setDriverOnlineService = async (driverId) => {
     if (driver.documentsVerified !== true) {
       throw new Error("Driver documents are not verified");
     }
-    if (driver.status !== "active") {
+    if (driver.status !== USER_STATUS.ACTIVE) {
       throw new Error("Driver account is not active");
     }
     driver.isOnline = true;
-    driver.driverStatus = "available";
+    driver.driverStatus = DRIVER_AVAILABILITY_STATUS.AVAILABLE;
     driver.lastOnline = new Date();
     await driver.save();
     return driver;
@@ -46,7 +56,7 @@ export const setDriverOfflineService = async (driverId) => {
       throw new Error("Driver not found");
     }
 
-    if (driver.driverStatus === "on_trip") {
+    if (driver.driverStatus === DRIVER_AVAILABILITY_STATUS.ON_TRIP) {
       throw new Error("Cannot go offline while on a trip");
     }
 
@@ -56,7 +66,7 @@ export const setDriverOfflineService = async (driverId) => {
     }
 
     driver.isOnline = false;
-    driver.driverStatus = "unavailable";
+    driver.driverStatus = DRIVER_AVAILABILITY_STATUS.UNAVAILABLE;
     driver.lastOffline = new Date();
     await driver.save();
     return driver;
@@ -69,7 +79,7 @@ export const setDriverOfflineService = async (driverId) => {
 export async function getProfile(driver) {
   if (!driver) throw new Error("Driver not found");
 
-  const result = driver.toObject ? driver.toObject() : driver;
+  const result = normalizeDriverMediaUrls(driver.toObject ? driver.toObject() : driver);
 
   delete result.password;
   delete result.otp;
@@ -166,31 +176,6 @@ export async function updateProfile(driver, data = {}) {
     console.log("all docs approved ",allDocsApproved)
     console.log("all docs number present ",allFieldsFilled)
 
-  // const profileJustCompleted =
-  //   !wasProfileCompleted && driver.profileCompleted === true;
-
-  // if (
-  //   profileJustCompleted &&
-  //   driver.email &&
-  //   !driver.welcomeEmailSent
-  // ) {
-  //   try {
-  //     const html = renderTemplate("driver.welcome.html", {
-  //       name: driver.name || "Captain",
-  //     });
-
-  //     await sendEmail({
-  //       to: driver.email,
-  //       subject: "Welcome to Rubiq Ride – You’re Ready to Drive 🚗",
-  //       html,
-  //     });
-
-  //     driver.welcomeEmailSent = true;
-  //   } catch (err) {
-  //     console.error("Welcome email failed:", err.message);
-  //   }
-  // } 
-
   const forceEmail = data.forceEmail === true;
 
 // true only when profile transitions from false → true
@@ -240,11 +225,23 @@ if (shouldSendEmail) {
   driver.updatedAt = new Date();
   await driver.save();
 
-  const result = driver.toObject ? driver.toObject() : driver;
+  const result = normalizeDriverMediaUrls(driver.toObject ? driver.toObject() : driver);
   delete result.password;
   delete result.otp;
   delete result.otpExpiry;
   delete result.__v;
 
   return result;
+}
+
+//----------------------- Delete Profile -----------------------
+export async function deleteProfile(driver) {
+  if (!driver) throw new Error("Driver not found");
+
+  driver.isActive = false;
+  driver.isOnline = false;
+  driver.driverStatus = DRIVER_AVAILABILITY_STATUS.UNAVAILABLE;
+  await driver.save();
+
+  return { message: "Captain profile deleted successfully" };
 }

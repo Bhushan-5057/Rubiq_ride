@@ -6,6 +6,11 @@ import { areCoordinatesClose } from "../../../common/utlis.js";
 import { addRideTimeoutJob } from "../../../queues/rideTimeout.queue.js";
 import { PASSENGER_CANCELLATION_REASONS, PASSENGER_REASON_CODES } from "../../../common/cancellationReasons.js"
 import {
+  DRIVER_ACTIVATION_STATUS,
+  DRIVER_AVAILABILITY_STATUS,
+  USER_STATUS,
+} from "../../../constants/userStatus.constants.js";
+import {
   getDriverEtasToDestination,
   getPrimaryRoute,
   resolveRideLocation,
@@ -46,6 +51,14 @@ export async function updatePassengerLocationService(passenger, lng, lat) {
 //-------------------- Create Ride --------------------
 
 export async function createRideService({ passengerId, pickup, drop, vehicleType, paymentMethod, isPaymentRequiredBeforeRide }) {
+  const passenger = await Passenger.findOne({ _id: passengerId, isActive: true }).select("status");
+  if (!passenger) {
+    throw new Error("Passenger not found or inactive");
+  }
+  if (passenger.status === USER_STATUS.BLOCKED) {
+    throw new Error("Blocked passengers cannot book rides");
+  }
+
   const [resolvedPickup, resolvedDrop] = await Promise.all([
     resolveRideLocation(pickup, "pickup"),
     resolveRideLocation(drop, "drop"),
@@ -98,11 +111,12 @@ export async function createRideService({ passengerId, pickup, drop, vehicleType
   });
 
   const nearbyDrivers = await Driver.find({
-    status: "active",
-    activationStatus: "ready",
+    status: USER_STATUS.ACTIVE,
+    isActive: true,
+    activationStatus: DRIVER_ACTIVATION_STATUS.READY,
     vehicleType: vehicleType,
     isOnline:true,
-    driverStatus: "available",
+    driverStatus: DRIVER_AVAILABILITY_STATUS.AVAILABLE,
     location: {
       $near: {
         $geometry: { type: "Point", coordinates: resolvedPickup.coordinates },

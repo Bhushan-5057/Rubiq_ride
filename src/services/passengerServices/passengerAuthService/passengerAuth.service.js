@@ -2,16 +2,18 @@
 import { Passenger } from "../../../models/passenger/passenger.model.js";
 import { verifyOtp } from "../../../services/otpService/otp.service.js";
 import { normalizeNumber, passengerToken } from "../../../helpers/helper.js";
+import { USER_STATUS } from "../../../constants/userStatus.constants.js";
+import { normalizePassengerMediaUrls } from "../../../utils/mediaUrl.js";
 import jwt from "jsonwebtoken";
 
 
 // -------------------- Google Login --------------------
 export async function googleLogin(payload) {
   const { email, name, googleId, profileImage, fcmToken } = payload;
-  
+
   // Check if passenger exists with this email
   let passenger = await Passenger.findOne({ email });
-  
+
   if (!passenger) {
     // Create new passenger with Google OAuth data
     passenger = await Passenger.create({
@@ -21,11 +23,18 @@ export async function googleLogin(payload) {
       profileImage,
       fcmToken: fcmToken || null,
       otpVerified: true,
-      status: "active",
-      contactNumber:null,
+      status: USER_STATUS.ACTIVE,
+      isActive: true,
+      contactNumber: null,
       profileCompleted: false,
     });
   } else {
+    if (passenger.isActive === false) {
+      const error = new Error("Your account is temporarily suspended kindly contact support team");
+      error.status = 403;
+      throw error;
+    }
+
     // Update existing passenger with Google OAuth data
     passenger.googleId = googleId;
     passenger.profileImage = profileImage || passenger.profileImage;
@@ -34,17 +43,17 @@ export async function googleLogin(payload) {
     passenger.otpVerified = true;
     await passenger.save();
   }
-  
+
   // Generate JWT token
   const token = passengerToken({
     _id: passenger._id,
     role: "passenger",
   });
-  
-  return { 
-    passenger, 
-    token, 
-    profileCompleted: passenger.profileCompleted 
+
+  return {
+    token,
+    passenger: normalizePassengerMediaUrls(passenger.toObject()),
+    profileCompleted: passenger.profileCompleted
   };
 }
 
@@ -52,7 +61,7 @@ export async function googleLogin(payload) {
 export async function otpLogin({ contactNumber, otp, name, email, gender, fcmToken }) {
   contactNumber = normalizeNumber(contactNumber);
 
-  const isValidOtp = await verifyOtp(contactNumber, otp ,"passenger");
+  const isValidOtp = await verifyOtp(contactNumber, otp, "passenger");
   if (!isValidOtp) throw new Error("Invalid or expired OTP");
 
   let passenger = await Passenger.findOne({ contactNumber });
@@ -65,10 +74,17 @@ export async function otpLogin({ contactNumber, otp, name, email, gender, fcmTok
       email: email || null,
       gender: gender || "",
       fcmToken: fcmToken || null,
-      status: "active",
+      status: USER_STATUS.ACTIVE,
+      isActive: true,
       profileCompleted: false,
     });
   } else {
+    if (passenger.isActive === false) {
+      const error = new Error("Your account is temporarily suspended kindly contact support team");
+      error.status = 403;
+      throw error;
+    }
+
     passenger.otpVerified = true;
 
     if (name && !passenger.name) passenger.name = name;
@@ -86,5 +102,9 @@ export async function otpLogin({ contactNumber, otp, name, email, gender, fcmTok
   }
 
   const token = passengerToken(passenger);
-  return { passenger: passenger, token, profileCompleted };
+  return {
+    token,
+    passenger: normalizePassengerMediaUrls(passenger.toObject()),
+    profileCompleted,
+  };
 }

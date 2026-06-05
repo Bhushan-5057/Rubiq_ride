@@ -1,15 +1,16 @@
 import mongoose from "mongoose";
-import { Passenger } from "../../../models/passenger/passenger.model.js";
+import { passengerRepository } from "../../../repositories/passenger.repository.js";
 import { getPassengerStats } from "../../../services/rideServices/rideStats.service.js";
-import { Ride } from "../../../models/ride/ride.model.js";
+import { USER_STATUS, getStatusUpdateMessage } from "../../../constants/userStatus.constants.js";
+import { normalizePassengerMediaUrls } from "../../../utils/mediaUrl.js";
 
 // -------------------- Get All Passengers --------------------
-
 export async function getAllPassenger(filters = {}) {
   const {
     page = 1,
     limit = 5,
     status,
+    isActive,
     search,
     sortBy = 'createdAt',
     sortOrder = 'desc',
@@ -17,16 +18,11 @@ export async function getAllPassenger(filters = {}) {
 
   const skip = (page - 1) * limit;
   const sort = { [sortBy]: sortOrder === 'desc' ? -1 : 1 };
-
-  // Build the query
   const query = {};
 
-  // Add status filter if provided
-  if (status) {
-    query.status = status;
-  }
+  if (status) query.status = status;
+  if (isActive !== undefined) query.isActive = isActive === true || isActive === "true";
 
-  // Add search filter if provided
   if (search) {
     const searchRegex = new RegExp(search, 'i');
     query.$or = [
@@ -37,20 +33,13 @@ export async function getAllPassenger(filters = {}) {
     ];
   }
 
-  // Get total count for pagination
-  const total = await Passenger.countDocuments(query);
+  const total = await passengerRepository.count(query);
+  const passengers = await passengerRepository.findAll(query, { sort, skip, limit });
 
-  // Get paginated results
-  const passengers = await Passenger.find(query)
-    .sort(sort)
-    .skip(skip)
-    .limit(parseInt(limit));
-
-  // Format the response with ride stats
   const formattedPassengers = await Promise.all(passengers.map(async (passenger) => {
     const stats = await getPassengerStats(passenger._id);
     return {
-      ...passenger.toObject(),
+      ...normalizePassengerMediaUrls(passenger.toObject()),
       rideStats: stats
     };
   }));
@@ -67,52 +56,50 @@ export async function getAllPassenger(filters = {}) {
 }
 
 // -------------------- Get Passenger by ID --------------------
-
 export async function getPassengerById(passengerId) {
-  const passenger = await Passenger.findById(passengerId)
-      .populate({
+  const passenger = await passengerRepository.findById(passengerId)
+    .populate({
       path: "bankDetails",
-      // select: "-accountNumber" 
     });
   if (!passenger) throw new Error("Passenger not found");
 
-  // Get passenger stats
   const stats = await getPassengerStats(passengerId);
 
   return {
-    ...passenger.toObject(),
+    ...normalizePassengerMediaUrls(passenger.toObject()),
     rideStats: stats
   };
 }
 
-// -------------------- Delete Passenger --------------------
-
-export async function deletePassenger(passengerId) {
+// -------------------- Update Passenger Active Status --------------------
+export async function updatePassengerActiveStatus(passengerId, isActive) {
   if (!passengerId) throw new Error("Passenger ID is required");
-
   if (!mongoose.Types.ObjectId.isValid(passengerId)) {
     throw new Error("Invalid passenger ID format");
   }
+  if (typeof isActive !== "boolean") {
+    throw new Error("isActive must be a boolean");
+  }
 
-  const passenger = await Passenger.findById(passengerId);
+  const passenger = await passengerRepository.findById(passengerId);
   if (!passenger) throw new Error("Passenger not found");
 
-  passenger.status = "deactive";
+  passenger.isActive = isActive;
   await passenger.save();
 
   return {
-    message: "Passenger account deactive successfully",
-    passenger: passenger,
+    message: getStatusUpdateMessage("User", isActive),
+    passenger: normalizePassengerMediaUrls(passenger.toObject()),
   };
 }
 
-// -------------------- Update Passenger Status --------------------
-
+// -------------------- Update Passenger Lifecycle Status --------------------
 export async function updatePassangerStatus(passengerId, newStatus) {
-  if (!["active", "deactive", "pending"].includes(newStatus))
+  if (!Object.values(USER_STATUS).includes(newStatus)) {
     throw new Error("Invalid status value");
+  }
 
-  const passenger = await Passenger.findById(passengerId);
+  const passenger = await passengerRepository.findById(passengerId);
   if (!passenger) throw new Error("Passenger not found");
 
   passenger.status = newStatus;
@@ -120,16 +107,15 @@ export async function updatePassangerStatus(passengerId, newStatus) {
 
   return {
     message: `Passenger status updated to ${newStatus}`,
-    passenger: passenger,
+    passenger: normalizePassengerMediaUrls(passenger.toObject()),
   };
 }
 
 // -------------------- Get Passenger Profile Status --------------------
-
 export async function getPassengerProfileStatus(contactNumber) {
   if (!contactNumber.startsWith("+")) contactNumber = "+91" + contactNumber;
 
-  const passenger = await Passenger.findOne({ contactNumber });
+  const passenger = await passengerRepository.findByContactNumber(contactNumber);
   if (!passenger) throw new Error("Passenger not found");
 
   return {
@@ -139,5 +125,6 @@ export async function getPassengerProfileStatus(contactNumber) {
     email: passenger.email,
     gender: passenger.gender,
     status: passenger.status,
+    isActive: passenger.isActive,
   };
-} 
+}

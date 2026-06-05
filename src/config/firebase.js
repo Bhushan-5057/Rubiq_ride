@@ -1,27 +1,41 @@
+import "dotenv/config";
 import admin from "firebase-admin";
-import path from "path";
-import { fileURLToPath } from "url";
 import fs from "fs";
+import path from "path";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const getServiceAccount = () => {
+  const { FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, FIREBASE_PRIVATE_KEY } = process.env;
 
-const serviceAccountPath = path.join(
-  __dirname,
-  "../../serviceAccountKey.json"
-);
+  if (FIREBASE_PROJECT_ID && FIREBASE_CLIENT_EMAIL && FIREBASE_PRIVATE_KEY) {
+    return {
+      projectId: FIREBASE_PROJECT_ID,
+      clientEmail: FIREBASE_CLIENT_EMAIL,
+      privateKey: FIREBASE_PRIVATE_KEY.replace(/\\n/g, "\n"),
+    };
+  }
 
-const serviceAccount = JSON.parse(
-  fs.readFileSync(serviceAccountPath, "utf8")
-);
+  const serviceAccountPath =
+    process.env.FIREBASE_SERVICE_ACCOUNT_PATH ||
+    process.env.GOOGLE_APPLICATION_CREDENTIALS ||
+    path.join(process.cwd(), "serviceAccountKey.json");
 
-admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount),
-});
+  if (!fs.existsSync(serviceAccountPath)) {
+    throw new Error(
+      `Firebase credentials not found. Set FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, and FIREBASE_PRIVATE_KEY, or provide FIREBASE_SERVICE_ACCOUNT_PATH. Checked: ${serviceAccountPath}`
+    );
+  }
 
-console.log(
-  "🔥 Firebase Admin Initialized | Project:",
-  serviceAccount.project_id
-);
+  return JSON.parse(fs.readFileSync(serviceAccountPath, "utf8"));
+};
+
+const serviceAccount = getServiceAccount();
+
+if (!admin.apps.length) {
+  admin.initializeApp({
+    credential: admin.credential.cert(serviceAccount),
+  });
+}
+
+console.log("Firebase Admin Initialized | Project:", serviceAccount.project_id || serviceAccount.projectId);
 
 export default admin;

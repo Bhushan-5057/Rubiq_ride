@@ -1,4 +1,4 @@
-import { deleteAllRidesService, deleteRideService, getAllRidesService,getSingleRideService } 
+import { archiveAllRidesService, archiveRideService, getAllRidesService,getSingleRideService } 
 from "../../../../services/rideServices/adminRideServices/adminRide.service.js"; 
 
 //--------------------- Get Ride by ID controller --------------------- 
@@ -8,11 +8,12 @@ export const getRideById = async (req, res) => {
     if (!rideId) throw new Error("Ride ID is required");  
     const rides = await getSingleRideService(rideId);
     res.status(200).json({
-      success: true,
-      rides,
+      status: true,
+      message: "Ride fetched successfully",
+      data: rides,
     });
   } catch (err) {
-    res.status(400).json({ success: false, message: err.message });
+    res.status(400).json({ status: false, message: err.message });
   }
 
 }
@@ -49,40 +50,41 @@ export const getAllRides = async (req, res) => {
     });
 
     res.status(200).json({
-      success: true,
+      status: true,
+      message: "Rides fetched successfully",
       pagination: result.pagination,
       data: result.data
     });
   } catch (err) {
-    res.status(400).json({ success: false, message: err.message });
+    res.status(400).json({ status: false, message: err.message });
   }
 };
 
-// --------------------------------- Delete Ride Controller --------------------------------- 
-export const deleteRide = async (req, res) => {
+// --------------------------------- Archive Ride Controller ---------------------------------
+export const archiveRide = async (req, res) => {
   try {
     const { rideId } = req.params;
     if (!rideId) throw new Error("Ride ID is required");
 
-    await deleteRideService(rideId);
+    const ride = await archiveRideService(rideId);
 
-    res.status(200).json({ success: true, message: "Ride deleted successfully" });
+    res.status(200).json({ status: true, message: "Ride deactivated successfully", data: ride });
   } catch (err) {
-    res.status(400).json({ success: false, message: err.message });
+    res.status(400).json({ status: false, message: err.message });
   }
 };
 
 
-// ---------------------------------- Delete All Rides ---------------------------------- 
-export const deleteAllRides = async (req, res) => {
+// ---------------------------------- Archive All Rides ----------------------------------
+export const archiveAllRides = async (req, res) => {
   try {
-    const deletedCount = await deleteAllRidesService();
+    const archivedCount = await archiveAllRidesService();
 
     res.status(200).json({
-      success: true,
-      message: `${deletedCount} rides deleted successfully`,
+      status: true,
+      message: `${archivedCount} rides deactivated successfully`,
     });
   } catch (err) {
-    res.status(400).json({ success: false, message: err.message });
+    res.status(400).json({ status: false, message: err.message });
   }
 };

@@ -3,6 +3,7 @@ import dotenv from "dotenv";
 import { Admin } from "../models/admin/admin.model.js";
 import { Driver } from "../models/driver/driver.model.js";
 import { Passenger } from "../models/passenger/passenger.model.js";
+import { ACTIVE_USER_FILTER } from "../constants/userStatus.constants.js";
 dotenv.config();
 
 //------------------------------- Authenticate Admin -------------------------------
@@ -11,24 +12,18 @@ export async function authenticateAdmin(req, res, next) {
     const authHeader = req.headers.authorization;
 
     if (!authHeader?.startsWith("Bearer ")) {
-      return res.status(401).json({ success: false, message: "Missing token" });
+      return res.status(401).json({ status: false, message: "Missing token" });
     }
 
     const token = authHeader.split(" ")[1];
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    const admin = await Admin.findOne({
-      _id: decoded.sub,
-      $or: [
-        { isDeleted: false },
-        { isDeleted: { $exists: false } }
-      ]
-    }).select("-password");
+    const admin = await Admin.findOne({ _id: decoded.sub, ...ACTIVE_USER_FILTER }).select("-password");
 
     if (!admin) {
       return res.status(401).json({
-        success: false,
-        message: "Admin not found or deleted",
+        status: false,
+        message: "Admin not found or inactive",
       });
     }
 
@@ -38,9 +33,9 @@ export async function authenticateAdmin(req, res, next) {
     next();
   } catch (err) {
     if (err.name === "TokenExpiredError") {
-      return res.status(401).json({ message: "Token expired" });
+      return res.status(401).json({ status: false, message: "Token expired" });
     }
-    return res.status(401).json({ message: "Invalid token" });
+    return res.status(401).json({ status: false, message: "Invalid token" });
   }
 }
 
@@ -49,7 +44,7 @@ export const authorizeAdmin = (...allowedRoles) => {
   return (req, res, next) => {
     if (!allowedRoles.includes(req.adminRole)) {
       return res.status(403).json({
-        success: false,
+        status: false,
         message: "Access denied"
       });
     }
@@ -64,19 +59,19 @@ export async function authenticateDriver(req, res, next) {
     const token = authHeader.startsWith("Bearer ") ? authHeader.split(" ")[1] : null;
 
     if (!token)
-      return res.status(401).json({ success: false, message: "Missing token" });
+      return res.status(401).json({ status: false, message: "Missing token" });
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const driver = await Driver.findById(decoded.sub);
+    const driver = await Driver.findOne({ _id: decoded.sub, ...ACTIVE_USER_FILTER });
 
     if (!driver)
-      return res.status(404).json({ success: false, message: "Driver not found" });
+      return res.status(404).json({ status: false, message: "Driver not found or inactive" });
 
     req.driver = driver;
     next();
   } catch (err) {
     console.error("Driver Auth Error:", err.message);
-    res.status(401).json({ success: false, message: "Invalid or expired token" });
+    res.status(401).json({ status: false, message: "Invalid or expired token" });
   }
 }
 
@@ -87,19 +82,19 @@ export async function authenticatePassenger(req, res, next) {
     const token = authHeader.startsWith("Bearer ") ? authHeader.split(" ")[1] : null;
 
     if (!token)
-      return res.status(401).json({ success: false, message: "Missing token" });
+      return res.status(401).json({ status: false, message: "Missing token" });
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const passenger = await Passenger.findOne({ _id: decoded.sub, status: "active" });
+    const passenger = await Passenger.findOne({ _id: decoded.sub, ...ACTIVE_USER_FILTER });
 
     if (!passenger)
-      return res.status(404).json({ success: false, message: "Passenger not found" });
+      return res.status(404).json({ status: false, message: "Passenger not found or inactive" });
 
     req.passenger = passenger;
     next();
   } catch (err) {
     console.error("Passenger Auth Error:", err.message);
-    res.status(401).json({ success: false, message: "Invalid or expired token" });
+    res.status(401).json({ status: false, message: "Invalid or expired token" });
   }
 }
 
@@ -110,19 +105,19 @@ export async function authenticateUser(req, res, next) {
     const token = authHeader.startsWith("Bearer ") ? authHeader.split(" ")[1] : null;
 
     if (!token) {
-      return res.status(401).json({ success: false, message: "Missing token" });
+      return res.status(401).json({ status: false, message: "Missing token" });
     }
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
     // Try to find the user in either Passenger or Driver collection
     const [passenger, driver] = await Promise.all([
-      Passenger.findOne({ _id: decoded.sub, status: "active" }),
-      Driver.findOne({ _id: decoded.sub })
+      Passenger.findOne({ _id: decoded.sub, ...ACTIVE_USER_FILTER }),
+      Driver.findOne({ _id: decoded.sub, ...ACTIVE_USER_FILTER })
     ]);
 
     if (!passenger && !driver) {
-      return res.status(404).json({ success: false, message: "User not found" });
+      return res.status(404).json({ status: false, message: "User not found or inactive" });
     }
 
     // Attach the user to the request object
@@ -133,11 +128,11 @@ export async function authenticateUser(req, res, next) {
   } catch (err) {
     console.error("Authentication Error:", err.message);
     if (err.name === "TokenExpiredError") {
-      return res.status(401).json({ success: false, message: "Token expired" });
+      return res.status(401).json({ status: false, message: "Token expired" });
     } else if (err.name === "JsonWebTokenError") {
-      return res.status(401).json({ success: false, message: "Invalid token" });
+      return res.status(401).json({ status: false, message: "Invalid token" });
     }
-    res.status(401).json({ success: false, message: "Authentication failed" });
+    res.status(401).json({ status: false, message: "Authentication failed" });
   }
 }
 
@@ -147,7 +142,7 @@ export async function protect(req, res, next) {
     const authHeader = req.headers.authorization;
 
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      return res.status(401).json({ message: "Authorization token missing" });
+      return res.status(401).json({ status: false, message: "Authorization token missing" });
     }
 
     const token = authHeader.split(" ")[1];
@@ -159,6 +154,6 @@ export async function protect(req, res, next) {
 
     next();
   } catch (error) {
-    return res.status(401).json({ message: "Invalid or expired token" });
+    return res.status(401).json({ status: false, message: "Invalid or expired token" });
   }
 };

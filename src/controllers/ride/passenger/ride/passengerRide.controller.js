@@ -7,6 +7,11 @@ import { Passenger } from "../../../../models/passenger/passenger.model.js";
 import { sendToUser } from "../../../../services/notification/sendToUser.js";
 import { Driver } from "../../../../models/driver/driver.model.js";
 import { PASSENGER_CANCELLATION_REASONS } from "../../../../common/cancellationReasons.js";
+import {
+  emitAdminDashboardStats,
+  emitAdminEvent,
+  emitAdminRideEvent,
+} from "../../../../helpers/admin-realtime.helper.js";
 
 
 //-------------------------- Update passenger Location --------------------------  
@@ -191,6 +196,16 @@ console.log("All socket rooms:", [...io.sockets.adapter.rooms.keys()]);
       driverEtas,
       ...paymentData
     });
+
+    await emitAdminRideEvent("admin:new_ride", ride, {
+      nearbyDriverCount: nearbyDrivers.length,
+      driverEtas,
+    });
+    emitAdminEvent("admin:passenger_activity", {
+      passengerId: passengerId.toString(),
+      action: "ride_created",
+      rideId: ride._id.toString(),
+    });
   } catch (error) {
     console.error('Error creating ride:', error);
     res.status(error.status || 500).json({
@@ -221,6 +236,10 @@ export const updateRide = async (req, res) => {
       distance: ride.distance,
       fareEstimate: ride.fareEstimate,
       routeDetails: ride.routeDetails,
+    });
+
+    await emitAdminRideEvent("admin:ride_status_updated", ride, {
+      action: "drop_location_updated",
     });
 
     // Send push notification to passenger
@@ -312,6 +331,12 @@ export const cancelRide = async (req, res, next) => {
     io.to(passengerId.toString()).emit("ride_cancelled", {
       rideId: ride._id,
       status: ride.status,
+    });
+
+    await emitAdminRideEvent("admin:ride_cancelled", ride, {
+      cancelledBy: "Passenger",
+      reasonCode,
+      reasonText,
     });
 
     // Send push notification to passenger
@@ -428,6 +453,10 @@ export const endRide = async (req, res) => {
       rideId: completedRide._id,
       status: completedRide.status,
       paymentStatus: completedRide.paymentStatus,
+    });
+
+    await emitAdminRideEvent("admin:trip_completed", completedRide, {
+      completedBy: "Passenger",
     });
 
     // Send push notification to passenger
@@ -562,7 +591,15 @@ export const confirmPayment = async (req, res) => {
           amount: ride.fareEstimate,
           currency: 'inr'
         });
+        emitAdminEvent("admin:payout_notification", {
+          rideId: ride._id.toString(),
+          driverId: ride.driver.toString(),
+          amount: ride.fareEstimate,
+          currency: "inr",
+          paymentStatus: ride.paymentStatus,
+        });
       }
+      await emitAdminDashboardStats();
     }
 
     res.status(200).json({

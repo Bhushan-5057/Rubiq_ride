@@ -1,6 +1,12 @@
 import { getIO } from "../config/socket/socket.js";
+import { emitAdminRideEvent } from "./admin-realtime.helper.js";
 import { Driver } from "../models/driver/driver.model.js";
 import { Ride } from "../models/ride/ride.model.js";
+import {
+  DRIVER_ACTIVATION_STATUS,
+  DRIVER_AVAILABILITY_STATUS,
+  USER_STATUS,
+} from "../constants/userStatus.constants.js";
 
 export async function autoAssignRideToNextDriver(ride) {
   try {
@@ -32,6 +38,11 @@ export async function autoAssignRideToNextDriver(ride) {
       });
     });
 
+    await emitAdminRideEvent("admin:new_ride", ride, {
+      action: "auto_assigned_to_nearby_drivers",
+      notifiedDriverIds: driverIds,
+    });
+
     return true;
   } catch (error) {
     console.error("Error in autoAssignRideToNextDriver:", error);
@@ -52,8 +63,10 @@ async function findNearbyDrivers(pickupLocation, maxDistance = 5000) {
         }
       },
       isOnline: true,
-      isAvailable: true,
-      isActive: true
+      isActive: true,
+      status: USER_STATUS.ACTIVE,
+      activationStatus: DRIVER_ACTIVATION_STATUS.READY,
+      driverStatus: DRIVER_AVAILABILITY_STATUS.AVAILABLE,
     }).select('_id location');
   } catch (error) {
     console.error("Error finding nearby drivers:", error);

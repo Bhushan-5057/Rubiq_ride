@@ -1,5 +1,34 @@
 import { Feedback } from "../../models/feedback/feedback.model.js";
+import { Driver } from "../../models/driver/driver.model.js";
+import { Passenger } from "../../models/passenger/passenger.model.js";
 import { Ride } from "../../models/ride/ride.model.js";
+
+async function updateUserRating(userType, userId) {
+  const UserModel = userType === "driver" ? Driver : Passenger;
+
+  const [ratingStats] = await Feedback.aggregate([
+    {
+      $match: {
+        givenTo: userType,
+        givenToUser: userId,
+      },
+    },
+    {
+      $group: {
+        _id: "$givenToUser",
+        average: { $avg: "$rating" },
+        count: { $sum: 1 },
+      },
+    },
+  ]);
+
+  await UserModel.findByIdAndUpdate(userId, {
+    $set: {
+      "rating.average": ratingStats ? Number(ratingStats.average.toFixed(2)) : 0,
+      "rating.count": ratingStats?.count || 0,
+    },
+  });
+}
 
 //---------------------- Passenger Feedback To Driver ----------------------
 export async function submitPassengerFeedbackService({ rideId, driverId, rating, comment }) {
@@ -16,7 +45,7 @@ export async function submitPassengerFeedbackService({ rideId, driverId, rating,
     throw new Error('Cannot give feedback for an incomplete ride');
   }
 
-  return Feedback.create({
+  const feedback = await Feedback.create({
     ride: rideId,
     givenBy: 'driver',
     givenByUser: driverId,
@@ -25,6 +54,9 @@ export async function submitPassengerFeedbackService({ rideId, driverId, rating,
     rating,
     comment,
   });
+
+  await updateUserRating('passenger', ride.passenger);
+  return feedback;
 }
 
 //---------------------- Driver Feedback To Passenger ----------------------
@@ -46,7 +78,7 @@ export async function submitDriverFeedbackService({ rideId, passengerId, rating,
     throw new Error('No driver assigned to this ride');
   }
 
-  return Feedback.create({
+  const feedback = await Feedback.create({
     ride: rideId,
     givenBy: 'passenger',
     givenByUser: passengerId,
@@ -55,6 +87,9 @@ export async function submitDriverFeedbackService({ rideId, passengerId, rating,
     rating,
     comment,
   });
+
+  await updateUserRating('driver', ride.driver);
+  return feedback;
 }
 
 //---------------------- Get Feedback (Driver/Passenger) ----------------------

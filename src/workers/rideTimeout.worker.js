@@ -6,6 +6,7 @@ import { initRedis, getRedis } from '../config/redis.js';
 import { Ride } from "../models/ride/ride.model.js";
 import { autoAssignRideToNextDriver } from "../helpers/autoAssignRide.helper.js";
 import { getIO } from "../config/socket/socket.js";
+import { emitAdminRideEvent } from "../helpers/admin-realtime.helper.js";
 
 const shutdownWorker = async (worker) => {
   console.log('🛑 Shutting down worker...');
@@ -66,6 +67,9 @@ const createWorker = async () => {
           io.to(ride.passenger.toString()).emit("ride_missed", {
             rideId: ride._id,
             message: "No driver accepted your ride.",
+          });
+          await emitAdminRideEvent("admin:ride_missed", ride, {
+            message: "No driver accepted the ride before timeout.",
           });
 
           // Try to reassign

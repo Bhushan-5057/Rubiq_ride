@@ -12,7 +12,7 @@ pnpm-debug.log*
 # Environment Files
 # -----------------------------
 .env
-.env.* 
+.env.*
 !.env.example
 
 # -----------------------------
@@ -52,4 +52,28 @@ coverage/
 # -----------------------------
 *.local
 *.cache
+
+# -----------------------------
+# Firebase / Google Credentials
+# -----------------------------
 serviceAccountKey.json
+firebase-adminsdk*.json
+google-services*.json
+
+# Specific Firebase files
+rubiq-ride-495704-firebase-adminsdk-fbsvc-613c9b1f02.json
+google-services-passenger.json
+google-services-rider.json
+
+# -----------------------------
+# Private Keys / Certificates
+# -----------------------------
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt
+*.cer
+
+# Specific Server Key
+rubiq-ride-server-key.pem

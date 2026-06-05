@@ -1,6 +1,7 @@
 import { uploadFileToS3 } from "../../../utils/s3Upload.js";
-import { updateProfile } from "../../../services/passengerServices/passengerProfileService/passengerProfile.service.js";
+import { deleteProfile, updateProfile } from "../../../services/passengerServices/passengerProfileService/passengerProfile.service.js";
 import {getPassengerStats} from "../../../services/rideServices/rideStats.service.js"
+import { normalizePassengerMediaUrls } from "../../../utils/mediaUrl.js";
 
 // -------------------- Get Profile --------------------
 export async function profileController(req, res, next) {
@@ -9,7 +10,7 @@ export async function profileController(req, res, next) {
     if (!passenger)
       return res.status(401).json({ success: false, message: "Unauthorized" });
 
-    const result = passenger.toObject ? passenger.toObject() : passenger;
+    const result = normalizePassengerMediaUrls(passenger.toObject ? passenger.toObject() : passenger);
     delete result.password;
     delete result.otp;
     delete result.otpExpiry;
@@ -64,6 +65,24 @@ export async function updateProfileController(req, res, next) {
     });
   } catch (err) {
     console.error("Error in updateProfileController:", err);
+    next(err);
+  }
+}
+
+// -------------------- Delete Profile --------------------
+export async function deleteProfileController(req, res, next) {
+  try {
+    const passenger = req.passenger;
+    if (!passenger)
+      return res.status(401).json({ success: false, message: "Unauthorized" });
+
+    const result = await deleteProfile(passenger);
+
+    res.status(200).json({
+      success: true,
+      message: result.message,
+    });
+  } catch (err) {
     next(err);
   }
 }

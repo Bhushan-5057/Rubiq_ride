@@ -3,6 +3,8 @@ import { Driver } from "../../../models/driver/driver.model.js";
 import { normalizeNumber, driverToken } from "../../../helpers/helper.js";
 import { requiredFields } from "../../../common/utlis.js";
 import { sendEmail, renderTemplate } from "../../../utils/mailer.js";
+import { normalizeDriverMediaUrls } from "../../../utils/mediaUrl.js";
+import { USER_STATUS } from "../../../constants/userStatus.constants.js";
 import jwt from "jsonwebtoken";
 
 
@@ -44,10 +46,17 @@ export async function otpLogin(payload) {
       city,
       fcmToken: fcmToken || null,
       otpVerified: true,
-      status: "pending",
+      status: USER_STATUS.PENDING,
+      isActive: true,
       profileCompleted: false,
     });
   } else {
+    if (driver.isActive === false) {
+      const error = new Error("Your account is temporarily suspended kindly contact support team");
+      error.status = 403;
+      throw error;
+    }
+
     driver.otpVerified = true;
 
     const fields = {
@@ -76,7 +85,11 @@ export async function otpLogin(payload) {
     _id: driver._id,
     role: "driver",
   });
-  return { driver, token, profileCompleted: driver.profileCompleted };
+  return {
+    token,
+    driver: normalizeDriverMediaUrls(driver.toObject()),
+    profileCompleted: driver.profileCompleted,
+  };
 }
 
 //----------------------- Google Login -----------------------
@@ -115,11 +128,18 @@ export async function googleLogin(payload) {
       gender,
       vehicleType,
       city,
-      status: "pending",
+      status: USER_STATUS.PENDING,
+      isActive: true,
       vehicleNumber,
       profileCompleted: false,
     });
   } else {
+    if (driver.isActive === false) {
+      const error = new Error("Your account is temporarily suspended kindly contact support team");
+      error.status = 403;
+      throw error;
+    }
+
     // Update existing driver with Google OAuth data
     driver.googleId = googleId;
     driver.profileImage = profileImage || driver.profileImage;
@@ -156,8 +176,8 @@ export async function googleLogin(payload) {
   );
 
   return {
-    driver,
     token,
+    driver: normalizeDriverMediaUrls(driver.toObject()),
     profileCompleted: driver.profileCompleted
   };
 }

@@ -1,21 +1,30 @@
-import { getPassengerById,getAllPassenger, updatePassangerStatus, } from "../../../../services/adminServices/index.js";
+import { getPassengerById, getAllPassenger, updatePassengerActiveStatus, updatePassangerStatus } from "../../../../services/adminServices/index.js";
+import { sendSuccess } from "../../../../utils/apiResponse.js";
 
 //-------------------------------- Update Passenger Status -------------------------------- 
 export async function updatePassengerStatusController(req, res, next) {
   try {
-    if (req.admin.role !== "admin") {
-      return res.status(403).json({ success: false, message: "Only admins can update passenger status" });
-    }
-
     const { passengerId } = req.params; 
     const { status } = req.body; 
 
-    if (!["active","deactive"].includes(status)) {
-      return res.status(400).json({ success: false, message: "Invalid status value" });
+    if (!status) {
+      return res.status(400).json({ status: false, message: "status is required" });
     }
 
     const result = await updatePassangerStatus(passengerId, status);
-    res.json({ success: true, ...result });
+    return sendSuccess(res, 200, result.message, result.passenger);
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function updatePassengerActiveStatusController(req, res, next) {
+  try {
+    const { passengerId } = req.params;
+    const { isActive } = req.body;
+
+    const result = await updatePassengerActiveStatus(passengerId, isActive);
+    return sendSuccess(res, 200, result.message, result.passenger);
   } catch (err) {
     next(err);
   }
@@ -28,7 +37,8 @@ export async function getAllPassengersController(req, res, next) {
     const { 
       page = 1, 
       limit = 5, 
-      status, 
+      status,
+      isActive,
       search, 
       sortBy = 'createdAt', 
       sortOrder = 'desc' 
@@ -42,15 +52,12 @@ export async function getAllPassengersController(req, res, next) {
       page: pageNum,
       limit: limitNum,
       status,
+      isActive,
       search,
       sortBy,
       sortOrder
     });
-    res.json({ 
-      success: true, 
-      pagination: result.pagination,
-      data: result.data,
-    });
+    return sendSuccess(res, 200, "Passengers fetched successfully", result.data, { pagination: result.pagination });
   } catch (err) {
     next(err);
   }
@@ -60,10 +67,10 @@ export async function getAllPassengersController(req, res, next) {
 export async function getPassengerByIdController(req, res, next) {
   try {
     const { passengerId } = req.params;
-    if (!passengerId) return res.status(400).json({ success: false, message: "Passenger ID required" });
+    if (!passengerId) return res.status(400).json({ status: false, message: "Passenger ID required" });
 
     const passenger = await getPassengerById(passengerId);
-    res.json({ success: true, passenger });
+    return sendSuccess(res, 200, "Passenger fetched successfully", passenger);
   } catch (err) {
     next(err);
   }

@@ -112,7 +112,7 @@ async function requestGoogle(path, params, cacheKey = null, ttlMs = DEFAULT_CACH
       ...params,
       key: requireApiKey(),
     },
-    timeout: Number(process.env.GOOGLE_MAPS_TIMEOUT_MS || 8000),
+    timeout: Number(process.env.GOOGLE_MAPS_TIMEOUT_MS || 3000),
   });
 
   if (!data || (data.status && !["OK", "ZERO_RESULTS"].includes(data.status))) {

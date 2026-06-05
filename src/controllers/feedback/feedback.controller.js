@@ -9,6 +9,7 @@ import { Ride } from '../../models/ride/ride.model.js';
 import { sendToUser } from '../../services/notification/sendToUser.js';
 import { Driver } from '../../models/driver/driver.model.js';
 import { Passenger } from '../../models/passenger/passenger.model.js';
+import { emitAdminEvent } from '../../helpers/admin-realtime.helper.js';
 
 
 //---------------------- Passenger Feedback To Driver ----------------------
@@ -36,6 +37,12 @@ export const submitDriverFeedback = async (req, res) => {
       comment: feedback.comment,
       fromPassenger: req.passenger._id
     })
+    emitAdminEvent("admin:passenger_activity", {
+      passengerId: req.passenger._id.toString(),
+      action: "driver_feedback_submitted",
+      rideId,
+      rating: feedback.rating,
+    });
 
     const driver = await Driver.findById(ride.driver).select("fcmTokens")
     await sendToUser({
@@ -88,6 +95,12 @@ export const submitPassengerFeedback = async (req, res) => {
       comment: feedback.comment,
       fromDriver: req.driver._id
     })
+    emitAdminEvent("admin:passenger_activity", {
+      passengerId: ride.passenger.toString(),
+      action: "driver_feedback_received",
+      rideId,
+      rating: feedback.rating,
+    });
 
     const passenger = await Passenger.findById(ride.passenger).select("fcmTokens")
     await sendToUser({

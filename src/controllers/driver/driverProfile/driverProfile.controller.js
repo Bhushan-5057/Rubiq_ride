@@ -1,6 +1,6 @@
 import { uploadFileToS3 } from "../../../utils/s3Upload.js";
 import { getDriverProfileStatus } from "../../../services/adminServices/driverManagementService/driverManagement.service.js";
-import { updateProfile, getProfile } from "../../../services/driverServices/driverProfileService/driverProfile.service.js";
+import { deleteProfile, updateProfile, getProfile } from "../../../services/driverServices/driverProfileService/driverProfile.service.js";
 import { setDriverOfflineService, setDriverOnlineService } from ".././../../services/driverServices/driverProfileService/driverProfile.service.js";
 
 
@@ -89,6 +89,24 @@ export async function updateProfileController(req, res, next) {
       success: true,
       message: "Captain profile updated successfully",
       driver,
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// -------------------- Delete Driver Profile --------------------
+export async function deleteProfileController(req, res, next) {
+  try {
+    if (!req.driver) {
+      return res.status(401).json({ success: false, message: "Unauthorized" });
+    }
+
+    const result = await deleteProfile(req.driver);
+
+    res.status(200).json({
+      success: true,
+      message: result.message,
     });
   } catch (err) {
     next(err);

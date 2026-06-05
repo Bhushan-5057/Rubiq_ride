@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { USER_STATUS } from "../../constants/userStatus.constants.js";
 
 const passengerSchema = new mongoose.Schema(
   {
@@ -25,7 +26,12 @@ const passengerSchema = new mongoose.Schema(
     lastLogoutAt: { type: Date },
     profileCompleted: { type: Boolean, default: false },
     welcomeEmailSent: { type: Boolean, default: false, },
-    status: { type: String, enum: ["active", "deactive"], default: "active" },
+    status: {
+      type: String,
+      enum: [USER_STATUS.ACTIVE, USER_STATUS.INACTIVE, USER_STATUS.BLOCKED, USER_STATUS.PENDING],
+      default: USER_STATUS.ACTIVE
+    },
+    isActive: { type: Boolean, default: true, index: true },
     location: {
       type: {
         type: String,

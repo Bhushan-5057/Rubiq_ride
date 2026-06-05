@@ -14,6 +14,12 @@ import { Driver } from "../../../models/driver/driver.model.js";
 import { Passenger } from "../../../models/passenger/passenger.model.js";
 import { sendToUser } from "../../../services/notification/sendToUser.js";
 import { DRIVER_CANCELLATION_REASONS } from "../../../common/cancellationReasons.js";
+import {
+  emitAdminDashboardStats,
+  emitAdminDriverLocation,
+  emitAdminEvent,
+  emitAdminRideEvent,
+} from "../../../helpers/admin-realtime.helper.js";
 
 //----------------------------- Driver Accept Ride -----------------------------
 
@@ -50,6 +56,10 @@ export const acceptRide = async (req, res, next) => {
 
     // Notify passenger about driver assignment
     io.to(ride.passenger._id.toString()).emit("driver_assigned", payload)
+    await emitAdminRideEvent("admin:ride_status_updated", ride, {
+      action: "driver_assigned",
+      driverId: driverId.toString(),
+    });
 
     // Notify passenger that driver assigned via push notification 
     const passengerId = ride.passenger;
@@ -102,6 +112,10 @@ export const driverArrived = async (req, res, next) => {
     const io = getIO();
 
     io.to(ride.passenger._id.toString()).emit("driver_arrived",payload)
+    await emitAdminRideEvent("admin:ride_status_updated", ride, {
+      action: "driver_arrived",
+      driverId: driverId.toString(),
+    });
 
     // Notify passenger that driver arrived via push notification
     const passenger = await Passenger.findById(ride.passenger).select("fcmTokens");
@@ -138,6 +152,10 @@ export const startRide = async (req, res, next) => {
     const io = getIO();
     io.to(ride.passenger._id.toString()).emit("ride_started", {
       rideId: ride._id,
+    });
+    await emitAdminRideEvent("admin:ride_status_updated", ride, {
+      action: "ride_started",
+      driverId: driverId.toString(),
     });
 
     // Notify passenger that ride started via push notification
@@ -182,6 +200,10 @@ export const completeRide = async (req, res, next) => {
       paymentMethod: ride.paymentMethod,
       fare: ride.fareEstimate
     });
+    await emitAdminRideEvent("admin:trip_completed", ride, {
+      completedBy: "Driver",
+      driverId: driverId.toString(),
+    });
 
     // Notify passenger that ride ended via push notification
     const passenger = await Passenger.findById(ride.passenger).select("fcmTokens");;
@@ -211,6 +233,13 @@ export const completeRide = async (req, res, next) => {
         amount: ride.fareEstimate,
         currency: 'inr',
         paymentMethod: ride.paymentMethod
+      });
+      emitAdminEvent("admin:payout_notification", {
+        rideId: ride._id.toString(),
+        driverId: driverId.toString(),
+        amount: ride.fareEstimate,
+        currency: "inr",
+        paymentMethod: ride.paymentMethod,
       });
 
       await sendToUser({
@@ -297,6 +326,12 @@ export const cancelRide = async (req, res, next) => {
       paymentStatus: updatedRide.paymentStatus,
       refundProcessed: updatedRide.paymentStatus === 'refunded'
     });
+    await emitAdminRideEvent("admin:ride_cancelled", updatedRide, {
+      cancelledBy: "Driver",
+      reasonCode: updatedRide.cancellation.reasonCode,
+      reasonText: updatedRide.cancellation.reasonText,
+      refundProcessed: updatedRide.paymentStatus === "refunded",
+    });
 
     // Notify passenger about ride cancellation via push notification
     const passenger = await Passenger.findById(updatedRide.passenger).select("fcmTokens");
@@ -334,92 +369,92 @@ export const updateDriverLocation = async (req, res, next) => {
     const updatedDriver = await updateDriverLocationService(
       req.driver,
       lng,
-      lat
+      lat,
+      rideId
     );
 
-    if (rideId) {
-      const ride = await Ride.findOne({
-        _id: rideId,
-        driver: req.driver._id,
-        passenger: { $exists: true, $ne: null },
-        status: { $in: ["accepted", "ongoing", "started"] },
-      }).select("passenger status pickup drop").lean();
+    const { ride, ...driverLocation } = updatedDriver;
 
-      if (ride?.passenger) {
-        const io = getIO();
-        const passengerId = ride.passenger.toString();
+    if (ride?.passenger) {
+      const io = getIO();
+      const passengerId = ride.passenger.toString();
 
-        // Always emit real-time location update
-        io.to(passengerId).emit("driver_location_update", {
+      // Always emit real-time location update
+      io.to(passengerId).emit("driver_location_update", {
+        rideId,
+        driver: driverLocation,
+        status: ride.status,
+        timestamp: new Date().getTime(),
+      });
+      emitAdminDriverLocation(driverLocation, {
+        rideId,
+        status: ride.status,
+        passengerId,
+      });
+
+      if (ride.status === "accepted") {
+        let etaMinutes = null;
+        let distanceToPickup = null;
+        try {
+          if (driverLocation.dbSaved && ride.pickup?.coordinates?.length === 2 && driverLocation?.coordinates) {
+            const matrix = await getDistanceMatrix({
+              origins: [driverLocation.coordinates],
+              destinations: [ride.pickup.coordinates],
+            });
+            const element = matrix.rows[0]?.elements[0];
+            etaMinutes = element?.durationInTraffic?.minutes || element?.duration?.minutes || null;
+            distanceToPickup = element?.distance || null;
+          }
+        } catch (e) {
+          etaMinutes = null;
+        }
+
+        // Notify passenger that driver is on the way
+        io.to(passengerId).emit("on_the_way", {
           rideId,
-          driver: updatedDriver,
-          status: ride.status,
-          timestamp: new Date().getTime(),
+          driver: driverLocation,
+          pickupLocation: ride.pickup,
+          etaMinutes,
+          distanceToPickup,
+          message: "Your driver is on the way",
         });
+      }
 
-        if (ride.status === "accepted") {
-          let etaMinutes = null;
-          let distanceToPickup = null;
-          try {
-            if (updatedDriver.dbSaved && ride.pickup?.coordinates?.length === 2 && updatedDriver?.coordinates) {
-              const matrix = await getDistanceMatrix({
-                origins: [updatedDriver.coordinates],
-                destinations: [ride.pickup.coordinates],
-              });
-              const element = matrix.rows[0]?.elements[0];
-              etaMinutes = element?.durationInTraffic?.minutes || element?.duration?.minutes || null;
-              distanceToPickup = element?.distance || null;
-            }
-          } catch (e) {
-            etaMinutes = null;
+      if (ride.status === "ongoing" || ride.status === "started") {
+        let etaToDrop = null;
+        let distanceToDrop = null;
+        try {
+          if (driverLocation.dbSaved && ride.drop?.coordinates?.length === 2 && driverLocation?.coordinates) {
+            const matrix = await getDistanceMatrix({
+              origins: [driverLocation.coordinates],
+              destinations: [ride.drop.coordinates],
+            });
+            const element = matrix.rows[0]?.elements[0];
+            etaToDrop = element?.durationInTraffic?.minutes || element?.duration?.minutes || null;
+            distanceToDrop = element?.distance || null;
           }
-
-          // Notify passenger that driver is on the way
-          io.to(passengerId).emit("on_the_way", {
-            rideId,
-            driver: updatedDriver,
-            pickupLocation: ride.pickup,
-            etaMinutes,
-            distanceToPickup,
-            message: "Your driver is on the way",
-          });
+        } catch (e) {
+          etaToDrop = null;
         }
 
-        if (ride.status === "ongoing" || ride.status === "started") {
-          let etaToDrop = null;
-          let distanceToDrop = null;
-          try {
-            if (updatedDriver.dbSaved && ride.drop?.coordinates?.length === 2 && updatedDriver?.coordinates) {
-              const matrix = await getDistanceMatrix({
-                origins: [updatedDriver.coordinates],
-                destinations: [ride.drop.coordinates],
-              });
-              const element = matrix.rows[0]?.elements[0];
-              etaToDrop = element?.durationInTraffic?.minutes || element?.duration?.minutes || null;
-              distanceToDrop = element?.distance || null;
-            }
-          } catch (e) {
-            etaToDrop = null;
-          }
-
-          io.to(passengerId).emit("ride_in_progress", {
-            rideId,
-            driver: updatedDriver,
-            dropLocation: ride.drop,
-            etaToDropMinutes: etaToDrop,
-            distanceToDrop,
-            message: "Your ride is in progress",
-          });
-        }
+        io.to(passengerId).emit("ride_in_progress", {
+          rideId,
+          driver: driverLocation,
+          dropLocation: ride.drop,
+          etaToDropMinutes: etaToDrop,
+          distanceToDrop,
+          message: "Your ride is in progress",
+        });
       }
     }
 
     res.json({
       success: true,
       message: "Location updated",
-      driver: updatedDriver,
-      dbSaved: updatedDriver.dbSaved,
+      driver: driverLocation,
+      dbSaved: driverLocation.dbSaved,
     });
+    await emitAdminDashboardStats();
   } catch (error) {
     next(error);
   }

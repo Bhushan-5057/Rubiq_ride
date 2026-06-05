@@ -112,6 +112,7 @@ const rideSchema = new mongoose.Schema(
       enum: ["unpaid", "pending", "paid", "failed", "refunded"],
       default: "unpaid"
     },
+    isActive: { type: Boolean, default: true, index: true },
 
     isPaymentRequiredBeforeRide: {
       type: Boolean,

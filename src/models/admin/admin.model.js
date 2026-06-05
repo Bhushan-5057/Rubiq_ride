@@ -1,43 +1,65 @@
 import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
+import { ADMIN_ROLES } from '../../constants/userStatus.constants.js';
 
-const genders = ['male', 'female', 'other'];
+const adminRoles = Object.values(ADMIN_ROLES);
 
 const AdminSchema = new mongoose.Schema(
   {
-    contactNumber: {
+    email: {
       type: String,
-      required: false,
+      required: true,
       unique: true,
-      sparse: true,
+      lowercase: true,
       trim: true,
       index: true
     },
-    email: {
-      type: String,
-      lowercase: true,
-      trim: true,
-      sparse: true
-    },
     password: {
       type: String,
-      required: function () { return this.role === 'admin'; },
+      required: true,
       select: false
     },
     name: { type: String, trim: true },
-    gender: { type: String, enum: genders },
     role: {
       type: String,
-      enum: ['admin', 'super_admin'],
-      default: 'admin'
+      enum: adminRoles,
+      default: ADMIN_ROLES.ADMIN
     },
-    isDeleted: {
+    isActive: {
       type: Boolean,
-      default: false
+      default: true,
+      index: true
     }
   },
   { timestamps: true }
 );
+
+AdminSchema.index(
+  { role: 1 },
+  {
+    unique: true,
+    partialFilterExpression: { role: ADMIN_ROLES.SUPER_ADMIN },
+    name: 'unique_super_admin_role'
+  }
+);
+
+AdminSchema.pre('validate', async function (next) {
+  if (this.role !== ADMIN_ROLES.SUPER_ADMIN) return next();
+  if (!this.isNew && !this.isModified('role')) return next();
+
+  const existingSuperAdmin = await this.constructor.exists({
+    _id: { $ne: this._id },
+    role: ADMIN_ROLES.SUPER_ADMIN
+  });
+
+  if (existingSuperAdmin) {
+    const error = new Error('Only one super admin can exist');
+    error.status = 409;
+    return next(error);
+  }
+
+  next();
+});
 
 AdminSchema.pre('save', async function (next) {
   if (!this.isModified('password')) return next();

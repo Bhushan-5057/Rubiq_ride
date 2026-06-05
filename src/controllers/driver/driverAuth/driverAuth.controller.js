@@ -29,6 +29,9 @@ export async function otpLoginDriverController(req, res, next) {
       profileCompleted: result.profileCompleted,
     });
   } catch (err) {
+    if (err.status) {
+      return res.status(err.status).json({ status: false, message: err.message });
+    }
     next(err);
   }
 }
@@ -57,7 +60,7 @@ export async function googleLoginController(req, res, next) {
     const userData = {
       email: payload.email,
       googleId: payload.sub,
-      name: payload.name,
+      // name: payload.name,
       profileImage: payload.picture,
       fcmToken: fcmToken || null,
     };
@@ -74,6 +77,9 @@ export async function googleLoginController(req, res, next) {
     });
   } catch (error) {
     console.log(error);
+    if (error.status) {
+      return res.status(error.status).json({ status: false, message: error.message });
+    }
     next(error);
   }
 }

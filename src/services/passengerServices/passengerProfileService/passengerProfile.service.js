@@ -2,6 +2,7 @@ import { passengerfields } from "../../../common/utlis.js";
 import { normalizeNumber } from "../../../helpers/helper.js";
 import { Passenger } from "../../../models/passenger/passenger.model.js";
 import { sendEmail, renderTemplate } from "../../../utils/mailer.js";
+import { normalizePassengerMediaUrls } from "../../../utils/mediaUrl.js";
 
 // -------------------- Update Profile --------------------
 export async function updateProfile(passenger, data = {}) {
@@ -69,10 +70,20 @@ export async function updateProfile(passenger, data = {}) {
 
   await passenger.save();
 
-  const result = passenger.toObject ? passenger.toObject() : passenger;
+  const result = normalizePassengerMediaUrls(passenger.toObject ? passenger.toObject() : passenger);
   delete result.__v;
 
   return { passenger: result };
+}
+
+// -------------------- Delete Profile --------------------
+export async function deleteProfile(passenger) {
+  if (!passenger) throw new Error("Passenger not found");
+
+  passenger.isActive = false;
+  await passenger.save();
+
+  return { message: "Passenger profile deleted successfully" };
 }
 
 // -------------------- Logout --------------------

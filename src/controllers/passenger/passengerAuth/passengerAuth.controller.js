@@ -73,21 +73,21 @@ export async function otpLoginController(req, res, next) {
       message: "Passenger OTP login successfully",
       token: result.token,
       passenger: result.passenger,
-      profileCompleted: result.profileCompleted,
+      // profileCompleted: result.profileCompleted,
     });
   } catch (err) {
     console.error("OTP Login Error:", err.message);
 
-    if (err.message === "Account deactive") {
+    if (err.message === "Passenger account is inactive") {
       return res.status(403).json({
-        success: false,
-        message: "Your account is deactive. Please contact support.",
+        status: false,
+        message: "Your account is inactive. Please contact support.",
       });
     }
 
     if (err.message === "Invalid or expired OTP") {
       return res.status(400).json({
-        success: false,
+        status: false,
         message: "Invalid or expired OTP. Please try again.",
       });
     }

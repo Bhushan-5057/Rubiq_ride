@@ -1,5 +1,11 @@
 import mongoose from "mongoose";
 import documentSchema from "./driverDocument.model.js";
+import {
+  DRIVER_ACTIVATION_STATUS,
+  DRIVER_APPROVAL_STATUS,
+  DRIVER_AVAILABILITY_STATUS,
+  USER_STATUS,
+} from "../../constants/userStatus.constants.js";
 
 const driverSchema = new mongoose.Schema(
   {
@@ -19,15 +25,24 @@ const driverSchema = new mongoose.Schema(
     lastLogoutAt: Date,
     approvalStatus: {
       type: String,
-      enum: ["pending", "approved", "rejected", "incompleted"],
-      default: "incompleted",
+      enum: Object.values(DRIVER_APPROVAL_STATUS),
+      default: DRIVER_APPROVAL_STATUS.INCOMPLETED,
     },
-    activationStatus: { type: String, enum: ["not_ready", "ready"], default: "not_ready" },
+    activationStatus: {
+      type: String,
+      enum: Object.values(DRIVER_ACTIVATION_STATUS),
+      default: DRIVER_ACTIVATION_STATUS.NOT_READY
+    },
     documentsVerified: { type: Boolean, default: false },
     verificationRemarks: { type: String },
     profileCompleted: { type: Boolean, default: false },
     welcomeEmailSent: { type: Boolean, default: false, },
-    status: { type: String, enum: ["active", "pending", "deactive"], default: "pending" },
+    status: {
+      type: String,
+      enum: [USER_STATUS.ACTIVE, USER_STATUS.PENDING, USER_STATUS.INACTIVE, USER_STATUS.BLOCKED],
+      default: USER_STATUS.PENDING
+    },
+    isActive: { type: Boolean, default: true, index: true },
     location: {
       type: {
         type: String,
@@ -60,7 +75,11 @@ const driverSchema = new mongoose.Schema(
     isOnline: { type: Boolean, default: false },
     lastOnline: { type: Date },
     lastOffline: { type: Date },
-    driverStatus: { type: String, enum: ["available", "unavailable", "on_trip"], default: "unavailable" },
+    driverStatus: {
+      type: String,
+      enum: Object.values(DRIVER_AVAILABILITY_STATUS),
+      default: DRIVER_AVAILABILITY_STATUS.UNAVAILABLE
+    },
   },
   { timestamps: true }
 );

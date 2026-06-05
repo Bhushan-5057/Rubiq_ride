@@ -3,7 +3,7 @@ import { Ride } from "../../../models/ride/ride.model.js";
 //----------------- Get Single Ride -----------------
 export async function getSingleRideService(rideId) {
   if (!rideId) throw new Error("Ride ID is required");
-  const ride = await Ride.findById(rideId)
+  const ride = await Ride.findOne({ _id: rideId, isActive: true })
     .populate("passenger", "name contactNumber email")
     .populate("driver", "name vehicleNumber vehicleType contactNumber");
 
@@ -51,7 +51,7 @@ export async function getAllRidesService(filters = {}) {
   const sort = { [sortBy]: sortOrder === 'desc' ? -1 : 1 };
 
   // Build match stage
-  const match = {};
+  const match = { isActive: true };
 
   // Status filter
   if (status) {
@@ -169,16 +169,17 @@ export async function getAllRidesService(filters = {}) {
 }
 
 
-//----------------- Delete Ride -----------------
-export async function deleteRideService(rideId) {
+//----------------- Archive Ride -----------------
+export async function archiveRideService(rideId) {
   const ride = await Ride.findById(rideId);
   if (!ride) throw new Error("Ride not found");
-  await ride.deleteOne();
-  return true;
+  ride.isActive = false;
+  await ride.save();
+  return ride;
 }
 
-//----------------- Delete All Rides -----------------
-export async function deleteAllRidesService() {
-  const result = await Ride.deleteMany({}); 
-  return result.deletedCount; 
+//----------------- Archive All Rides -----------------
+export async function archiveAllRidesService() {
+  const result = await Ride.updateMany({ isActive: true }, { $set: { isActive: false } });
+  return result.modifiedCount;
 }

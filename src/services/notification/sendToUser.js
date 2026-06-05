@@ -10,7 +10,7 @@ export const sendToUser = async ({
   userType = 'passenger'
 }) => {
   if (!user?.fcmTokens?.length) {
-    console.log("ℹ️ No FCM tokens for user");
+    console.log("No FCM tokens for user");
     return { success: false, message: "No FCM tokens found" };
   }
 
@@ -29,7 +29,7 @@ export const sendToUser = async ({
       });
       results.push({ token: t.token, success: true, result });
     } catch (error) {
-      console.error(`❌ Error sending to token ${t.token}:`, error.message);
+      console.error(`Error sending to token ${t.token}:`, error.message);
       results.push({ token: t.token, success: false, error: error.message });
       
       // If token is invalid, mark for removal
@@ -58,13 +58,13 @@ export const sendToUser = async ({
         );
       }
       
-      console.log(`✅ Removed ${tokensToRemove.length} invalid FCM token(s)`);
+      console.log(`Removed ${tokensToRemove.length} invalid FCM token(s)`);
       
       // Log the tokens that were removed
       console.log('Removed tokens:', tokensToRemove);
       
     } catch (error) {
-      console.error('❌ Error removing invalid tokens:', error.message);
+      console.error('Error removing invalid tokens:', error.message);
       // Log the full error for debugging
       console.error('Error details:', {
         userId: user._id,

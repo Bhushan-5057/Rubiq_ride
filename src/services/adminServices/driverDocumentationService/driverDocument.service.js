@@ -1,5 +1,11 @@
 import { Driver } from "../../../models/driver/driver.model.js";
 import { documentStatus, requiredFields, requiredDocs,requiredDocsNumber } from "../../../common/utlis.js"
+import {
+  DRIVER_ACTIVATION_STATUS,
+  DRIVER_APPROVAL_STATUS,
+  USER_STATUS,
+} from "../../../constants/userStatus.constants.js";
+import { normalizeDriverMediaUrls } from "../../../utils/mediaUrl.js";
 
 // ------------------ Helper For Field is Filled ------------------
 const isFilled = (key, val) => {
@@ -52,10 +58,10 @@ export async function verifyDriverDocuments(driverId, verificationData = {}) {
   const allApproved = values.length > 0 && values.every((v) => v === "approved");
 
   if (anyRejected) {
-    driver.approvalStatus = "rejected";
-    driver.activationStatus = "not_ready";
+    driver.approvalStatus = DRIVER_APPROVAL_STATUS.REJECTED;
+    driver.activationStatus = DRIVER_ACTIVATION_STATUS.NOT_READY;
     driver.documentsVerified = false;
-    driver.status = "pending";
+    driver.status = USER_STATUS.PENDING;
 
     const trimmedRemark = verificationData.remarks && verificationData.remarks.trim();
     if (!trimmedRemark) {
@@ -63,22 +69,23 @@ export async function verifyDriverDocuments(driverId, verificationData = {}) {
     }
     driver.verificationRemarks = trimmedRemark;
   } else if (anyNotUploaded) {
-    driver.approvalStatus = "incompleted";
-    driver.activationStatus = "not_ready";
+    driver.approvalStatus = DRIVER_APPROVAL_STATUS.INCOMPLETED;
+    driver.activationStatus = DRIVER_ACTIVATION_STATUS.NOT_READY;
     driver.documentsVerified = false;
-    driver.status = "pending";
+    driver.status = USER_STATUS.PENDING;
     driver.verificationRemarks = "Documents are still not uploaded.";
   } else if (allApproved) {
-    driver.approvalStatus = "approved";
-    driver.activationStatus = "ready";
+    driver.approvalStatus = DRIVER_APPROVAL_STATUS.APPROVED;
+    driver.activationStatus = DRIVER_ACTIVATION_STATUS.READY;
     driver.documentsVerified = true;
-    driver.status = "active";
+    driver.status = USER_STATUS.ACTIVE;
+    driver.isActive = true;
     driver.verificationRemarks = "All documents verified successfully.";
   } else {
-    driver.approvalStatus = "pending";
-    driver.activationStatus = "not_ready";
+    driver.approvalStatus = DRIVER_APPROVAL_STATUS.PENDING;
+    driver.activationStatus = DRIVER_ACTIVATION_STATUS.NOT_READY;
     driver.documentsVerified = false;
-    driver.status = "pending";
+    driver.status = USER_STATUS.PENDING;
     driver.verificationRemarks = "All documents uploaded; awaiting admin review.";
   }
 
@@ -90,13 +97,14 @@ export async function verifyDriverDocuments(driverId, verificationData = {}) {
 
   driver.updatedAt = new Date();
   await driver.save();
+  const normalizedDriver = normalizeDriverMediaUrls(driver.toObject());
 
   return {
-    success: true,
+    status: true,
     message:
-      driver.approvalStatus === "approved"
+      driver.approvalStatus === DRIVER_APPROVAL_STATUS.APPROVED
         ? "Driver approved successfully."
-        : driver.approvalStatus === "rejected"
+        : driver.approvalStatus === DRIVER_APPROVAL_STATUS.REJECTED
           ? "Driver verification failed."
           : "Driver verification updated; awaiting admin review.",
     driver: {
@@ -106,7 +114,7 @@ export async function verifyDriverDocuments(driverId, verificationData = {}) {
       documentsVerified: driver.documentsVerified,
       status: driver.status,
       remarks: driver.verificationRemarks,
-      documents: driver.documents,
+      documents: normalizedDriver.documents,
     },
   };
 }

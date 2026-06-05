@@ -4,6 +4,7 @@ import {
   verifyPayment as verifyPaymentService,
 } from "../../services/payment/payment.service.js";
 import { Ride } from "../../models/ride/ride.model.js";
+import { emitAdminEvent } from "../../helpers/admin-realtime.helper.js";
 
 export const createPaymentOrder = async (req, res) => {
   try {
@@ -105,6 +106,13 @@ export const verifyPayment = async (req, res) => {
         rideId: result.ride._id,
         amount: result.ride.fareEstimate,
         currency: "INR",
+      });
+      emitAdminEvent("admin:payout_notification", {
+        rideId: result.ride._id.toString(),
+        driverId: result.ride.driver.toString(),
+        amount: result.ride.fareEstimate,
+        currency: "INR",
+        paymentStatus: result.ride.paymentStatus,
       });
     }
 

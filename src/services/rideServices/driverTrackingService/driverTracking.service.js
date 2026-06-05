@@ -3,11 +3,29 @@ import { Driver } from "../../../models/driver/driver.model.js";
 import { areCoordinatesClose } from "../../../common/utlis.js";
 import { calculateEarningsFromDistance } from "../../../helpers/rideHelpers.js";
 import { getRideTimeoutQueue } from "../../../queues/rideTimeout.queue.js";
-import {DRIVER_CANCELLATION_REASONS,DRIVER_REASON_CODES} from "../../../common/cancellationReasons.js"
+import { DRIVER_CANCELLATION_REASONS, DRIVER_REASON_CODES } from "../../../common/cancellationReasons.js"
+import {
+  DRIVER_ACTIVATION_STATUS,
+  DRIVER_AVAILABILITY_STATUS,
+  USER_STATUS,
+} from "../../../constants/userStatus.constants.js";
 
 //-------------------- Accept Ride --------------------
 
 export async function acceptRideService({ rideId, driverId }) {
+  const eligibleDriver = await Driver.findOne({
+    _id: driverId,
+    isActive: true,
+    status: USER_STATUS.ACTIVE,
+    activationStatus: DRIVER_ACTIVATION_STATUS.READY,
+    isOnline: true,
+    driverStatus: DRIVER_AVAILABILITY_STATUS.AVAILABLE,
+  }).select("_id");
+
+  if (!eligibleDriver) {
+    throw new Error("Driver is not eligible to accept rides");
+  }
+
   const ride = await Ride.findOneAndUpdate(
     { _id: rideId, status: "pending" },
     { driver: driverId, status: "accepted", acceptedAt: new Date() },
@@ -24,7 +42,7 @@ export async function acceptRideService({ rideId, driverId }) {
   }
   const driverStatus = await Driver.findById(driverId).select("driverStatus");
   if (driverStatus) {
-    driverStatus.driverStatus = "on_trip";
+    driverStatus.driverStatus = DRIVER_AVAILABILITY_STATUS.ON_TRIP;
     await driverStatus.save();
   }
   return ride;
@@ -162,23 +180,40 @@ export async function completeRideService({ rideId, driverId, driverLocationCoor
 
   if (ride.driver) {
     const fare = ride.fareEstimate || 0;
+
     let driverShare = 0;
     let platformFee = 0;
+
     if (ride.distance && ride.vehicleType) {
-      const { platformFee: pf, driverShare: ds } = calculateEarningsFromDistance(
+      const {
+        platformFee: pf,
+        driverShare: ds,
+      } = calculateEarningsFromDistance(
         ride.distance,
         ride.vehicleType
       );
+
       driverShare = ds || 0;
       platformFee = pf || 0;
     }
-    await Driver.findByIdAndUpdate(ride.driver, {
-      $inc: {
-        "earnings.totalEarnings": fare,
-        "earnings.totalDriverPayout": driverShare,
-        "earnings.totalPlatformFee": platformFee,
+
+    await Driver.findByIdAndUpdate(
+      ride.driver,
+      {
+        $set: {
+          driverStatus: DRIVER_AVAILABILITY_STATUS.AVAILABLE,
+          currentRide: null,
+          lastRideCompletedAt: new Date(),
+        },
+
+        $inc: {
+          "earnings.totalEarnings": fare,
+          "earnings.totalDriverPayout": driverShare,
+          "earnings.totalPlatformFee": platformFee,
+        },
       },
-    });
+      { new: true }
+    );
   }
 
   return ride;
@@ -186,7 +221,7 @@ export async function completeRideService({ rideId, driverId, driverLocationCoor
 
 //-------------------- Cancel Ride --------------------
 
-export async function cancelRideService({ rideId, driverId,reasonCode,reasonText }) {
+export async function cancelRideService({ rideId, driverId, reasonCode, reasonText }) {
   const ride = await Ride.findOne({
     _id: rideId,
     driver: driverId,
@@ -226,7 +261,7 @@ export async function cancelRideService({ rideId, driverId,reasonCode,reasonText
 
 //------------------------ Update Driver Location with Throttling------------------------
 
-export async function updateDriverLocationService(driver, lng, lat) {
+export async function updateDriverLocationService(driver, lng, lat, rideId) {
   if (!driver?._id) {
     throw new Error("Driver not found or unauthorized");
   }
@@ -235,10 +270,25 @@ export async function updateDriverLocationService(driver, lng, lat) {
     throw new Error("Latitude and longitude must be valid numbers");
   }
 
-  const THROTTLE_INTERVAL = 5; 
+  if (!rideId) {
+    throw new Error("rideId is required to update driver location");
+  }
+
+  const ride = await Ride.findOne({
+    _id: rideId,
+    driver: driver._id,
+    passenger: { $exists: true, $ne: null },
+    status: { $in: ["accepted", "ongoing", "started"] },
+  }).select("passenger status pickup drop").lean();
+
+  if (!ride) {
+    throw new Error("Driver location can be updated only after accepting a ride");
+  }
+
+  const THROTTLE_INTERVAL = 5;
   const currentTime = new Date();
   const lastUpdateTime = driver.lastLocationUpdateTime ? new Date(driver.lastLocationUpdateTime) : null;
-  
+
   const shouldUpdateDB = !lastUpdateTime || (currentTime - lastUpdateTime) / 1000 >= THROTTLE_INTERVAL;
 
   driver.longitude = lng;
@@ -247,7 +297,7 @@ export async function updateDriverLocationService(driver, lng, lat) {
 
   if (shouldUpdateDB) {
     driver.lastLocationUpdateTime = currentTime;
-    await driver.save(); 
+    await driver.save();
   }
 
   return {
@@ -259,8 +309,9 @@ export async function updateDriverLocationService(driver, lng, lat) {
     longitude: lng,
     latitude: lat,
     updatedAt: currentTime,
-    dbSaved: shouldUpdateDB, 
+    dbSaved: shouldUpdateDB,
     status: driver.driverStatus,
     lastOnlineTime: driver.lastOnline,
+    ride,
   };
 }

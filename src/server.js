@@ -53,14 +53,14 @@ app.use("/api", routes);
 app.get("/health", (req, res) => res.json({ status: "ok" }));
 
 // 404 handler
-app.use((req, res) => res.status(404).json({ message: "Route not found" }));
+app.use((req, res) => res.status(404).json({ status: false, message: "Route not found" }));
 
 // Error handler
 app.use((err, req, res, next) => {
   console.error('Error:', err);
   const status = err.status || (err.name === "MulterError" ? 400 : 500);
   res.status(status).json({
-    success: false,
+    status: false,
     message: err.message || "Internal Server Error",
     errors: err.details || undefined
   });

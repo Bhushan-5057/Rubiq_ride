@@ -1,16 +1,19 @@
 import { adminToken } from "../../../helpers/helper.js";
-import { Admin } from "../../../models/admin/admin.model.js";
+import { adminRepository } from "../../../repositories/admin.repository.js";
 
 //---------------------- Admin Login----------------------
 export async function login({ email, password }) {
   const normalizedEmail =
     typeof email === "string" ? email.trim().toLowerCase() : email;
-  const user = await Admin.findOne({ email: normalizedEmail }).select(
-    "+password"
-  );
+  const user = await adminRepository.findByEmail(normalizedEmail, { withPassword: true });
   if (!user) {
     const err = new Error("Invalid credentials");
     err.status = 401;
+    throw err;
+  }
+  if (user.isActive === false) {
+    const err = new Error("Admin account is inactive");
+    err.status = 403;
     throw err;
   }
   const ok = await user.comparePassword(password);
@@ -23,5 +26,5 @@ export async function login({ email, password }) {
 
   const userData = user.toObject();
   delete userData.password;
-  return { success: true,message:"Login Successfully", user: userData, token };
+  return { status: true, message: "Login Successfully", data: { token, user: userData } };
 } 

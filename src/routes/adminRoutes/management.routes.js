@@ -1,33 +1,28 @@
 import { Router } from "express";
 import { authenticateAdmin, authorizeAdmin } from "../../middleware/auth.middleware.js";
 import {
-    deleteAdminController,
     getAllAdminsController,
-    createAdminController,
-    updateAdminController,
+    registerAdminController,
     getAdminByIdController,
-    restoreAdminController
+    updateAdminStatusController
 }
     from "../../controllers/admin/management/adminManagement/admin.management.controller.js";
+import { validateAdminProfileUpdate, validateCreate, validateStatusUpdate } from "../../validations/admin.validation.js";
+import { validate } from "../../middleware/validate.js";
+import { ROLE_PERMISSIONS } from "../../constants/userStatus.constants.js";
 
 const router = Router();
 
 //-------------- Create Admin Route -------------- 
-router.post("/create-admin", authenticateAdmin,authorizeAdmin("super_admin"), createAdminController);
+router.post("/create-admin", authenticateAdmin, authorizeAdmin(...ROLE_PERMISSIONS.MANAGE_ADMINS), validateCreate, validate, registerAdminController);
 
 //------------------- Get All Admin -------------------
-router.get("/get-all", authenticateAdmin,authorizeAdmin("super_admin"), getAllAdminsController)
+router.get("/get-all", authenticateAdmin,authorizeAdmin(...ROLE_PERMISSIONS.MANAGE_ADMINS), getAllAdminsController)
 
 //------------------- Get Admin By ID -------------------
-router.get("/:adminId", authenticateAdmin,authorizeAdmin("super_admin"), getAdminByIdController)
+router.get("/:adminId", authenticateAdmin,authorizeAdmin(...ROLE_PERMISSIONS.MANAGE_ADMINS), getAdminByIdController)
 
-//------------------- Update Admin Route------------------- 
-router.put("/update/:adminId", authenticateAdmin,authorizeAdmin("super_admin"), updateAdminController);
-
-//----------------- Delete Admin -----------------
-router.delete("/delete/:adminId", authenticateAdmin,authorizeAdmin("super_admin"), deleteAdminController);
-
-//----------------- Restore Admin -----------------
-router.post("/restore/:adminId", authenticateAdmin,authorizeAdmin("super_admin"), restoreAdminController);
+//----------------- Update Admin Status -----------------
+router.patch("/status/:adminId", authenticateAdmin, authorizeAdmin(...ROLE_PERMISSIONS.MANAGE_ADMINS), validateStatusUpdate, validate, updateAdminStatusController);
 
 export default router;
