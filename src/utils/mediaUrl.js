@@ -15,14 +15,6 @@ const getCloudFrontBaseUrl = () => {
   return /^https?:\/\//i.test(baseUrl) ? baseUrl : `https://${baseUrl}`;
 };
 
-const getS3BaseUrl = () => {
-  const bucketName = process.env.AWS_BUCKET_NAME;
-  const awsRegion = process.env.AWS_REGION;
-  if (!bucketName || !awsRegion) return "";
-
-  return `https://${bucketName}.s3.${awsRegion}.amazonaws.com`;
-};
-
 const isHttpUrl = (value) => /^https?:\/\//i.test(String(value || ""));
 
 const extractS3KeyFromUrl = (value) => {
@@ -58,11 +50,6 @@ export const getPublicMediaUrl = (value) => {
 
   if (cloudFrontBaseUrl && s3Key) {
     return `${cloudFrontBaseUrl}/${encodeS3Key(s3Key)}`;
-  }
-
-  const s3BaseUrl = getS3BaseUrl();
-  if (!isHttpUrl(value) && s3BaseUrl && s3Key) {
-    return `${s3BaseUrl}/${encodeS3Key(s3Key)}`;
   }
 
   return value;

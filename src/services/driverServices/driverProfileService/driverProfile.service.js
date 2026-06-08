@@ -11,6 +11,34 @@ import {
   USER_STATUS,
 } from "../../../constants/userStatus.constants.js";
 
+const driverDocumentFileFields = [
+  "aadhaarFront",
+  "aadhaarBack",
+  "panFront",
+  "licenseFront",
+  "licenseBack",
+  "rcFront",
+  "rcBack",
+  "insurance",
+];
+
+const containsAmazonAwsUrl = (value) =>
+  typeof value === "string" && /^https?:\/\/[^/]*amazonaws\.com\//i.test(value);
+
+const assertNoRawS3MediaValues = (data = {}) => {
+  if (containsAmazonAwsUrl(data.profileImage)) {
+    throw new Error("profileImage must be stored as an S3 key or CloudFront URL, not an amazonaws.com URL");
+  }
+
+  if (!data.documents || typeof data.documents !== "object") return;
+
+  driverDocumentFileFields.forEach((field) => {
+    if (containsAmazonAwsUrl(data.documents[field])) {
+      throw new Error(`${field} must be stored as an S3 key or CloudFront URL, not an amazonaws.com URL`);
+    }
+  });
+};
+
 
 //---------------------- Driver Online ----------------------
 export const setDriverOnlineService = async (driverId) => {
@@ -96,6 +124,8 @@ export async function getProfile(driver) {
 //----------------------- Update Profile -----------------------
 export async function updateProfile(driver, data = {}) {
   if (!driver) throw new Error("Driver not found");
+
+  assertNoRawS3MediaValues(data);
 
   const wasProfileCompleted = driver.profileCompleted;
 

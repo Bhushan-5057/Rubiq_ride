@@ -76,9 +76,9 @@ export async function updateProfileController(req, res, next) {
         const uploadedFile = await uploadFileToS3(file, folder);
 
         if (file.fieldname === "profileImage") {
-          data.profileImage = uploadedFile.url;
+          data.profileImage = uploadedFile.key;
         } else {
-          data.documents[file.fieldname] = uploadedFile.url;
+          data.documents[file.fieldname] = uploadedFile.key;
         }
       }
     }

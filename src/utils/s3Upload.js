@@ -52,19 +52,6 @@ export const generateS3Key = (file, folder = "uploads") => {
   return `${safeFolder}/${datePath}/${uniqueId}${extension}`;
 };
 
-export const getPublicS3Url = (key) => {
-  const bucketName = process.env.AWS_BUCKET_NAME;
-  const awsRegion = process.env.AWS_REGION;
-  const encodedKey = key
-    .split("/")
-    .map((part) => encodeURIComponent(part))
-    .join("/");
-
-  return `https://${bucketName}.s3.${awsRegion}.amazonaws.com/${encodedKey}`;
-};
-
-export const getPublicS3OrCloudFrontUrl = (key) => getPublicMediaUrl(key);
-
 export const uploadFileToS3 = async (file, folder = "uploads") => {
   const bucketName = process.env.AWS_BUCKET_NAME;
   const awsRegion = process.env.AWS_REGION;
@@ -100,7 +87,7 @@ export const uploadFileToS3 = async (file, folder = "uploads") => {
 
     return {
       key,
-      url: getPublicS3OrCloudFrontUrl(key),
+      url: getPublicMediaUrl(key),
       bucket: bucketName,
       contentType: file.mimetype,
       size: file.size,
