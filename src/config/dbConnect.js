@@ -21,8 +21,7 @@ export async function connectDB() {
       serverSelectionTimeoutMS: 10000,
       socketTimeoutMS: 45000,
       maxPoolSize: 10,
-      retryWrites: true,
-      w: 'majority'
+      retryWrites: true
     };
 
     console.log('Connecting to MongoDB...');
