@@ -1,7 +1,6 @@
 import { Driver } from "../../../models/driver/driver.model.js";
 import { documentStatus, requiredFields, requiredDocs,requiredDocsNumber } from "../../../common/utlis.js"
 import {
-  DRIVER_ACTIVATION_STATUS,
   DRIVER_APPROVAL_STATUS,
   USER_STATUS,
 } from "../../../constants/userStatus.constants.js";
@@ -59,7 +58,6 @@ export async function verifyDriverDocuments(driverId, verificationData = {}) {
 
   if (anyRejected) {
     driver.approvalStatus = DRIVER_APPROVAL_STATUS.REJECTED;
-    driver.activationStatus = DRIVER_ACTIVATION_STATUS.NOT_READY;
     driver.documentsVerified = false;
     driver.status = USER_STATUS.PENDING;
 
@@ -70,20 +68,16 @@ export async function verifyDriverDocuments(driverId, verificationData = {}) {
     driver.verificationRemarks = trimmedRemark;
   } else if (anyNotUploaded) {
     driver.approvalStatus = DRIVER_APPROVAL_STATUS.INCOMPLETED;
-    driver.activationStatus = DRIVER_ACTIVATION_STATUS.NOT_READY;
     driver.documentsVerified = false;
     driver.status = USER_STATUS.PENDING;
     driver.verificationRemarks = "Documents are still not uploaded.";
   } else if (allApproved) {
     driver.approvalStatus = DRIVER_APPROVAL_STATUS.APPROVED;
-    driver.activationStatus = DRIVER_ACTIVATION_STATUS.READY;
     driver.documentsVerified = true;
     driver.status = USER_STATUS.ACTIVE;
-    driver.isActive = true;
     driver.verificationRemarks = "All documents verified successfully.";
   } else {
     driver.approvalStatus = DRIVER_APPROVAL_STATUS.PENDING;
-    driver.activationStatus = DRIVER_ACTIVATION_STATUS.NOT_READY;
     driver.documentsVerified = false;
     driver.status = USER_STATUS.PENDING;
     driver.verificationRemarks = "All documents uploaded; awaiting admin review.";

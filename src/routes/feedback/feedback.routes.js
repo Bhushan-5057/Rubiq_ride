@@ -4,7 +4,8 @@ import {
   submitPassengerFeedback, 
   getMyFeedback, 
   getUserFeedback, 
-  getRideFeedback 
+  getRideFeedback,
+  getAllFeedback 
 } from "../../controllers/feedback/feedback.controller.js";
 import { authenticateDriver,authenticatePassenger,authenticateAdmin ,authenticateUser} from "../../middleware/auth.middleware.js";
 import { authorizeAdmin } from "../../middleware/auth.middleware.js";
@@ -19,6 +20,8 @@ router.post("/passenger-feedback", authenticateDriver,  submitPassengerFeedback)
 
 // Get feedback for the currently authenticated user
 router.get("/me", authenticateUser, getMyFeedback);
+
+router.get("/", authenticateAdmin, authorizeAdmin("super_admin","admin"), getAllFeedback);
 
 // Get feedback for a specific user (admin only)
 router.get("/user/:userId", authenticateAdmin,authorizeAdmin("super_admin","admin"), getUserFeedback);

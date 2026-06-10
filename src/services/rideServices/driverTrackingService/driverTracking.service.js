@@ -5,24 +5,16 @@ import { calculateEarningsFromDistance } from "../../../helpers/rideHelpers.js";
 import { getRideTimeoutQueue } from "../../../queues/rideTimeout.queue.js";
 import { DRIVER_CANCELLATION_REASONS, DRIVER_REASON_CODES } from "../../../common/cancellationReasons.js"
 import {
-  DRIVER_ACTIVATION_STATUS,
   DRIVER_AVAILABILITY_STATUS,
-  USER_STATUS,
 } from "../../../constants/userStatus.constants.js";
+import { canDriverAcceptRide, driverRideEligibilityQuery } from "../../../helpers/driverStatus.helper.js";
 
 //-------------------- Accept Ride --------------------
 
 export async function acceptRideService({ rideId, driverId }) {
-  const eligibleDriver = await Driver.findOne({
-    _id: driverId,
-    isActive: true,
-    status: USER_STATUS.ACTIVE,
-    activationStatus: DRIVER_ACTIVATION_STATUS.READY,
-    isOnline: true,
-    driverStatus: DRIVER_AVAILABILITY_STATUS.AVAILABLE,
-  }).select("_id");
+  const eligibleDriver = await Driver.findOne(driverRideEligibilityQuery({ _id: driverId }));
 
-  if (!eligibleDriver) {
+  if (!eligibleDriver || !canDriverAcceptRide(eligibleDriver)) {
     throw new Error("Driver is not eligible to accept rides");
   }
 

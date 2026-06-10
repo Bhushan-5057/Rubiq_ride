@@ -1,7 +1,6 @@
 import mongoose from "mongoose";
 import documentSchema from "./driverDocument.model.js";
 import {
-  DRIVER_ACTIVATION_STATUS,
   DRIVER_APPROVAL_STATUS,
   DRIVER_AVAILABILITY_STATUS,
   USER_STATUS,
@@ -28,11 +27,6 @@ const driverSchema = new mongoose.Schema(
       enum: Object.values(DRIVER_APPROVAL_STATUS),
       default: DRIVER_APPROVAL_STATUS.INCOMPLETED,
     },
-    activationStatus: {
-      type: String,
-      enum: Object.values(DRIVER_ACTIVATION_STATUS),
-      default: DRIVER_ACTIVATION_STATUS.NOT_READY
-    },
     documentsVerified: { type: Boolean, default: false },
     verificationRemarks: { type: String },
     profileCompleted: { type: Boolean, default: false },
@@ -42,7 +36,6 @@ const driverSchema = new mongoose.Schema(
       enum: [USER_STATUS.ACTIVE, USER_STATUS.PENDING, USER_STATUS.INACTIVE, USER_STATUS.BLOCKED],
       default: USER_STATUS.PENDING
     },
-    isActive: { type: Boolean, default: true, index: true },
     location: {
       type: {
         type: String,
@@ -108,4 +101,8 @@ driverSchema.pre("save", function (next) {
 
 driverSchema.index({ location: "2dsphere" });
 
-export const Driver = mongoose.model('Driver', driverSchema);
+export const Driver = mongoose.models.Driver || mongoose.model('Driver', driverSchema);
+
+if (!mongoose.models.driver) {
+  mongoose.model("driver", driverSchema);
+}

@@ -6,10 +6,10 @@ import { areCoordinatesClose } from "../../../common/utlis.js";
 import { addRideTimeoutJob } from "../../../queues/rideTimeout.queue.js";
 import { PASSENGER_CANCELLATION_REASONS, PASSENGER_REASON_CODES } from "../../../common/cancellationReasons.js"
 import {
-  DRIVER_ACTIVATION_STATUS,
-  DRIVER_AVAILABILITY_STATUS,
   USER_STATUS,
 } from "../../../constants/userStatus.constants.js";
+import { driverRideEligibilityQuery } from "../../../helpers/driverStatus.helper.js";
+import { canPassengerBookRide } from "../../../helpers/passengerStatus.helper.js";
 import {
   getDriverEtasToDestination,
   getPrimaryRoute,
@@ -51,12 +51,15 @@ export async function updatePassengerLocationService(passenger, lng, lat) {
 //-------------------- Create Ride --------------------
 
 export async function createRideService({ passengerId, pickup, drop, vehicleType, paymentMethod, isPaymentRequiredBeforeRide }) {
-  const passenger = await Passenger.findOne({ _id: passengerId, isActive: true }).select("status");
+  const passenger = await Passenger.findById(passengerId).select("status profileCompleted");
   if (!passenger) {
     throw new Error("Passenger not found or inactive");
   }
   if (passenger.status === USER_STATUS.BLOCKED) {
     throw new Error("Blocked passengers cannot book rides");
+  }
+  if (!canPassengerBookRide(passenger)) {
+    throw new Error("Passenger account is not active or profile is incomplete");
   }
 
   const [resolvedPickup, resolvedDrop] = await Promise.all([
@@ -110,20 +113,15 @@ export async function createRideService({ passengerId, pickup, drop, vehicleType
     select: "name contactNumber rating"
   });
 
-  const nearbyDrivers = await Driver.find({
-    status: USER_STATUS.ACTIVE,
-    isActive: true,
-    activationStatus: DRIVER_ACTIVATION_STATUS.READY,
+  const nearbyDrivers = await Driver.find(driverRideEligibilityQuery({
     vehicleType: vehicleType,
-    isOnline:true,
-    driverStatus: DRIVER_AVAILABILITY_STATUS.AVAILABLE,
     location: {
       $near: {
         $geometry: { type: "Point", coordinates: resolvedPickup.coordinates },
         $maxDistance: 5000,
       },
     },
-  }).select("_id location");
+  })).select("_id location");
 
   let driverEtas = [];
   try {

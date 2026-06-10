@@ -8,6 +8,9 @@ import bankAccountRoutes from "./bankAccount/bankAccount.routes.js";
 import chatMessageRoute from "./chatMessage/chatMessage.routes.js"
 import googleMapsRoutes from "./maps/googleMaps.routes.js";
 import uploadRoutes from "./upload.route.js";
+import feedbackRoutes from "./feedback/feedback.routes.js";
+import { getAllFeedback } from "../controllers/feedback/feedback.controller.js";
+import { authenticateAdmin, authorizeAdmin } from "../middleware/auth.middleware.js";
 
 const router = Router();
 
@@ -42,5 +45,8 @@ router.use("/maps", googleMapsRoutes);
 
 //--------------- Upload Route ---------------
 router.use("/upload", uploadRoutes);
+
+//--------------- Feedback Route ---------------
+router.use("/feedback", feedbackRoutes);
 
 export default router;

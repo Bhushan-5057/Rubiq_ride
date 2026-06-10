@@ -6,7 +6,7 @@ export const driverRepository = {
   },
 
   findActiveById(driverId) {
-    return Driver.findOne({ _id: driverId, isActive: true });
+    return Driver.findOne({ _id: driverId, status: "active" });
   },
 
   findByContactNumber(contactNumber) {

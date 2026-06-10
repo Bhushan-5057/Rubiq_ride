@@ -1,10 +1,11 @@
 import { sendOtp, verifyOtp } from "../../../services/otpService/otp.service.js";
 import { Driver } from "../../../models/driver/driver.model.js";
 import { normalizeNumber, driverToken } from "../../../helpers/helper.js";
-import { requiredFields } from "../../../common/utlis.js";
+import { isDriverProfileComplete } from "../../../common/utlis.js";
 import { sendEmail, renderTemplate } from "../../../utils/mailer.js";
 import { normalizeDriverMediaUrls } from "../../../utils/mediaUrl.js";
 import { USER_STATUS } from "../../../constants/userStatus.constants.js";
+import { canDriverLogin } from "../../../helpers/driverStatus.helper.js";
 import jwt from "jsonwebtoken";
 
 
@@ -47,11 +48,10 @@ export async function otpLogin(payload) {
       fcmToken: fcmToken || null,
       otpVerified: true,
       status: USER_STATUS.PENDING,
-      isActive: true,
       profileCompleted: false,
     });
   } else {
-    if (driver.isActive === false) {
+    if (!canDriverLogin(driver)) {
       const error = new Error("Your account is temporarily suspended kindly contact support team");
       error.status = 403;
       throw error;
@@ -78,7 +78,7 @@ export async function otpLogin(payload) {
     await driver.save();
   }
 
-  driver.profileCompleted = requiredFields.every(Boolean);
+  driver.profileCompleted = isDriverProfileComplete(driver);
   await driver.save();
 
   const token = driverToken({
@@ -129,12 +129,11 @@ export async function googleLogin(payload) {
       vehicleType,
       city,
       status: USER_STATUS.PENDING,
-      isActive: true,
       vehicleNumber,
       profileCompleted: false,
     });
   } else {
-    if (driver.isActive === false) {
+    if (!canDriverLogin(driver)) {
       const error = new Error("Your account is temporarily suspended kindly contact support team");
       error.status = 403;
       throw error;
@@ -152,7 +151,7 @@ export async function googleLogin(payload) {
   if (driver.email && !driver.welcomeEmailSent) {
     try {
       const html = renderTemplate("driver.welcome.html", {
-        name: driver.name || "Captain",
+        name: driver.name || "Driver",
       });
 
       await sendEmail({

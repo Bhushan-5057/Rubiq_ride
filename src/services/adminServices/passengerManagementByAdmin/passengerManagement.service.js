@@ -3,6 +3,7 @@ import { passengerRepository } from "../../../repositories/passenger.repository.
 import { getPassengerStats } from "../../../services/rideServices/rideStats.service.js";
 import { USER_STATUS, getStatusUpdateMessage } from "../../../constants/userStatus.constants.js";
 import { normalizePassengerMediaUrls } from "../../../utils/mediaUrl.js";
+import { mapLegacyIsActiveToPassengerStatus } from "../../../helpers/passengerStatus.helper.js";
 
 // -------------------- Get All Passengers --------------------
 export async function getAllPassenger(filters = {}) {
@@ -21,7 +22,9 @@ export async function getAllPassenger(filters = {}) {
   const query = {};
 
   if (status) query.status = status;
-  if (isActive !== undefined) query.isActive = isActive === true || isActive === "true";
+  if (isActive !== undefined) {
+    query.status = mapLegacyIsActiveToPassengerStatus(isActive === true || isActive === "true");
+  }
 
   if (search) {
     const searchRegex = new RegExp(search, 'i');
@@ -84,7 +87,8 @@ export async function updatePassengerActiveStatus(passengerId, isActive) {
   const passenger = await passengerRepository.findById(passengerId);
   if (!passenger) throw new Error("Passenger not found");
 
-  passenger.isActive = isActive;
+  // Backward-compatible API: legacy isActive now maps onto passenger account status.
+  passenger.status = mapLegacyIsActiveToPassengerStatus(isActive);
   await passenger.save();
 
   return {
@@ -125,6 +129,5 @@ export async function getPassengerProfileStatus(contactNumber) {
     email: passenger.email,
     gender: passenger.gender,
     status: passenger.status,
-    isActive: passenger.isActive,
   };
 }

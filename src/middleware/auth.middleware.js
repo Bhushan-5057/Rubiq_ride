@@ -3,7 +3,8 @@ import dotenv from "dotenv";
 import { Admin } from "../models/admin/admin.model.js";
 import { Driver } from "../models/driver/driver.model.js";
 import { Passenger } from "../models/passenger/passenger.model.js";
-import { ACTIVE_USER_FILTER } from "../constants/userStatus.constants.js";
+import { ACTIVE_USER_FILTER, USER_STATUS } from "../constants/userStatus.constants.js";
+import { passengerActiveQuery } from "../helpers/passengerStatus.helper.js";
 dotenv.config();
 
 //------------------------------- Authenticate Admin -------------------------------
@@ -62,7 +63,7 @@ export async function authenticateDriver(req, res, next) {
       return res.status(401).json({ status: false, message: "Missing token" });
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const driver = await Driver.findOne({ _id: decoded.sub, ...ACTIVE_USER_FILTER });
+    const driver = await Driver.findOne({ _id: decoded.sub, status: { $nin: [USER_STATUS.INACTIVE, USER_STATUS.BLOCKED] } });
 
     if (!driver)
       return res.status(404).json({ status: false, message: "Driver not found or inactive" });
@@ -85,7 +86,7 @@ export async function authenticatePassenger(req, res, next) {
       return res.status(401).json({ status: false, message: "Missing token" });
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const passenger = await Passenger.findOne({ _id: decoded.sub, ...ACTIVE_USER_FILTER });
+    const passenger = await Passenger.findOne(passengerActiveQuery({ _id: decoded.sub }));
 
     if (!passenger)
       return res.status(404).json({ status: false, message: "Passenger not found or inactive" });
@@ -112,8 +113,8 @@ export async function authenticateUser(req, res, next) {
 
     // Try to find the user in either Passenger or Driver collection
     const [passenger, driver] = await Promise.all([
-      Passenger.findOne({ _id: decoded.sub, ...ACTIVE_USER_FILTER }),
-      Driver.findOne({ _id: decoded.sub, ...ACTIVE_USER_FILTER })
+      Passenger.findOne(passengerActiveQuery({ _id: decoded.sub })),
+      Driver.findOne({ _id: decoded.sub, status: { $nin: [USER_STATUS.INACTIVE, USER_STATUS.BLOCKED] } })
     ]);
 
     if (!passenger && !driver) {

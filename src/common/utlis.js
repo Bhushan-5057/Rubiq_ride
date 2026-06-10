@@ -33,6 +33,9 @@ export const requiredFields = [
   "profileImage",
 ];
 
+// Fields required to mark profile as complete for passenger
+export const requiredPassengerFields = ["name", "email", "gender"];
+
 // Document fields required for driver verification
 export const requiredDocs = [
   "aadhaarFront",
@@ -65,6 +68,30 @@ export const documentStatus = [
 
 // Fields that can be updated dynamically in Passenger Profile
 export const passengerfields = ["name", "email", "gender", "contactNumber", "dateOfBirth", "profileImage"];
+
+export function isFilled(value) {
+  if (value === null || value === undefined) return false;
+  if (typeof value === "string") return value.trim().length > 0;
+  if (value instanceof Date) return !isNaN(value.getTime());
+  return Boolean(value);
+}
+
+export function isPassengerProfileComplete(passenger = {}) {
+  return requiredPassengerFields.every((field) => isFilled(passenger[field]));
+}
+
+export function isDriverProfileComplete(driver = {}) {
+  const allFieldsFilled = requiredFields.every((field) => isFilled(driver[field]));
+  const allDocsUploaded = requiredDocs.every((docKey) => isFilled(driver.documents?.[docKey]));
+  const allDocsApproved = documentStatus.every(
+    (status) => driver.documents?.[status] === "approved"
+  );
+  const allDocNumbersPresent = requiredDocsNumber.every((numKey) =>
+    isFilled(driver.documents?.[numKey])
+  );
+
+  return allFieldsFilled && allDocsUploaded && allDocsApproved && allDocNumbersPresent;
+}
 
 //genrate otken for passenger 
 export function generateToken(passenger) {

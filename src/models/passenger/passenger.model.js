@@ -31,7 +31,6 @@ const passengerSchema = new mongoose.Schema(
       enum: [USER_STATUS.ACTIVE, USER_STATUS.INACTIVE, USER_STATUS.BLOCKED, USER_STATUS.PENDING],
       default: USER_STATUS.ACTIVE
     },
-    isActive: { type: Boolean, default: true, index: true },
     location: {
       type: {
         type: String,
@@ -62,3 +61,7 @@ const passengerSchema = new mongoose.Schema(
 
 export const Passenger =
   mongoose.models.Passenger || mongoose.model("Passenger", passengerSchema);
+
+if (!mongoose.models.passenger) {
+  mongoose.model("passenger", passengerSchema);
+}

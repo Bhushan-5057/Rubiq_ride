@@ -39,8 +39,8 @@ export const getAdminDashboardStats = async () => {
     Ride.countDocuments({ status: "pending", isActive: true }),
     Ride.countDocuments({ status: "completed", isActive: true }),
     Ride.countDocuments({ status: "cancelled", isActive: true }),
-    Driver.countDocuments({ isOnline: true, isActive: true }),
-    Passenger.countDocuments({ isActive: true }),
+    Driver.countDocuments({ isOnline: true, status: "active" }),
+    Passenger.countDocuments({ status: "active" }),
   ]);
 
   return {

@@ -10,7 +10,9 @@
     "dev:all": "concurrently \"npm run dev\" \"npm run worker\"",
     "start": "node src/server.js",
     "lint": "echo \"No linter configured yet\"",
-    "seed:admin": "node src/scripts/seedAdmin.js"
+    "seed:admin": "node src/scripts/seedAdmin.js",
+    "migrate:driver-status": "node src/scripts/migrateDriverStatusFields.js",
+    "migrate:passenger-status": "node src/scripts/migratePassengerStatusFields.js"
   },
   "keywords": [
     "ride",

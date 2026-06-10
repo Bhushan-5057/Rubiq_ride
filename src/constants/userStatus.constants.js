@@ -17,11 +17,6 @@ export const DRIVER_APPROVAL_STATUS = Object.freeze({
   INCOMPLETED: "incompleted",
 });
 
-export const DRIVER_ACTIVATION_STATUS = Object.freeze({
-  NOT_READY: "not_ready",
-  READY: "ready",
-});
-
 export const DRIVER_AVAILABILITY_STATUS = Object.freeze({
   AVAILABLE: "available",
   UNAVAILABLE: "unavailable",

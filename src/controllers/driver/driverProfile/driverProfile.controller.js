@@ -11,7 +11,7 @@ export const setDriverOnlineController = async (req, res, next) => {
     const driver = await setDriverOnlineService(driverId);
     res.status(200).json({
       success: true,
-      message: "Captain is now online",
+      message: "Driver is now online",
       driver,
     });
   } catch (error) {
@@ -26,7 +26,7 @@ export const setDriverOfflineController = async (req, res, next) => {
     const driver = await setDriverOfflineService(driverId);
     res.status(200).json({
       success: true,
-      message: "Captain is now offline",
+      message: "Driver is now offline",
       driver,
     });
   } catch (error) {
@@ -45,7 +45,7 @@ export async function profileController(req, res, next) {
 
     res.json({
       success: true,
-      message: "Captain profile fetched successfully",
+      message: "Driver profile fetched successfully",
       driver,
     });
   } catch (err) {
@@ -87,7 +87,7 @@ export async function updateProfileController(req, res, next) {
 
     res.status(200).json({
       success: true,
-      message: "Captain profile updated successfully",
+      message: "Driver profile updated successfully",
       driver,
     });
   } catch (err) {

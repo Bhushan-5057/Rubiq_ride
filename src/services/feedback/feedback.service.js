@@ -2,6 +2,7 @@ import { Feedback } from "../../models/feedback/feedback.model.js";
 import { Driver } from "../../models/driver/driver.model.js";
 import { Passenger } from "../../models/passenger/passenger.model.js";
 import { Ride } from "../../models/ride/ride.model.js";
+import mongoose from "mongoose";
 
 async function updateUserRating(userType, userId) {
   const UserModel = userType === "driver" ? Driver : Passenger;
@@ -114,4 +115,91 @@ export async function getRideFeedbackService(rideId, userId) {
     .populate('givenByUser', 'name profileImage')
     .populate('givenToUser', 'name profileImage')
     .sort({ createdAt: -1 });
+}
+
+//---------------------- Get All Feedback For Admin ----------------------
+export async function getAllFeedbackService({
+  page = 1,
+  limit = 20,
+  rating,
+  givenBy,
+  givenTo,
+  rideId,
+  startDate,
+  endDate,
+} = {}) {
+  const pageNumber = Math.max(parseInt(page, 10) || 1, 1);
+  const limitNumber = Math.min(Math.max(parseInt(limit, 10) || 20, 1), 100);
+  const skip = (pageNumber - 1) * limitNumber;
+  const filter = {};
+
+  if (rating !== undefined && rating !== "") {
+    const ratingNumber = parseInt(rating, 10);
+    if (!Number.isInteger(ratingNumber) || ratingNumber < 1 || ratingNumber > 5) {
+      throw new Error("Invalid rating filter. Rating must be between 1 and 5");
+    }
+    filter.rating = ratingNumber;
+  }
+
+  if (givenBy) {
+    if (!["driver", "passenger"].includes(givenBy)) {
+      throw new Error('Invalid givenBy filter. Must be either "driver" or "passenger"');
+    }
+    filter.givenBy = givenBy;
+  }
+
+  if (givenTo) {
+    if (!["driver", "passenger"].includes(givenTo)) {
+      throw new Error('Invalid givenTo filter. Must be either "driver" or "passenger"');
+    }
+    filter.givenTo = givenTo;
+  }
+
+  if (rideId) {
+    if (!mongoose.Types.ObjectId.isValid(rideId)) {
+      throw new Error("Invalid rideId filter");
+    }
+    filter.ride = rideId;
+  }
+
+  if (startDate || endDate) {
+    filter.createdAt = {};
+
+    if (startDate) {
+      const from = new Date(startDate);
+      if (Number.isNaN(from.getTime())) {
+        throw new Error("Invalid startDate filter");
+      }
+      filter.createdAt.$gte = from;
+    }
+
+    if (endDate) {
+      const to = new Date(endDate);
+      if (Number.isNaN(to.getTime())) {
+        throw new Error("Invalid endDate filter");
+      }
+      filter.createdAt.$lte = to;
+    }
+  }
+
+  const [feedbacks, total] = await Promise.all([
+    Feedback.find(filter)
+      .populate('givenByUser', 'name profileImage')
+      .populate('givenToUser', 'name profileImage')
+      .populate('ride')
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limitNumber),
+    Feedback.countDocuments(filter),
+  ]);
+
+  return {
+    feedbacks,
+    pagination: {
+      page: pageNumber,
+      limit: limitNumber,
+      total,
+      pages: Math.ceil(total / limitNumber),
+    },
+  };
 }

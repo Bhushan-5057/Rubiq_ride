@@ -23,7 +23,7 @@ export async function otpLoginDriverController(req, res, next) {
 
     res.json({
       success: true,
-      message: "Captain Login successfully",
+      message: "Driver Login successfully",
       token: result.token,
       driver: result.driver,
       profileCompleted: result.profileCompleted,

@@ -2,7 +2,8 @@ import {
   submitDriverFeedbackService,
   submitPassengerFeedbackService,
   getUserFeedbackService,
-  getRideFeedbackService
+  getRideFeedbackService,
+  getAllFeedbackService
 } from '../../services/feedback/feedback.service.js';
 import { getIO } from '../../config/socket/socket.js';
 import { Ride } from '../../models/ride/ride.model.js';
@@ -210,6 +211,45 @@ export const getRideFeedback = async (req, res) => {
     return res.status(400).json({
       success: false,
       message: error.message || 'Failed to fetch ride feedback'
+    });
+  }
+};
+
+//--------------------- Get All Feedback For Admin ---------------------
+export const getAllFeedback = async (req, res) => {
+  try {
+    const {
+      page,
+      limit,
+      rating,
+      givenBy,
+      givenTo,
+      rideId,
+      startDate,
+      endDate,
+    } = req.query;
+
+    const result = await getAllFeedbackService({
+      page,
+      limit,
+      rating,
+      givenBy,
+      givenTo,
+      rideId,
+      startDate,
+      endDate,
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: 'Feedback fetched successfully',
+      data: result
+    });
+  } catch (error) {
+    console.error('Error fetching all feedback:', error);
+    return res.status(400).json({
+      success: false,
+      message: error.message || 'Failed to fetch feedback'
     });
   }
 };

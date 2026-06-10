@@ -1,8 +1,9 @@
-import { passengerfields } from "../../../common/utlis.js";
+import { isPassengerProfileComplete, passengerfields } from "../../../common/utlis.js";
 import { normalizeNumber } from "../../../helpers/helper.js";
 import { Passenger } from "../../../models/passenger/passenger.model.js";
 import { sendEmail, renderTemplate } from "../../../utils/mailer.js";
 import { normalizePassengerMediaUrls } from "../../../utils/mediaUrl.js";
+import { USER_STATUS } from "../../../constants/userStatus.constants.js";
 
 // -------------------- Update Profile --------------------
 export async function updateProfile(passenger, data = {}) {
@@ -20,7 +21,7 @@ export async function updateProfile(passenger, data = {}) {
     passenger.documents = { ...passenger.documents, ...data.documents };
   }
 
-  passenger.profileCompleted = Boolean(passenger.name || passenger.email || passenger.gender); 
+  passenger.profileCompleted = isPassengerProfileComplete(passenger); 
 
     const forceEmail = data.forceEmail === true;
   
@@ -49,7 +50,7 @@ export async function updateProfile(passenger, data = {}) {
   if (shouldSendEmail) {
     try {
       const html = renderTemplate("passenger.welcome.html", {
-        name: passenger.name || "Captain",
+        name: passenger.name || "Driver",
         year: new Date().getFullYear(),
       });
   
@@ -80,7 +81,7 @@ export async function updateProfile(passenger, data = {}) {
 export async function deleteProfile(passenger) {
   if (!passenger) throw new Error("Passenger not found");
 
-  passenger.isActive = false;
+  passenger.status = USER_STATUS.INACTIVE;
   await passenger.save();
 
   return { message: "Passenger profile deleted successfully" };

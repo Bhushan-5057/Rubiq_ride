@@ -1,4 +1,5 @@
 import { Passenger } from "../models/passenger/passenger.model.js";
+import { passengerActiveQuery } from "../helpers/passengerStatus.helper.js";
 
 export const passengerRepository = {
   findById(passengerId) {
@@ -6,7 +7,7 @@ export const passengerRepository = {
   },
 
   findActiveById(passengerId) {
-    return Passenger.findOne({ _id: passengerId, isActive: true });
+    return Passenger.findOne(passengerActiveQuery({ _id: passengerId }));
   },
 
   findByContactNumber(contactNumber) {

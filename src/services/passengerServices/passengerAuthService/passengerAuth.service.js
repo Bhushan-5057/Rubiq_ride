@@ -4,6 +4,8 @@ import { verifyOtp } from "../../../services/otpService/otp.service.js";
 import { normalizeNumber, passengerToken } from "../../../helpers/helper.js";
 import { USER_STATUS } from "../../../constants/userStatus.constants.js";
 import { normalizePassengerMediaUrls } from "../../../utils/mediaUrl.js";
+import { isPassengerProfileComplete } from "../../../common/utlis.js";
+import { canPassengerLogin } from "../../../helpers/passengerStatus.helper.js";
 import jwt from "jsonwebtoken";
 
 
@@ -24,12 +26,11 @@ export async function googleLogin(payload) {
       fcmToken: fcmToken || null,
       otpVerified: true,
       status: USER_STATUS.ACTIVE,
-      isActive: true,
       contactNumber: null,
       profileCompleted: false,
     });
   } else {
-    if (passenger.isActive === false) {
+    if (!canPassengerLogin(passenger)) {
       const error = new Error("Your account is temporarily suspended kindly contact support team");
       error.status = 403;
       throw error;
@@ -75,11 +76,10 @@ export async function otpLogin({ contactNumber, otp, name, email, gender, fcmTok
       gender: gender || "",
       fcmToken: fcmToken || null,
       status: USER_STATUS.ACTIVE,
-      isActive: true,
       profileCompleted: false,
     });
   } else {
-    if (passenger.isActive === false) {
+    if (!canPassengerLogin(passenger)) {
       const error = new Error("Your account is temporarily suspended kindly contact support team");
       error.status = 403;
       throw error;
@@ -95,7 +95,7 @@ export async function otpLogin({ contactNumber, otp, name, email, gender, fcmTok
     await passenger.save();
   }
 
-  const profileCompleted = Boolean(passenger.name || passenger.email || passenger.gender);
+  const profileCompleted = isPassengerProfileComplete(passenger);
   if (profileCompleted !== passenger.profileCompleted) {
     passenger.profileCompleted = profileCompleted;
     await passenger.save();

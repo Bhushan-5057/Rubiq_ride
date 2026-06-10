@@ -2,11 +2,7 @@ import { getIO } from "../config/socket/socket.js";
 import { emitAdminRideEvent } from "./admin-realtime.helper.js";
 import { Driver } from "../models/driver/driver.model.js";
 import { Ride } from "../models/ride/ride.model.js";
-import {
-  DRIVER_ACTIVATION_STATUS,
-  DRIVER_AVAILABILITY_STATUS,
-  USER_STATUS,
-} from "../constants/userStatus.constants.js";
+import { driverRideEligibilityQuery } from "./driverStatus.helper.js";
 
 export async function autoAssignRideToNextDriver(ride) {
   try {
@@ -52,7 +48,7 @@ export async function autoAssignRideToNextDriver(ride) {
 
 async function findNearbyDrivers(pickupLocation, maxDistance = 5000) {
   try {
-    return await Driver.find({
+    return await Driver.find(driverRideEligibilityQuery({
       location: {
         $near: {
           $geometry: {
@@ -62,12 +58,7 @@ async function findNearbyDrivers(pickupLocation, maxDistance = 5000) {
           $maxDistance: maxDistance
         }
       },
-      isOnline: true,
-      isActive: true,
-      status: USER_STATUS.ACTIVE,
-      activationStatus: DRIVER_ACTIVATION_STATUS.READY,
-      driverStatus: DRIVER_AVAILABILITY_STATUS.AVAILABLE,
-    }).select('_id location');
+    })).select('_id location');
   } catch (error) {
     console.error("Error finding nearby drivers:", error);
     return [];

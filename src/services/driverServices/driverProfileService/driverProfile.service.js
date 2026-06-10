@@ -1,15 +1,15 @@
-import { requiredFields, updatableFields, documentStatus, requiredDocs, requiredDocsNumber } from "../../../common/utlis.js";
+import { isDriverProfileComplete, requiredDocsNumber, updatableFields } from "../../../common/utlis.js";
 import { getDriverStats } from "../../../services/rideServices/rideStats.service.js"
 import { Driver } from "../../../models/driver/driver.model.js"
 import { Ride } from "../../../models/ride/ride.model.js";
 import { sendEmail, renderTemplate } from "../../../utils/mailer.js";
 import { normalizeDriverMediaUrls } from "../../../utils/mediaUrl.js";
 import {
-  DRIVER_ACTIVATION_STATUS,
   DRIVER_APPROVAL_STATUS,
   DRIVER_AVAILABILITY_STATUS,
   USER_STATUS,
 } from "../../../constants/userStatus.constants.js";
+import { isDriverReadyForRide } from "../../../helpers/driverStatus.helper.js";
 
 const driverDocumentFileFields = [
   "aadhaarFront",
@@ -47,13 +47,6 @@ export const setDriverOnlineService = async (driverId) => {
     if (!driver) {
       throw new Error("Driver not found");
     }
-    if (driver.isActive === false) {
-      throw new Error("Driver account is inactive");
-    }
-    if (driver.activationStatus !== DRIVER_ACTIVATION_STATUS.READY) {
-      throw new Error("Driver is not ready to go online");
-    }
-
     if (driver.approvalStatus !== DRIVER_APPROVAL_STATUS.APPROVED) {
       throw new Error("Driver is not approved to go online");
     }
@@ -65,6 +58,9 @@ export const setDriverOnlineService = async (driverId) => {
     }
     if (driver.status !== USER_STATUS.ACTIVE) {
       throw new Error("Driver account is not active");
+    }
+    if (!isDriverReadyForRide(driver)) {
+      throw new Error("Driver is not ready to go online");
     }
     driver.isOnline = true;
     driver.driverStatus = DRIVER_AVAILABILITY_STATUS.AVAILABLE;
@@ -176,35 +172,7 @@ export async function updateProfile(driver, data = {}) {
     });
   }
 
-  const isFilled = (key, val) => {
-    if (key === "dateOfBirth") {
-      if (!val) return false;
-      const d = new Date(val);
-      return !isNaN(d.getTime());
-    }
-    if (typeof val === "string") return val.trim().length > 0;
-    return Boolean(val);
-  };
-
-  const allFieldsFilled = requiredFields.every((field) => isFilled(field, driver[field]));
-  const allDocsUploaded = requiredDocs.every((docKey) => Boolean(driver.documents?.[docKey]));
-  const allDocsApproved = documentStatus.every((status) => driver.documents?.[status] === "approved");
-
-  // Ensure all required document numbers are also present for profile completion
-  const allDocNumbersPresent = requiredDocsNumber.every(
-    (numKey) => Boolean(driver.documents?.[numKey])
-  );
-
-  driver.profileCompleted =
-    allFieldsFilled &&
-    allDocsUploaded &&
-    allDocsApproved &&
-    allDocNumbersPresent; 
-
-    console.log("all fields filled ",allFieldsFilled)
-    console.log("all docs Uploaded ",allDocsUploaded)
-    console.log("all docs approved ",allDocsApproved)
-    console.log("all docs number present ",allFieldsFilled)
+  driver.profileCompleted = isDriverProfileComplete(driver); 
 
   const forceEmail = data.forceEmail === true;
 
@@ -233,7 +201,7 @@ console.log({
 if (shouldSendEmail) {
   try {
     const html = renderTemplate("driver.welcome.html", {
-      name: driver.name || "Captain",
+      name: driver.name || "Driver",
       year: new Date().getFullYear(),
     });
 
@@ -268,10 +236,10 @@ if (shouldSendEmail) {
 export async function deleteProfile(driver) {
   if (!driver) throw new Error("Driver not found");
 
-  driver.isActive = false;
+  driver.status = USER_STATUS.INACTIVE;
   driver.isOnline = false;
   driver.driverStatus = DRIVER_AVAILABILITY_STATUS.UNAVAILABLE;
   await driver.save();
 
-  return { message: "Captain profile deleted successfully" };
+  return { message: "Driver profile deleted successfully" };
 }

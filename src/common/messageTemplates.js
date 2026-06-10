@@ -1,7 +1,7 @@
 export function otpMessageTemplate(appName, otp, userType = "passenger") {
   const userLabel =
     userType === "driver"
-      ? "Captain"
+      ? "Driver"
       : userType === "admin"
       ? "Admin"
       : "Passenger";

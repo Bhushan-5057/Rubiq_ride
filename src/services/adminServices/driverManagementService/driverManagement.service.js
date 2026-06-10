@@ -8,6 +8,9 @@ import {
   USER_STATUS,
   getStatusUpdateMessage,
 } from "../../../constants/userStatus.constants.js";
+import {
+  mapLegacyIsActiveToDriverStatus,
+} from "../../../helpers/driverStatus.helper.js";
 
 //---------------------------- Update Driver Lifecycle Status ----------------------------
 export async function updateDriverStatus(driverId, newStatus) {
@@ -51,7 +54,8 @@ export async function updateDriverActiveStatus(driverId, isActive) {
   const driver = await driverRepository.findById(driverId);
   if (!driver) throw new Error("Driver not found");
 
-  driver.isActive = isActive;
+  // Backward-compatible API: legacy isActive now maps onto account status.
+  driver.status = mapLegacyIsActiveToDriverStatus(isActive);
 
   if (!isActive) {
     driver.isOnline = false;
@@ -89,7 +93,9 @@ export async function getAllDrivers(filters = {}) {
   const query = {};
 
   if (status) query.status = status;
-  if (isActive !== undefined) query.isActive = isActive === true || isActive === "true";
+  if (isActive !== undefined) {
+    query.status = mapLegacyIsActiveToDriverStatus(isActive === true || isActive === "true");
+  }
 
   if (search) {
     const searchRegex = new RegExp(search, 'i');
@@ -160,6 +166,5 @@ export async function getDriverProfileStatus(contactNumber) {
     vehicleNumber: driver.vehicleNumber,
     licenseNumber: driver.licenseNumber,
     status: driver.status,
-    isActive: driver.isActive,
   };
 }

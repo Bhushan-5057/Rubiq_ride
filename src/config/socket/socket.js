@@ -10,7 +10,8 @@ import {
 import { Admin } from "../../models/admin/admin.model.js";
 import { Driver } from "../../models/driver/driver.model.js";
 import { Passenger } from "../../models/passenger/passenger.model.js";
-import { ACTIVE_USER_FILTER, ADMIN_ROLES } from "../../constants/userStatus.constants.js";
+import { ACTIVE_USER_FILTER, ADMIN_ROLES, USER_STATUS } from "../../constants/userStatus.constants.js";
+import { passengerActiveQuery } from "../../helpers/passengerStatus.helper.js";
 
 let ioInstance;
 
@@ -48,13 +49,13 @@ export const initSocket = (server) => {
       if ([ADMIN_ROLES.ADMIN, ADMIN_ROLES.SUPER_ADMIN].includes(role)) {
         user = await Admin.findOne({ _id: userId, ...ACTIVE_USER_FILTER }).select("_id role isActive");
       } else if (role === "driver") {
-        user = await Driver.findOne({ _id: userId, ...ACTIVE_USER_FILTER }).select("_id isActive status");
+        user = await Driver.findOne({ _id: userId, status: { $nin: [USER_STATUS.INACTIVE, USER_STATUS.BLOCKED] } }).select("_id status");
       } else if (role === "passenger") {
-        user = await Passenger.findOne({ _id: userId, ...ACTIVE_USER_FILTER }).select("_id isActive status");
+        user = await Passenger.findOne(passengerActiveQuery({ _id: userId })).select("_id status");
       } else {
         const [passenger, driver, admin] = await Promise.all([
-          Passenger.findOne({ _id: userId, ...ACTIVE_USER_FILTER }).select("_id isActive status"),
-          Driver.findOne({ _id: userId, ...ACTIVE_USER_FILTER }).select("_id isActive status"),
+          Passenger.findOne(passengerActiveQuery({ _id: userId })).select("_id status"),
+          Driver.findOne({ _id: userId, status: { $nin: [USER_STATUS.INACTIVE, USER_STATUS.BLOCKED] } }).select("_id status"),
           Admin.findOne({ _id: userId, ...ACTIVE_USER_FILTER }).select("_id role isActive"),
         ]);
 
