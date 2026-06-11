@@ -28,11 +28,13 @@ export async function sendOtp(contactNumber, userType = "passenger") {
       updateOptions
     );
 
+    const isSmsBypassed = smsResult.type === "bypassed";
+
     return {
       success: true,
-      provider: smsResult.type === "bypassed" ? "local_otp_bypass" : "msg91",
-      smsStatus: smsResult.type || "success",
-      ...(isDevelopment ? { otp } : {}),
+      provider: isSmsBypassed ? "local_otp_bypass" : "msg91",
+      smsStatus: isSmsBypassed ? "success" : smsResult.type || "success",
+      ...(isDevelopment || isSmsBypassed ? { otp } : {}),
     };
   } catch (err) {
     console.error("[OTP SERVICE] Error while sending OTP", err);
