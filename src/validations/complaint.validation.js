@@ -1,4 +1,5 @@
 import { body, query, param } from 'express-validator';
+import { COMPLAINT_STATUSES } from '../helpers/complaintStatus.helper.js';
 
 const complaintCategories = [
   'PAYMENT',
@@ -8,8 +9,6 @@ const complaintCategories = [
   'APP_ISSUE',
   'OTHER'
 ];
-
-const complaintStatuses = ['PENDING', 'IN_PROGRESS', 'RESOLVED', 'CLOSED'];
 
 //-------------------------- Create Complaint Validation --------------------------
 export const createComplaintValidation = [
@@ -52,15 +51,45 @@ export const updateComplaintStatusValidation = [
 
   body('status')
     .notEmpty().withMessage('status is required')
-    .isIn(complaintStatuses)
-    .withMessage(`Invalid status. Must be one of: ${complaintStatuses.join(', ')}`),
+    .isIn(COMPLAINT_STATUSES)
+    .withMessage(`Invalid status. Must be one of: ${COMPLAINT_STATUSES.join(', ')}`),
 
   body('adminResponse')
     .if((value, { req }) =>
       ['RESOLVED', 'CLOSED'].includes(req.body.status)
     )
+    .trim()
     .notEmpty()
     .withMessage('adminResponse is required when status is RESOLVED or CLOSED')
     .isString()
     .withMessage('adminResponse must be a string')
+];
+
+//-------------------------- Get Complaint Validation --------------------------
+export const getComplaintValidation = [
+  param('complaintId')
+    .isMongoId().withMessage('Invalid complaint ID')
+];
+
+//-------------------------- Get Complaints Validation --------------------------
+export const getComplaintsValidation = [
+  query('status')
+    .optional()
+    .isIn(COMPLAINT_STATUSES)
+    .withMessage(`Invalid status. Must be one of: ${COMPLAINT_STATUSES.join(', ')}`),
+
+  query('category')
+    .optional()
+    .isIn(complaintCategories)
+    .withMessage(`Invalid category. Must be one of: ${complaintCategories.join(', ')}`),
+
+  query('page')
+    .optional()
+    .isInt({ min: 1 })
+    .withMessage('page must be a positive integer'),
+
+  query('limit')
+    .optional()
+    .isInt({ min: 1 })
+    .withMessage('limit must be a positive integer')
 ];

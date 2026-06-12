@@ -1,48 +1,90 @@
 import { Complaint } from '../../models/complaint/complaint.model.js';
+import { Ride } from '../../models/ride/ride.model.js';
+import mongoose from 'mongoose';
+import { validateComplaintParticipants } from '../../helpers/complaintParticipants.helper.js';
+import { validateComplaintStatusTransition } from '../../helpers/complaintStatus.helper.js';
+
+const createError = (message, status) => {
+  const error = new Error(message);
+  error.status = status;
+  return error;
+};
+
+const complaintPopulation = [
+  { path: 'raisedBy', select: 'name email phone' },
+  { path: 'against', select: 'name email phone' },
+  { path: 'rideId', select: 'pickupLocation dropoffLocation fare' }
+];
 
 //------------------ Create Complaint ------------------
 export const createComplaintService = async (complaintData) => {
+  if (!complaintData.rideId || !mongoose.isValidObjectId(complaintData.rideId)) {
+    throw createError('Ride not found', 404);
+  }
+
+  const ride = await Ride.findById(complaintData.rideId).select('passenger driver');
+  console.log("Ride found for complaint:", ride);
+
+  if (!ride) {
+    throw createError('Ride not found', 404);
+  }
+
+  validateComplaintParticipants({
+    ride,
+    raisedBy: complaintData.raisedBy,
+    raisedByRole: complaintData.raisedByUser,
+    against: complaintData.against,
+    targetType: complaintData.targetType
+  });
+
   const complaint = await Complaint.create(complaintData);
   return complaint;
 };
 
 //------------------ Get Complaint By ID ------------------
 export const getComplaintByIdService = async (id) => {
-  const complaint = await Complaint.findById(id)
-    .populate('raisedBy', 'name email phone')
-    .populate('against', 'name email phone')
-    .populate('rideId', 'pickupLocation dropoffLocation fare');
+  const complaint = await Complaint.findById(id).populate(complaintPopulation);
   
   if (!complaint) {
-    const error = new Error('Complaint not found');
-    error.statusCode = 404;
-    throw error;
+    throw createError('Complaint not found', 404);
   }
   return complaint;
 };
 
 //------------------ Update Complaint Status ------------------
 export const updateComplaintStatusService = async (id, updateData) => {
-  const updateFields = { status: updateData.status };
-  
-  if (['RESOLVED', 'CLOSED'].includes(updateData.status)) {
-    updateFields.adminResponse = updateData.adminResponse;
-    updateFields.resolvedAt = new Date();
+  const complaint = await Complaint.findById(id);
+
+  if (!complaint) {
+    throw createError('Complaint not found', 404);
   }
 
-  const updatedComplaint = await Complaint.findByIdAndUpdate(
-    id,
-    updateFields,
-    { new: true, runValidators: true }
-  );
+  validateComplaintStatusTransition(complaint.status, updateData.status);
 
-  if (!updatedComplaint) {
-    const error = new Error('Complaint not found');
-    error.statusCode = 404;
-    throw error
+  if (
+    ['RESOLVED', 'CLOSED'].includes(updateData.status) &&
+    !updateData.adminResponse?.trim()
+  ) {
+    throw createError('adminResponse is required when status is RESOLVED or CLOSED', 400);
   }
-  
-  return updatedComplaint;
+
+  complaint.status = updateData.status;
+
+  if (updateData.adminResponse) {
+    complaint.adminResponse = updateData.adminResponse.trim();
+  }
+
+  if (updateData.status === 'RESOLVED') {
+    complaint.resolvedAt = new Date();
+  }
+
+  if (updateData.status === 'CLOSED') {
+    complaint.closedAt = new Date();
+  }
+
+  await complaint.save();
+
+  return Complaint.findById(complaint._id).populate(complaintPopulation);
 };
 
 //------------------ Get All Complaints ------------------
@@ -57,8 +99,9 @@ export const getComplaintsService = async (filter, options) => {
   if (filter.category) query.category = filter.category;
 
   const complaintsPromise = Complaint.find(query)
-    .populate('raisedBy', 'name email')
-    .populate('against', 'name email')
+    .populate('raisedBy', 'name email phone')
+    .populate('against', 'name email phone')
+    .populate('rideId', 'pickupLocation dropoffLocation fare')
     .sort({ createdAt: -1 })
     .skip(skip)
     .limit(limit);
@@ -90,8 +133,9 @@ export const getMyComplaintsService = async (userId, options) => {
   const query = { raisedBy: userId };
   
   const complaintsPromise = Complaint.find(query)
-    .populate('against', 'name email')
-    .populate('rideId', 'pickupLocation dropoffLocation')
+    .populate('raisedBy', 'name email phone')
+    .populate('against', 'name email phone')
+    .populate('rideId', 'pickupLocation dropoffLocation fare')
     .sort({ createdAt: -1 })
     .skip(skip)
     .limit(limit);

@@ -3,6 +3,7 @@ import driverAuthRoutes from "./driverAuth.routes.js";
 import driverProfileRoutes from "./driverProfile.routes.js";
 import driverManagementRoutes from "./driverManagement.routes.js";
 import driverRoutes from "../feedback/feedback.routes.js"
+import complaintsRoutes from "../complaintRoutes/complaint.routes.js";
 
 const router = Router();
 
@@ -12,5 +13,6 @@ router.use("/profile", driverProfileRoutes);
 router.use("/manage", driverManagementRoutes);
 router.use("/earnings", driverManagementRoutes);
 router.use("/feedback", driverRoutes);
+router.use("/complaint", complaintsRoutes);
 
 export default router;

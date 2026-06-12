@@ -4,6 +4,7 @@ import passengerProfileRoutes from "./pasengerProfile.routes.js";
 import managementRoutes from "./management.routes.js";
 import paymentRoutes from "../payment/payment.routes.js";
 import feedbackRoutes from "../feedback/feedback.routes.js"
+import complaintsRoutes from "../complaintRoutes/complaint.routes.js";
 
 const router = Router();
 
@@ -13,5 +14,6 @@ router.use("/profile", passengerProfileRoutes);
 router.use("/manage", managementRoutes);
 router.use("/payment", paymentRoutes);
 router.use("/feedback", feedbackRoutes);
+router.use("/complaint", complaintsRoutes);
 
 export default router;

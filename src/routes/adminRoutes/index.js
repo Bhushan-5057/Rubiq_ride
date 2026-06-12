@@ -5,6 +5,7 @@ import managementRoutes from "./management.routes.js";
 import driverManagementRoutes from "./driverManagement.route.js";
 import passengerManagementRoutes from "./passengerManagement.route.js";
 import RidesManagment from "./ridesForAdmin.route.js";
+import { adminComplaintRouter } from "../complaintRoutes/complaint.routes.js";
 
 const router = Router();
 
@@ -14,8 +15,6 @@ router.use("/auth", adminAuthRoutes);
 //--------------- Admin Profile Route ---------------
 router.use("/profile", adminProfileRoutes);
 
-//--------------- Admin Management Route ---------------
-router.use("/manage", managementRoutes);
 
 //---------------- Driver Management Route ----------------
 router.use("/manage/drivers", driverManagementRoutes);
@@ -26,4 +25,9 @@ router.use("/manage/passengers", passengerManagementRoutes);
 //------------------ Ride Management Route ------------------
 router.use("/manage/rides", RidesManagment);
 
+//------------------ ComplaintsManagement Route ------------------
+router.use("/manage/complaints", adminComplaintRouter);
+
+//--------------- Admin Management Route ---------------
+router.use("/manage", managementRoutes);
 export default router;

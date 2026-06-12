@@ -5,7 +5,12 @@ import {
   updateComplaintStatusService,
   getMyComplaintsService
 } from '../../services/complaint/complaint.service.js';
-import { emitAdminComplaintEvent, emitAdminEvent } from '../../helpers/admin-realtime.helper.js';
+
+const getUserModelName = (role) => {
+  if (role === 'passenger') return 'Passenger';
+  if (role === 'driver') return 'Driver';
+  return role;
+};
 
 //-------------------------- Create Complaint --------------------------
 export const createComplaint = async (req, res, next) => {
@@ -13,11 +18,10 @@ export const createComplaint = async (req, res, next) => {
     const complaintData = {
       ...req.body,
       raisedBy: req.user.id,
-      raisedByUser: req.user.role
+      raisedByUser: getUserModelName(req.user.role)
     };
 
     const complaint = await createComplaintService(complaintData);
-    await emitAdminComplaintEvent(complaint);
     res.status(201).json({
       success: true,
       message:"Complaint created successfully",
@@ -32,12 +36,10 @@ export const createComplaint = async (req, res, next) => {
 export const getComplaint = async (req, res, next) => {
   try {
     const complaint = await getComplaintByIdService(req.params.complaintId);
+    const isAdmin = Boolean(req.admin);
+    const isOwner = req.user && complaint.raisedBy._id.toString() === req.user.id;
 
-    // Allow ADMIN or complaint owner
-    if (
-      req.user.role !== 'ADMIN' &&
-      complaint.raisedBy._id.toString() !== req.user.id
-    ) {
+    if (!isAdmin && !isOwner) {
       return res.status(403).json({
         success: false,
         message: 'Access denied'
@@ -61,11 +63,6 @@ export const updateComplaintStatus = async (req, res, next) => {
       req.params.complaintId,
       req.body
     );
-    emitAdminEvent("admin:complaint_updated", {
-      complaintId: updatedComplaint._id.toString(),
-      status: updatedComplaint.status,
-      updatedBy: req.admin?._id?.toString?.() || req.user?.id,
-    });
 
     res.json({
       success: true,
@@ -82,8 +79,8 @@ export const getComplaints = async (req, res, next) => {
   try {
     const filter = { ...req.query }
     const options = {
-      page: parseInt(req.query.page, 5) || 1,
-      limit: parseInt(req.query.limit, 5) || 5,
+      page: parseInt(req.query.page, 10) || 1,
+      limit: parseInt(req.query.limit, 10) || 5,
     }
     const result = await getComplaintsService(filter, options);
     res.json({

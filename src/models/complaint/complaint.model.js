@@ -62,6 +62,9 @@ const complaintSchema = new mongoose.Schema(
     },
     resolvedAt: {
       type: Date
+    },
+    closedAt: {
+      type: Date
     }
   },
   {
