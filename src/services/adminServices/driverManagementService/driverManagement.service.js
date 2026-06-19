@@ -6,20 +6,27 @@ import { normalizeDriverMediaUrls } from "../../../utils/mediaUrl.js";
 import {
   DRIVER_AVAILABILITY_STATUS,
   USER_STATUS,
-  getStatusUpdateMessage,
 } from "../../../constants/userStatus.constants.js";
-import {
-  mapLegacyIsActiveToDriverStatus,
-} from "../../../helpers/driverStatus.helper.js";
+import { getUserRiskSupportData } from "../../../helpers/riskAssessment.helper.js";
 
 //---------------------------- Update Driver Lifecycle Status ----------------------------
-export async function updateDriverStatus(driverId, newStatus) {
+export async function updateDriverStatus(driverId, newStatus, options = {}) {
+  if (!driverId) throw new Error("Driver ID is required");
+  if (!mongoose.Types.ObjectId.isValid(driverId)) throw new Error("Invalid driver ID");
+
   if (!Object.values(USER_STATUS).includes(newStatus)) {
     throw new Error("Invalid status value");
   }
 
   const driver = await driverRepository.findById(driverId);
   if (!driver) throw new Error("Driver not found");
+
+  const stats = await getDriverStats(driver._id);
+  const riskSupportData = await getUserRiskSupportData({
+    userId: driver._id,
+    userType: "Driver",
+    rideStats: stats,
+  });
 
   driver.status = newStatus;
 
@@ -29,49 +36,31 @@ export async function updateDriverStatus(driverId, newStatus) {
     driver.lastOffline = new Date();
   }
 
+  if (newStatus === USER_STATUS.BLOCKED) {
+    driver.blockedReason = options.blockedReason;
+    driver.blockedAt = new Date();
+    driver.blockedBy = options.adminId;
+
+    console.warn("admin_driver_block_review", {
+      driverId: driver._id.toString(),
+      adminId: options.adminId?.toString?.() || options.adminId,
+      blockedReason: options.blockedReason,
+      riskAssessment: riskSupportData.riskAssessment,
+    });
+  } else if (driver.status !== USER_STATUS.BLOCKED) {
+    driver.blockedReason = undefined;
+    driver.blockedAt = undefined;
+    driver.blockedBy = undefined;
+  }
+
   await driver.save();
 
-  const stats = await getDriverStats(driver._id);
   const normalizedDriver = normalizeDriverMediaUrls(driver.toObject());
   return {
     message: `Driver status updated to ${newStatus}`,
     driver: {
       ...normalizedDriver,
-      rideStats: stats
-    },
-  };
-}
-
-//---------------------------- Update Driver Active Status ----------------------------
-export async function updateDriverActiveStatus(driverId, isActive) {
-  if (!mongoose.Types.ObjectId.isValid(driverId)) {
-    throw new Error("Invalid driver ID format");
-  }
-  if (typeof isActive !== "boolean") {
-    throw new Error("isActive must be a boolean");
-  }
-
-  const driver = await driverRepository.findById(driverId);
-  if (!driver) throw new Error("Driver not found");
-
-  // Backward-compatible API: legacy isActive now maps onto account status.
-  driver.status = mapLegacyIsActiveToDriverStatus(isActive);
-
-  if (!isActive) {
-    driver.isOnline = false;
-    driver.driverStatus = DRIVER_AVAILABILITY_STATUS.UNAVAILABLE;
-    driver.lastOffline = new Date();
-  }
-
-  await driver.save();
-
-  const stats = await getDriverStats(driver._id);
-  const normalizedDriver = normalizeDriverMediaUrls(driver.toObject());
-  return {
-    message: getStatusUpdateMessage("User", isActive),
-    driver: {
-      ...normalizedDriver,
-      rideStats: stats,
+      ...riskSupportData
     },
   };
 }
@@ -82,7 +71,6 @@ export async function getAllDrivers(filters = {}) {
     page = 1,
     limit = 5,
     status,
-    isActive,
     search,
     sortBy = 'createdAt',
     sortOrder = 'desc',
@@ -93,9 +81,6 @@ export async function getAllDrivers(filters = {}) {
   const query = {};
 
   if (status) query.status = status;
-  if (isActive !== undefined) {
-    query.status = mapLegacyIsActiveToDriverStatus(isActive === true || isActive === "true");
-  }
 
   if (search) {
     const searchRegex = new RegExp(search, 'i');
@@ -112,10 +97,15 @@ export async function getAllDrivers(filters = {}) {
 
   const formattedDrivers = await Promise.all(drivers.map(async (driver) => {
     const stats = await getDriverStats(driver._id);
+    const riskSupportData = await getUserRiskSupportData({
+      userId: driver._id,
+      userType: "Driver",
+      rideStats: stats,
+    });
     const normalizedDriver = normalizeDriverMediaUrls(driver.toObject());
     return {
       ...normalizedDriver,
-      rideStats: stats,
+      ...riskSupportData,
       totalEarnings: driver.earnings?.totalEarnings || 0,
       totalCompletedRides: driver.rideCount?.completed || 0,
       totalDriverPayout: driver.earnings?.totalDriverPayout || 0,
@@ -143,9 +133,15 @@ export async function getDriverById(driverId) {
   if (!driver) throw new Error("Driver not found");
 
   const rideStats = await getDriverStats(driver._id);
+  const riskSupportData = await getUserRiskSupportData({
+    userId: driver._id,
+    userType: "Driver",
+    rideStats,
+  });
+
   return {
     ...normalizeDriverMediaUrls(driver.toObject()),
-    rideStats
+    ...riskSupportData
   };
 }
 

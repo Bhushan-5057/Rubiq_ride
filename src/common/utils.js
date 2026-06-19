@@ -18,10 +18,10 @@ export const updatableFields = [
   "vehicleType",
   "city",
   "profileImage",
-  "contactNumber"
+  "contactNumber",
 ];
 
-// Fields required to mark profile as complete for driver 
+// Fields required to mark profile as complete for driver
 export const requiredFields = [
   "name",
   "email",
@@ -55,7 +55,7 @@ export const requiredDocsNumber = [
   "licenseNumber",
   "rcNumber",
   "insuranceNumber",
-]
+];
 
 // Document status fields for driver verification
 export const documentStatus = [
@@ -63,11 +63,18 @@ export const documentStatus = [
   "panStatus",
   "licenseStatus",
   "rcStatus",
-  "insuranceStatus"
+  "insuranceStatus",
 ];
 
 // Fields that can be updated dynamically in Passenger Profile
-export const passengerfields = ["name", "email", "gender", "contactNumber", "dateOfBirth", "profileImage"];
+export const passengerfields = [
+  "name",
+  "email",
+  "gender",
+  "contactNumber",
+  "dateOfBirth",
+  "profileImage",
+];
 
 export function isFilled(value) {
   if (value === null || value === undefined) return false;
@@ -81,19 +88,28 @@ export function isPassengerProfileComplete(passenger = {}) {
 }
 
 export function isDriverProfileComplete(driver = {}) {
-  const allFieldsFilled = requiredFields.every((field) => isFilled(driver[field]));
-  const allDocsUploaded = requiredDocs.every((docKey) => isFilled(driver.documents?.[docKey]));
+  const allFieldsFilled = requiredFields.every((field) =>
+    isFilled(driver[field]),
+  );
+  const allDocsUploaded = requiredDocs.every((docKey) =>
+    isFilled(driver.documents?.[docKey]),
+  );
   const allDocsApproved = documentStatus.every(
-    (status) => driver.documents?.[status] === "approved"
+    (status) => driver.documents?.[status] === "approved",
   );
   const allDocNumbersPresent = requiredDocsNumber.every((numKey) =>
-    isFilled(driver.documents?.[numKey])
+    isFilled(driver.documents?.[numKey]),
   );
 
-  return allFieldsFilled && allDocsUploaded && allDocsApproved && allDocNumbersPresent;
+  return (
+    allFieldsFilled &&
+    allDocsUploaded &&
+    allDocsApproved &&
+    allDocNumbersPresent
+  );
 }
 
-//genrate otken for passenger 
+//genrate otken for passenger
 export function generateToken(passenger) {
   const payload = { id: passenger._id };
   return jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: "7d" });
@@ -116,8 +132,10 @@ export function getDistanceInMeters(coord1, coord2) {
 
   const a =
     Math.sin(dPhi / 2) * Math.sin(dPhi / 2) +
-    Math.cos(phi1) * Math.cos(phi2) *
-    Math.sin(dLambda / 2) * Math.sin(dLambda / 2);
+    Math.cos(phi1) *
+      Math.cos(phi2) *
+      Math.sin(dLambda / 2) *
+      Math.sin(dLambda / 2);
 
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   return R * c;
@@ -126,17 +144,23 @@ export function getDistanceInMeters(coord1, coord2) {
 export function areCoordinatesClose(coord1, coord2, thresholdMeters = 200) {
   try {
     // Ensure we have valid coordinate arrays
-    if (!Array.isArray(coord1) || !Array.isArray(coord2) || 
-        coord1.length !== 2 || coord2.length !== 2) {
+    if (
+      !Array.isArray(coord1) ||
+      !Array.isArray(coord2) ||
+      coord1.length !== 2 ||
+      coord2.length !== 2
+    ) {
       return false;
     }
-    
+
     const distance = getDistanceInMeters(coord1, coord2);
-        const isClose = distance <= thresholdMeters;
-    console.log(`Distance: ${distance.toFixed(2)}m, Threshold: ${thresholdMeters}m, Is Close: ${isClose}`);
+    const isClose = distance <= thresholdMeters;
+    console.log(
+      `Distance: ${distance.toFixed(2)}m, Threshold: ${thresholdMeters}m, Is Close: ${isClose}`,
+    );
     return isClose;
   } catch (error) {
-    console.error('Error calculating distance:', error);
+    console.error("Error calculating distance:", error);
     return false;
   }
-}  
+}

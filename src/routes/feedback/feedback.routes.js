@@ -1,13 +1,18 @@
 import express from "express";
-import { 
-  submitDriverFeedback, 
-  submitPassengerFeedback, 
-  getMyFeedback, 
-  getUserFeedback, 
+import {
+  submitDriverFeedback,
+  submitPassengerFeedback,
+  getMyFeedback,
+  getUserFeedback,
   getRideFeedback,
-  getAllFeedback 
+  getAllFeedback,
 } from "../../controllers/feedback/feedback.controller.js";
-import { authenticateDriver,authenticatePassenger,authenticateAdmin ,authenticateUser} from "../../middleware/auth.middleware.js";
+import {
+  authenticateDriver,
+  authenticatePassenger,
+  authenticateAdmin,
+  authenticateUser,
+} from "../../middleware/auth.middleware.js";
 import { authorizeAdmin } from "../../middleware/auth.middleware.js";
 
 const router = express.Router();
@@ -16,15 +21,25 @@ const router = express.Router();
 router.post("/driver-feedback", authenticatePassenger, submitDriverFeedback);
 
 // Passenger feedback submission (from driver)
-router.post("/passenger-feedback", authenticateDriver,  submitPassengerFeedback);
+router.post("/passenger-feedback", authenticateDriver, submitPassengerFeedback);
 
 // Get feedback for the currently authenticated user
 router.get("/me", authenticateUser, getMyFeedback);
 
-router.get("/", authenticateAdmin, authorizeAdmin("super_admin","admin"), getAllFeedback);
+router.get(
+  "/",
+  authenticateAdmin,
+  authorizeAdmin("super_admin", "admin"),
+  getAllFeedback,
+);
 
 // Get feedback for a specific user (admin only)
-router.get("/user/:userId", authenticateAdmin,authorizeAdmin("super_admin","admin"), getUserFeedback);
+router.get(
+  "/user/:userId",
+  authenticateAdmin,
+  authorizeAdmin("super_admin", "admin"),
+  getUserFeedback,
+);
 
 // Get feedback for a specific ride
 router.get("/ride/:rideId", authenticateUser, getRideFeedback);

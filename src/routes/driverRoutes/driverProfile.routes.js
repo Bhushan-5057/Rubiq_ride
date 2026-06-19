@@ -1,18 +1,32 @@
 import { Router } from "express";
 import { authenticateDriver } from "../../middleware/auth.middleware.js";
 import { updateProfileValidation } from "../../validations/driver.validation.js";
-import { deleteProfileController, profileController, updateProfileController } from "../../controllers/driver/driverProfile/driverProfile.controller.js";
-import {setDriverOfflineController,setDriverOnlineController} from "../../controllers/driver/driverProfile/driverProfile.controller.js"
-import { handleValidation } from "../../validations/comman.validation.js";
+import {
+  deleteProfileController,
+  profileController,
+  updateProfileController,
+} from "../../controllers/driver/driverProfile/driverProfile.controller.js";
+import {
+  setDriverOfflineController,
+  setDriverOnlineController,
+} from "../../controllers/driver/driverProfile/driverProfile.controller.js";
+import { validate } from "../../middleware/validate.js";
 import { upload } from "../../middleware/upload.middleware.js";
 
 const router = Router();
 
-//------------------ Get Profile For Driver ------------------ 
+//------------------ Get Profile For Driver ------------------
 router.get("/", authenticateDriver, profileController);
 
-//------------------ Profile Update For Driver ------------------ 
-router.put("/", authenticateDriver,upload.any(), updateProfileValidation,handleValidation, updateProfileController); 
+//------------------ Profile Update For Driver ------------------
+router.put(
+  "/",
+  authenticateDriver,
+  upload.any(),
+  updateProfileValidation,
+  validate,
+  updateProfileController,
+);
 
 //------------------ Driver Go Online ------------------
 router.post("/go-online", authenticateDriver, setDriverOnlineController);
@@ -23,7 +37,4 @@ router.post("/go-offline", authenticateDriver, setDriverOfflineController);
 //------------------ Driver Delete Profile ------------------
 router.delete("/delete", authenticateDriver, deleteProfileController);
 
-
 export default router;
-
- 

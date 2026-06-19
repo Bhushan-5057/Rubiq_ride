@@ -17,17 +17,17 @@ export const initRedis = () => {
     host,
     port,
     password,
-    tls: {}, // ✅ REQUIRED FOR UPSTASH
+    tls: {},
     maxRetriesPerRequest: null,
     retryStrategy: (times) => Math.min(times * 1000, 5000),
   });
 
   redis.on("connect", () => {
-    console.log("✅ Connected to Redis (Upstash)");
+    console.log("Connected to Redis (Upstash)");
   });
 
   redis.on("error", (err) => {
-    console.error("❌ Redis error:", err);
+    console.error("Redis error:", err);
   });
 
   return redis;

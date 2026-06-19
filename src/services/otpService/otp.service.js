@@ -1,7 +1,7 @@
 import { Passenger } from "../../models/passenger/passenger.model.js";
 import { Driver } from "../../models/driver/driver.model.js";
 import { normalizeNumber } from "../../helpers/helper.js";
-import { generateOTP, OTP_EXPIRY_MINUTES } from "../../common/utlis.js";
+import { generateOTP, OTP_EXPIRY_MINUTES } from "../../common/utils.js";
 import { authConfig } from "../../config/auth.config.js";
 import { sendOtpViaMsg91 } from "./msg91.service.js";
 

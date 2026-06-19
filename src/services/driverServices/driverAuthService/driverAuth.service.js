@@ -1,7 +1,7 @@
 import { sendOtp, verifyOtp } from "../../../services/otpService/otp.service.js";
 import { Driver } from "../../../models/driver/driver.model.js";
 import { normalizeNumber, driverToken } from "../../../helpers/helper.js";
-import { isDriverProfileComplete } from "../../../common/utlis.js";
+import { isDriverProfileComplete } from "../../../common/utils.js";
 import { sendEmail, renderTemplate } from "../../../utils/mailer.js";
 import { normalizeDriverMediaUrls } from "../../../utils/mediaUrl.js";
 import { USER_STATUS } from "../../../constants/userStatus.constants.js";

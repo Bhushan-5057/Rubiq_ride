@@ -1,29 +1,20 @@
-import { getPassengerById, getAllPassenger, updatePassengerActiveStatus, updatePassangerStatus } from "../../../../services/adminServices/index.js";
+import { getPassengerById, getAllPassenger, updatePassangerStatus } from "../../../../services/adminServices/index.js";
 import { sendSuccess } from "../../../../utils/apiResponse.js";
 
 //-------------------------------- Update Passenger Status -------------------------------- 
 export async function updatePassengerStatusController(req, res, next) {
   try {
     const { passengerId } = req.params; 
-    const { status } = req.body; 
+    const { status, blockedReason } = req.body; 
 
     if (!status) {
       return res.status(400).json({ status: false, message: "status is required" });
     }
 
-    const result = await updatePassangerStatus(passengerId, status);
-    return sendSuccess(res, 200, result.message, result.passenger);
-  } catch (err) {
-    next(err);
-  }
-}
-
-export async function updatePassengerActiveStatusController(req, res, next) {
-  try {
-    const { passengerId } = req.params;
-    const { isActive } = req.body;
-
-    const result = await updatePassengerActiveStatus(passengerId, isActive);
+    const result = await updatePassangerStatus(passengerId, status, {
+      adminId: req.admin?._id || req.user?.id,
+      blockedReason,
+    });
     return sendSuccess(res, 200, result.message, result.passenger);
   } catch (err) {
     next(err);
@@ -38,7 +29,6 @@ export async function getAllPassengersController(req, res, next) {
       page = 1, 
       limit = 5, 
       status,
-      isActive,
       search, 
       sortBy = 'createdAt', 
       sortOrder = 'desc' 
@@ -52,7 +42,6 @@ export async function getAllPassengersController(req, res, next) {
       page: pageNum,
       limit: limitNum,
       status,
-      isActive,
       search,
       sortBy,
       sortOrder

@@ -1,4 +1,4 @@
-import { isDriverProfileComplete, requiredDocsNumber, updatableFields } from "../../../common/utlis.js";
+import { isDriverProfileComplete, requiredDocsNumber, updatableFields } from "../../../common/utils.js";
 import { getDriverStats } from "../../../services/rideServices/rideStats.service.js"
 import { Driver } from "../../../models/driver/driver.model.js"
 import { Ride } from "../../../models/ride/ride.model.js";

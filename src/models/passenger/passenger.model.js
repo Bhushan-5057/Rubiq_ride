@@ -1,5 +1,9 @@
 import mongoose from "mongoose";
 import { USER_STATUS } from "../../constants/userStatus.constants.js";
+import {
+  createQueryGeoSyncMiddleware,
+  createSaveGeoSyncMiddleware,
+} from "../../utils/geoLocationSync.js";
 
 const passengerSchema = new mongoose.Schema(
   {
@@ -31,17 +35,21 @@ const passengerSchema = new mongoose.Schema(
       enum: [USER_STATUS.ACTIVE, USER_STATUS.INACTIVE, USER_STATUS.BLOCKED, USER_STATUS.PENDING],
       default: USER_STATUS.ACTIVE
     },
+    blockedReason: { type: String, trim: true },
+    blockedAt: { type: Date },
+    blockedBy: { type: mongoose.Schema.Types.ObjectId, ref: "Admin" },
     location: {
       type: {
         type: String,
         enum: ["Point"],
-        default: "Point",
       },
       coordinates: {
         type: [Number],
-        index: "2dsphere",
+        default: undefined,
       },
     },
+    longitude: Number,
+    latitude: Number,
     fcmTokens: [
       {
         token: { type: String },
@@ -59,9 +67,63 @@ const passengerSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+passengerSchema.pre(
+  "save",
+  createSaveGeoSyncMiddleware({
+    modelName: "Passenger",
+    locationField: "location",
+    longitudeField: "longitude",
+    latitudeField: "latitude",
+  }),
+);
+
+passengerSchema.pre(
+  "findOneAndUpdate",
+  createQueryGeoSyncMiddleware({
+    modelName: "Passenger",
+    locationField: "location",
+    longitudeField: "longitude",
+    latitudeField: "latitude",
+  }),
+);
+passengerSchema.pre(
+  "updateOne",
+  createQueryGeoSyncMiddleware({
+    modelName: "Passenger",
+    locationField: "location",
+    longitudeField: "longitude",
+    latitudeField: "latitude",
+  }),
+);
+passengerSchema.pre(
+  "updateMany",
+  createQueryGeoSyncMiddleware({
+    modelName: "Passenger",
+    locationField: "location",
+    longitudeField: "longitude",
+    latitudeField: "latitude",
+  }),
+);
+passengerSchema.pre(
+  "replaceOne",
+  createQueryGeoSyncMiddleware({
+    modelName: "Passenger",
+    locationField: "location",
+    longitudeField: "longitude",
+    latitudeField: "latitude",
+  }),
+);
+passengerSchema.pre(
+  "findOneAndReplace",
+  createQueryGeoSyncMiddleware({
+    modelName: "Passenger",
+    locationField: "location",
+    longitudeField: "longitude",
+    latitudeField: "latitude",
+  }),
+);
+
+passengerSchema.index({ location: "2dsphere" });
+
 export const Passenger =
   mongoose.models.Passenger || mongoose.model("Passenger", passengerSchema);
-
-if (!mongoose.models.passenger) {
-  mongoose.model("passenger", passengerSchema);
-}

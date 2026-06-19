@@ -1,4 +1,4 @@
-import { isPassengerProfileComplete, passengerfields } from "../../../common/utlis.js";
+import { isPassengerProfileComplete, passengerfields } from "../../../common/utils.js";
 import { normalizeNumber } from "../../../helpers/helper.js";
 import { Passenger } from "../../../models/passenger/passenger.model.js";
 import { sendEmail, renderTemplate } from "../../../utils/mailer.js";

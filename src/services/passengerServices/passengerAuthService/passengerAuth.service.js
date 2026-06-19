@@ -4,7 +4,7 @@ import { verifyOtp } from "../../../services/otpService/otp.service.js";
 import { normalizeNumber, passengerToken } from "../../../helpers/helper.js";
 import { USER_STATUS } from "../../../constants/userStatus.constants.js";
 import { normalizePassengerMediaUrls } from "../../../utils/mediaUrl.js";
-import { isPassengerProfileComplete } from "../../../common/utlis.js";
+import { isPassengerProfileComplete } from "../../../common/utils.js";
 import { canPassengerLogin } from "../../../helpers/passengerStatus.helper.js";
 import jwt from "jsonwebtoken";
 

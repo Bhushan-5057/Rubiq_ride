@@ -5,12 +5,12 @@ const rideSchema = new mongoose.Schema(
     passenger: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Passenger",
-      required: true
+      required: true,
     },
 
     driver: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Driver"
+      ref: "Driver",
     },
 
     pickup: {
@@ -28,7 +28,7 @@ const rideSchema = new mongoose.Schema(
     vehicleType: {
       type: String,
       enum: ["bike", "auto", "cab"],
-      required: true
+      required: true,
     },
 
     distance: Number,
@@ -45,14 +45,29 @@ const rideSchema = new mongoose.Schema(
 
     fareEstimate: Number,
 
+    fare: {
+      total: Number,
+      baseFare: Number,
+      platformFee: Number,
+      driverShare: Number,
+    },
+
     otpForStartRide: {
       type: Number,
-      required: true
+      required: true,
     },
 
     status: {
       type: String,
-      enum: ["pending", "accepted", "ongoing", "started", "completed", "cancelled", "missed"],
+      enum: [
+        "pending",
+        "accepted",
+        "ongoing",
+        "started",
+        "completed",
+        "cancelled",
+        "missed",
+      ],
       default: "pending",
     },
 
@@ -62,28 +77,32 @@ const rideSchema = new mongoose.Schema(
 
     completedAt: { type: Date },
 
-    notifiedDrivers: [{
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Driver"
-    }],
+    notifiedDrivers: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Driver",
+      },
+    ],
 
     // Drivers who rejected the ride
-    rejectedDrivers: [{
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Driver"
-    }],
+    rejectedDrivers: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Driver",
+      },
+    ],
 
     cancellation: {
       cancelledBy: {
         type: String,
         enum: ["Passenger", "Driver"],
-        default: null
+        default: null,
       },
       reasonCode: {
-        type: String
+        type: String,
       },
       reasonText: {
-        type: String
+        type: String,
       },
       cancelledAt: { type: Date },
     },
@@ -93,30 +112,30 @@ const rideSchema = new mongoose.Schema(
       type: String,
       enum: ["cash", "card", "online"],
       default: "cash",
-      required: true
+      required: true,
     },
 
     paymentProvider: {
       type: String,
       enum: ["cash", "razorpay", null],
-      default: null
+      default: null,
     },
 
     paymentOrderId: {
       type: String,
-      default: null
+      default: null,
     },
 
     paymentStatus: {
       type: String,
       enum: ["unpaid", "pending", "paid", "failed", "refunded"],
-      default: "unpaid"
+      default: "unpaid",
     },
     isActive: { type: Boolean, default: true, index: true },
 
     isPaymentRequiredBeforeRide: {
       type: Boolean,
-      default: false
+      default: false,
     },
     razorpayOrderId: { type: String },
     razorpayPaymentId: { type: String },
@@ -124,7 +143,7 @@ const rideSchema = new mongoose.Schema(
     transactionDate: { type: Date },
   },
 
-  { timestamps: true }
+  { timestamps: true },
 );
 
 rideSchema.pre("validate", function (next) {
@@ -139,6 +158,5 @@ rideSchema.pre("validate", function (next) {
 
   next();
 });
-
 
 export const Ride = mongoose.model("Ride", rideSchema);

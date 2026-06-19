@@ -1,4 +1,4 @@
-import { getAllDrivers, getDriverById, updateDriverActiveStatus, updateDriverStatus } from "../../../../services/adminServices/driverManagementService/driverManagement.service.js";
+import { getAllDrivers, getDriverById, updateDriverStatus } from "../../../../services/adminServices/driverManagementService/driverManagement.service.js";
 import { verifyDriverDocuments } from "../../../../services/adminServices/driverDocumentationService/driverDocument.service.js";
 import { sendSuccess } from "../../../../utils/apiResponse.js";
 import { emitAdminEvent } from "../../../../helpers/admin-realtime.helper.js";
@@ -6,36 +6,23 @@ import { emitAdminEvent } from "../../../../helpers/admin-realtime.helper.js";
 // -------------------- Admin Udate Status --------------------
 export async function updateStatusController(req, res, next) {
   try {
-    const { driverId, status } = req.body;
+    const { driverId } = req.params;
+    const { status, blockedReason } = req.body;
 
     if (!driverId || !status) {
       return res.status(400).json({ status: false, message: "Driver ID and status are required" });
     }
 
-    const result = await updateDriverStatus(driverId, status);
+    const result = await updateDriverStatus(driverId, status, {
+      adminId: req.admin?._id || req.user?.id,
+      blockedReason,
+    });
     emitAdminEvent("admin:driver_status_updated", {
       driverId,
       status,
       updatedBy: req.admin?._id?.toString?.() || req.user?.id,
     });
 
-    return sendSuccess(res, 200, result.message, result.driver);
-  } catch (err) {
-    next(err);
-  }
-}
-
-export async function updateActiveStatusController(req, res, next) {
-  try {
-    const { driverId } = req.params;
-    const { isActive } = req.body;
-
-    const result = await updateDriverActiveStatus(driverId, isActive);
-    emitAdminEvent("admin:driver_status_updated", {
-      driverId,
-      isActive,
-      updatedBy: req.admin?._id?.toString?.() || req.user?.id,
-    });
     return sendSuccess(res, 200, result.message, result.driver);
   } catch (err) {
     next(err);
@@ -50,7 +37,6 @@ export async function getAllDriversController(req, res, next) {
       page = 1,
       limit = 5,
       status,
-      isActive,
       search,
       sortBy = 'createdAt',
       sortOrder = 'desc'
@@ -65,7 +51,6 @@ export async function getAllDriversController(req, res, next) {
       page: pageNum,
       limit: limitNum,
       status,
-      isActive,
       search,
       sortBy,
       sortOrder
@@ -81,7 +66,7 @@ export async function getAllDriversController(req, res, next) {
 // -------------------- Get Driver By ID --------------------
 export async function getDriverByIdController(req, res, next) {
   try {
-    const driverId = req.params.id; // from route /get/:id
+    const { driverId } = req.params;
 
     const driver = await getDriverById(driverId);
 

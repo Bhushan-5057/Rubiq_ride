@@ -43,8 +43,6 @@ export async function updateOwnAdminProfileService(adminId, updateData) {
     confirmPassword,
   } = updateData;
 
-  console.log("Received update data:", updateData);
-
   const admin = await adminRepository.findById(adminId, {
     withPassword: true,
   });

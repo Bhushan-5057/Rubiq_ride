@@ -9,7 +9,7 @@ import { getIO } from "../config/socket/socket.js";
 import { emitAdminRideEvent } from "../helpers/admin-realtime.helper.js";
 
 const shutdownWorker = async (worker) => {
-  console.log('🛑 Shutting down worker...');
+  console.log('Shutting down worker...');
   if (worker) {
     await worker.close();
     console.log('Worker closed');
@@ -49,12 +49,12 @@ const createWorker = async () => {
             .populate('notifiedDrivers');
 
           if (!ride) {
-            console.log(`❌ Ride ${job.data.rideId} not found`);
+            console.log(`Ride ${job.data.rideId} not found`);
             return;
           }
 
           if (ride.status !== "pending") {
-            console.log(`ℹ️ Ride ${ride._id} already ${ride.status}`);
+            console.log(`Ride ${ride._id} already ${ride.status}`);
             return;
           }
 
@@ -75,9 +75,9 @@ const createWorker = async () => {
           // Try to reassign
           await autoAssignRideToNextDriver(ride);
 
-          console.log(`🚀 Successfully processed timeout for ride ${ride._id}`);
+          console.log(`Successfully processed timeout for ride ${ride._id}`);
         } catch (error) {
-          console.error("❌ Error in ride timeout worker:", error);
+          console.error("Error in ride timeout worker:", error);
           throw error;
         }
       },
@@ -90,21 +90,21 @@ const createWorker = async () => {
     );
 
     worker.on('completed', (job) => {
-      console.log(`✅ Job ${job.id} completed successfully`);
+      console.log(`Job ${job.id} completed successfully`);
     });
 
     worker.on('failed', (job, error) => {
-      console.error(`❌ Job ${job?.id} failed:`, error.message);
+      console.error(`Job ${job?.id} failed:`, error.message);
     });
 
     worker.on('error', (error) => {
-      console.error('❌ Worker error:', error);
+      console.error('Worker error:', error);
     });
 
-    console.log('✅ Ride timeout worker started');
+    console.log('Ride timeout worker started');
     return worker;
   } catch (error) {
-    console.error('❌ Failed to create worker:', error);
+    console.error('Failed to create worker:', error);
     process.exit(1);
   }
 };
@@ -117,10 +117,10 @@ createWorker().then(worker => {
   process.on('SIGTERM', shutdownHandler);
   process.on('SIGINT', shutdownHandler);
   process.on('uncaughtException', (error) => {
-    console.error('❌ Uncaught Exception:', error);
+    console.error('Uncaught Exception:', error);
     shutdownHandler().then(() => process.exit(1));
   });
 }).catch(error => {
-  console.error('❌ Failed to start worker:', error);
+  console.error('Failed to start worker:', error);
   process.exit(1);
 });

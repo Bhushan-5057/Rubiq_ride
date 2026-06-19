@@ -1,5 +1,5 @@
 import { Driver } from "../../../models/driver/driver.model.js";
-import { documentStatus, requiredFields, requiredDocs,requiredDocsNumber } from "../../../common/utlis.js"
+import { documentStatus, requiredFields, requiredDocs,requiredDocsNumber } from "../../../common/utils.js"
 import {
   DRIVER_APPROVAL_STATUS,
   USER_STATUS,

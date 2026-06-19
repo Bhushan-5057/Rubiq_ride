@@ -1,6 +1,6 @@
 import { Ride } from "../../../models/ride/ride.model.js";
 import { Driver } from "../../../models/driver/driver.model.js";
-import { areCoordinatesClose } from "../../../common/utlis.js";
+import { areCoordinatesClose } from "../../../common/utils.js";
 import { calculateEarningsFromDistance } from "../../../helpers/rideHelpers.js";
 import { getRideTimeoutQueue } from "../../../queues/rideTimeout.queue.js";
 import { DRIVER_CANCELLATION_REASONS, DRIVER_REASON_CODES } from "../../../common/cancellationReasons.js"
@@ -262,9 +262,9 @@ export async function updateDriverLocationService(driver, lng, lat, rideId) {
     throw new Error("Latitude and longitude must be valid numbers");
   }
 
-  if (!rideId) {
-    throw new Error("rideId is required to update driver location");
-  }
+  // if (!rideId) {
+  //   throw new Error("rideId is required to update driver location");
+  // }
 
   const ride = await Ride.findOne({
     _id: rideId,
@@ -273,9 +273,9 @@ export async function updateDriverLocationService(driver, lng, lat, rideId) {
     status: { $in: ["accepted", "ongoing", "started"] },
   }).select("passenger status pickup drop").lean();
 
-  if (!ride) {
-    throw new Error("Driver location can be updated only after accepting a ride");
-  }
+  // if (!ride) {
+  //   throw new Error("Driver location can be updated only after accepting a ride");
+  // }
 
   const THROTTLE_INTERVAL = 5;
   const currentTime = new Date();

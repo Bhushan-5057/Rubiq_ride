@@ -1,9 +1,9 @@
 import mongoose from "mongoose";
 import { passengerRepository } from "../../../repositories/passenger.repository.js";
 import { getPassengerStats } from "../../../services/rideServices/rideStats.service.js";
-import { USER_STATUS, getStatusUpdateMessage } from "../../../constants/userStatus.constants.js";
+import { USER_STATUS } from "../../../constants/userStatus.constants.js";
 import { normalizePassengerMediaUrls } from "../../../utils/mediaUrl.js";
-import { mapLegacyIsActiveToPassengerStatus } from "../../../helpers/passengerStatus.helper.js";
+import { getUserRiskSupportData } from "../../../helpers/riskAssessment.helper.js";
 
 // -------------------- Get All Passengers --------------------
 export async function getAllPassenger(filters = {}) {
@@ -11,7 +11,6 @@ export async function getAllPassenger(filters = {}) {
     page = 1,
     limit = 5,
     status,
-    isActive,
     search,
     sortBy = 'createdAt',
     sortOrder = 'desc',
@@ -22,9 +21,6 @@ export async function getAllPassenger(filters = {}) {
   const query = {};
 
   if (status) query.status = status;
-  if (isActive !== undefined) {
-    query.status = mapLegacyIsActiveToPassengerStatus(isActive === true || isActive === "true");
-  }
 
   if (search) {
     const searchRegex = new RegExp(search, 'i');
@@ -41,9 +37,14 @@ export async function getAllPassenger(filters = {}) {
 
   const formattedPassengers = await Promise.all(passengers.map(async (passenger) => {
     const stats = await getPassengerStats(passenger._id);
+    const riskSupportData = await getUserRiskSupportData({
+      userId: passenger._id,
+      userType: "Passenger",
+      rideStats: stats,
+    });
     return {
       ...normalizePassengerMediaUrls(passenger.toObject()),
-      rideStats: stats
+      ...riskSupportData
     };
   }));
 
@@ -60,6 +61,11 @@ export async function getAllPassenger(filters = {}) {
 
 // -------------------- Get Passenger by ID --------------------
 export async function getPassengerById(passengerId) {
+  if (!passengerId) throw new Error("Passenger ID is required");
+  if (!mongoose.Types.ObjectId.isValid(passengerId)) {
+    throw new Error("Invalid passenger ID");
+  }
+
   const passenger = await passengerRepository.findById(passengerId)
     .populate({
       path: "bankDetails",
@@ -67,38 +73,25 @@ export async function getPassengerById(passengerId) {
   if (!passenger) throw new Error("Passenger not found");
 
   const stats = await getPassengerStats(passengerId);
+  const riskSupportData = await getUserRiskSupportData({
+    userId: passenger._id,
+    userType: "Passenger",
+    rideStats: stats,
+  });
 
   return {
     ...normalizePassengerMediaUrls(passenger.toObject()),
-    rideStats: stats
-  };
-}
-
-// -------------------- Update Passenger Active Status --------------------
-export async function updatePassengerActiveStatus(passengerId, isActive) {
-  if (!passengerId) throw new Error("Passenger ID is required");
-  if (!mongoose.Types.ObjectId.isValid(passengerId)) {
-    throw new Error("Invalid passenger ID format");
-  }
-  if (typeof isActive !== "boolean") {
-    throw new Error("isActive must be a boolean");
-  }
-
-  const passenger = await passengerRepository.findById(passengerId);
-  if (!passenger) throw new Error("Passenger not found");
-
-  // Backward-compatible API: legacy isActive now maps onto passenger account status.
-  passenger.status = mapLegacyIsActiveToPassengerStatus(isActive);
-  await passenger.save();
-
-  return {
-    message: getStatusUpdateMessage("User", isActive),
-    passenger: normalizePassengerMediaUrls(passenger.toObject()),
+    ...riskSupportData
   };
 }
 
 // -------------------- Update Passenger Lifecycle Status --------------------
-export async function updatePassangerStatus(passengerId, newStatus) {
+export async function updatePassangerStatus(passengerId, newStatus, options = {}) {
+  if (!passengerId) throw new Error("Passenger ID is required");
+  if (!mongoose.Types.ObjectId.isValid(passengerId)) {
+    throw new Error("Invalid passenger ID");
+  }
+
   if (!Object.values(USER_STATUS).includes(newStatus)) {
     throw new Error("Invalid status value");
   }
@@ -106,12 +99,39 @@ export async function updatePassangerStatus(passengerId, newStatus) {
   const passenger = await passengerRepository.findById(passengerId);
   if (!passenger) throw new Error("Passenger not found");
 
+  const stats = await getPassengerStats(passenger._id);
+  const riskSupportData = await getUserRiskSupportData({
+    userId: passenger._id,
+    userType: "Passenger",
+    rideStats: stats,
+  });
+
   passenger.status = newStatus;
+  if (newStatus === USER_STATUS.BLOCKED) {
+    passenger.blockedReason = options.blockedReason;
+    passenger.blockedAt = new Date();
+    passenger.blockedBy = options.adminId;
+
+    console.warn("admin_passenger_block_review", {
+      passengerId: passenger._id.toString(),
+      adminId: options.adminId?.toString?.() || options.adminId,
+      blockedReason: options.blockedReason,
+      riskAssessment: riskSupportData.riskAssessment,
+    });
+  } else {
+    passenger.blockedReason = undefined;
+    passenger.blockedAt = undefined;
+    passenger.blockedBy = undefined;
+  }
+
   await passenger.save();
 
   return {
     message: `Passenger status updated to ${newStatus}`,
-    passenger: normalizePassengerMediaUrls(passenger.toObject()),
+    passenger: {
+      ...normalizePassengerMediaUrls(passenger.toObject()),
+      ...riskSupportData,
+    },
   };
 }
 

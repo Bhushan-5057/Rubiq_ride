@@ -123,6 +123,7 @@ export const validateLifecycleStatusUpdate = [
         .valid(...Object.values(USER_STATUS))
         .required()
         .messages({ "any.only": "Invalid status" }),
+      blockedReason: Joi.string().trim().max(500).optional(),
     })
       .unknown(false)
       .messages(messages)

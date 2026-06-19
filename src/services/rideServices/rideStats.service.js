@@ -48,6 +48,9 @@ export async function getPassengerStats(passengerId) {
         },
         cancelled: {
           $sum: { $cond: [{ $eq: ["$status", "cancelled"] }, 1, 0] }
+        },
+        missed: {
+          $sum: { $cond: [{ $eq: ["$status", "missed"] }, 1, 0] }
         }
       }
     }
@@ -55,7 +58,8 @@ export async function getPassengerStats(passengerId) {
 
   return stats[0] ?? {
     completed: 0,
-    cancelled: 0
+    cancelled: 0,
+    missed: 0
   };
 } 
 

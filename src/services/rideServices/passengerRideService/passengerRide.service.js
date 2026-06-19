@@ -1,13 +1,17 @@
 import { Ride } from "../../../models/ride/ride.model.js";
 import { Driver } from "../../../models/driver/driver.model.js";
 import { Passenger } from "../../../models/passenger/passenger.model.js";
-import { calculateFareFromDistance, calculateEarningsFromDistance } from "../../../helpers/rideHelpers.js";
-import { areCoordinatesClose } from "../../../common/utlis.js";
-import { addRideTimeoutJob } from "../../../queues/rideTimeout.queue.js";
-import { PASSENGER_CANCELLATION_REASONS, PASSENGER_REASON_CODES } from "../../../common/cancellationReasons.js"
 import {
-  USER_STATUS,
-} from "../../../constants/userStatus.constants.js";
+  calculateFareFromDistance,
+  calculateEarningsFromDistance,
+} from "../../../helpers/rideHelpers.js";
+import { areCoordinatesClose } from "../../../common/utils.js";
+import { addRideTimeoutJob } from "../../../queues/rideTimeout.queue.js";
+import {
+  PASSENGER_CANCELLATION_REASONS,
+  PASSENGER_REASON_CODES,
+} from "../../../common/cancellationReasons.js";
+import { USER_STATUS } from "../../../constants/userStatus.constants.js";
 import { driverRideEligibilityQuery } from "../../../helpers/driverStatus.helper.js";
 import { canPassengerBookRide } from "../../../helpers/passengerStatus.helper.js";
 import {
@@ -15,7 +19,6 @@ import {
   getPrimaryRoute,
   resolveRideLocation,
 } from "../../googleMaps/googleMaps.service.js";
-
 
 //--------------- Update Passengers Location ---------------
 
@@ -30,10 +33,13 @@ export async function updatePassengerLocationService(passenger, lng, lat) {
 
   const currentTime = new Date();
 
+  // Set all three fields to ensure sync
   passenger.location = {
     type: "Point",
     coordinates: [lng, lat],
   };
+  passenger.longitude = lng;
+  passenger.latitude = lat;
 
   await passenger.save();
 
@@ -50,8 +56,18 @@ export async function updatePassengerLocationService(passenger, lng, lat) {
 
 //-------------------- Create Ride --------------------
 
-export async function createRideService({ passengerId, pickup, drop, vehicleType, paymentMethod, isPaymentRequiredBeforeRide }) {
-  const passenger = await Passenger.findById(passengerId).select("status profileCompleted");
+export async function createRideService({
+  passengerId,
+  pickup,
+  drop,
+  vehicleType,
+  paymentMethod,
+  isPaymentRequiredBeforeRide,
+}) {
+
+  const passenger = await Passenger.findById(passengerId).select(
+    "status profileCompleted",
+  );
   if (!passenger) {
     throw new Error("Passenger not found or inactive");
   }
@@ -70,7 +86,10 @@ export async function createRideService({ passengerId, pickup, drop, vehicleType
     origin: resolvedPickup.coordinates,
     destination: resolvedDrop.coordinates,
   });
-  const fareDetails = calculateFareFromDistance(route.distance.km, vehicleType);
+  const fareDetails = await calculateFareFromDistance(
+    route.distance.km,
+    vehicleType,
+  );
   const { distanceInKm, totalFare } = fareDetails;
 
   function fourDigitNumber() {
@@ -93,7 +112,14 @@ export async function createRideService({ passengerId, pickup, drop, vehicleType
     },
     otpForStartRide,
     distance: distanceInKm,
-    fareEstimate: totalFare,
+    fareEstimate: fareDetails.totalFare,
+
+    fare: {
+      total: fareDetails.totalFare,
+      baseFare: fareDetails.baseFare,
+      platformFee: fareDetails.platformFee,
+      driverShare: fareDetails.driverShare,
+    },
     routeDetails: {
       distanceMeters: route.distance.meters,
       durationSeconds: route.duration.seconds,
@@ -103,34 +129,42 @@ export async function createRideService({ passengerId, pickup, drop, vehicleType
       bounds: route.bounds,
       legs: route.legs,
     },
-    vehicleType: fareDetails.vehicleType,
+    vehicleType: vehicleType,
     paymentMethod,
-    isPaymentRequiredBeforeRide: paymentMethod !== 'cash',
+    isPaymentRequiredBeforeRide: paymentMethod !== "cash",
   });
 
   await ride.populate({
     path: "passenger",
-    select: "name contactNumber rating"
+    select: "name contactNumber rating",
   });
 
-  const nearbyDrivers = await Driver.find(driverRideEligibilityQuery({
-    vehicleType: vehicleType,
-    location: {
-      $near: {
-        $geometry: { type: "Point", coordinates: resolvedPickup.coordinates },
-        $maxDistance: 5000,
+  const nearbyDrivers = await Driver.find(
+    driverRideEligibilityQuery({
+      vehicleType: vehicleType,
+      location: {
+        $near: {
+          $geometry: { type: "Point", coordinates: resolvedPickup.coordinates },
+          $maxDistance: 5000,
+        },
       },
-    },
-  })).select("_id location");
+    }),
+  ).select("_id location");
+
+  console.log(`Found ${nearbyDrivers.length} nearby drivers for new ride ${ride._id}`);
+  console.log(`Found ${nearbyDrivers} nearby drivers for new ride ${ride._id}`);
 
   let driverEtas = [];
   try {
-    driverEtas = await getDriverEtasToDestination(nearbyDrivers, resolvedPickup.coordinates);
+    driverEtas = await getDriverEtasToDestination(
+      nearbyDrivers,
+      resolvedPickup.coordinates,
+    );
   } catch (error) {
     console.error("Unable to calculate nearby driver ETAs:", error.message);
   }
 
-  ride.notifiedDrivers = nearbyDrivers.map(d => d._id);
+  ride.notifiedDrivers = nearbyDrivers.map((d) => d._id);
   await ride.save();
 
   await addRideTimeoutJob(ride._id.toString(), 60000);
@@ -190,10 +224,20 @@ export async function updateRideService({ rideId, passengerId, drop }) {
       origin: pickupCoords,
       destination: dropCoords,
     });
-    const fareDetails = calculateFareFromDistance(route.distance.km, ride.vehicleType);
+    const fareDetails = await calculateFareFromDistance(
+      route.distance.km,
+      ride.vehicleType,
+    );
 
     ride.distance = fareDetails.distanceInKm;
     ride.fareEstimate = fareDetails.totalFare;
+
+    ride.fare = {
+      total: fareDetails.totalFare,
+      baseFare: fareDetails.baseFare,
+      platformFee: fareDetails.platformFee,
+      driverShare: fareDetails.driverShare,
+    };
     ride.routeDetails = {
       distanceMeters: route.distance.meters,
       durationSeconds: route.duration.seconds,
@@ -211,8 +255,12 @@ export async function updateRideService({ rideId, passengerId, drop }) {
 
 //-------------------- Cancel Ride --------------------
 
-export async function cancelRideService({ passengerId, rideId, reasonCode, reasonText, }) {
-
+export async function cancelRideService({
+  passengerId,
+  rideId,
+  reasonCode,
+  reasonText,
+}) {
   const ride = await Ride.findById(rideId);
 
   if (!ride) {
@@ -224,7 +272,7 @@ export async function cancelRideService({ passengerId, rideId, reasonCode, reaso
   }
 
   if (["ongoing", "completed", "cancelled"].includes(ride.status)) {
-    throw new Error(`Cannot cancel the ride with status ${ride.status}`)
+    throw new Error(`Cannot cancel the ride with status ${ride.status}`);
   }
 
   if (!PASSENGER_REASON_CODES.includes(reasonCode)) {
@@ -234,11 +282,11 @@ export async function cancelRideService({ passengerId, rideId, reasonCode, reaso
   let finalReasonText;
   if (reasonCode === "OTHER") {
     if (!reasonText || !reasonText.trim()) {
-      throw new Error("Reason text is required for Other")
+      throw new Error("Reason text is required for Other");
     }
-    finalReasonText = reasonText.trim()
+    finalReasonText = reasonText.trim();
   } else {
-    finalReasonText = PASSENGER_CANCELLATION_REASONS[reasonCode]
+    finalReasonText = PASSENGER_CANCELLATION_REASONS[reasonCode];
   }
 
   ride.status = "cancelled";
@@ -246,15 +294,19 @@ export async function cancelRideService({ passengerId, rideId, reasonCode, reaso
     cancelledBy: "Passenger",
     reasonCode,
     reasonText: finalReasonText,
-    cancelledAt: new Date()
-  }
+    cancelledAt: new Date(),
+  };
   await ride.save();
   return ride;
 }
 
 //-------------------- End Ride --------------------
 
-export async function endRideService({ rideId, passengerId, passengerLocationCoordinates }) {
+export async function endRideService({
+  rideId,
+  passengerId,
+  passengerLocationCoordinates,
+}) {
   if (!rideId || !passengerId) {
     throw new Error("Ride ID and Passenger ID are required");
   }
@@ -265,19 +317,25 @@ export async function endRideService({ rideId, passengerId, passengerLocationCoo
     throw new Error("Ride not found or unauthorized access");
   }
 
-
-  if (!passengerLocationCoordinates || passengerLocationCoordinates.length !== 2) {
+  if (
+    !passengerLocationCoordinates ||
+    passengerLocationCoordinates.length !== 2
+  ) {
     throw new Error("Passenger location is required to end the ride");
   }
 
-  if (!ride.drop || !ride.drop.coordinates || ride.drop.coordinates.length !== 2) {
+  if (
+    !ride.drop ||
+    !ride.drop.coordinates ||
+    ride.drop.coordinates.length !== 2
+  ) {
     throw new Error("Ride drop location is not available");
   }
 
   // Convert passenger location to [lng, lat] for comparison
   const passengerLocation = [
     passengerLocationCoordinates[0],
-    passengerLocationCoordinates[1]
+    passengerLocationCoordinates[1],
   ];
 
   if (!areCoordinatesClose(passengerLocation, ride.drop.coordinates)) {
@@ -294,10 +352,8 @@ export async function endRideService({ rideId, passengerId, passengerLocationCoo
     let driverShare = 0;
     let platformFee = 0;
     if (ride.distance && ride.vehicleType) {
-      const { platformFee: pf, driverShare: ds } = calculateEarningsFromDistance(
-        ride.distance,
-        ride.vehicleType
-      );
+      const { platformFee: pf, driverShare: ds } =
+        await calculateEarningsFromDistance(ride.distance, ride.vehicleType);
       driverShare = ds || 0;
       platformFee = pf || 0;
     }
@@ -311,12 +367,8 @@ export async function endRideService({ rideId, passengerId, passengerLocationCoo
   }
 
   if (ride.passenger) {
-    await Passenger.findByIdAndUpdate(ride.passenger, {
-    });
+    await Passenger.findByIdAndUpdate(ride.passenger, {});
   }
 
   return ride;
 }
-
-
-

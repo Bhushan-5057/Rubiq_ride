@@ -3,7 +3,11 @@ import { updatePassengerValidation } from "../../validations/passenger.validatio
 import { authenticatePassenger } from "../../middleware/auth.middleware.js";
 import { upload } from "../../middleware/upload.middleware.js";
 import { logoutController } from "../../controllers/passenger/passengerAuth/passengerAuth.controller.js";
-import { deleteProfileController, profileController, updateProfileController } from "../../controllers/passenger/passengerProfile/passengerProfile.controller.js";
+import {
+  deleteProfileController,
+  profileController,
+  updateProfileController,
+} from "../../controllers/passenger/passengerProfile/passengerProfile.controller.js";
 
 const router = Router();
 
@@ -11,7 +15,13 @@ const router = Router();
 router.get("/", authenticatePassenger, profileController);
 
 //----------------------- Update Profile -----------------------
-router.put("/", authenticatePassenger,  upload.any(), updatePassengerValidation, updateProfileController);
+router.put(
+  "/",
+  authenticatePassenger,
+  upload.any(),
+  updatePassengerValidation,
+  updateProfileController,
+);
 
 //--------------------- Logout Profile ---------------------
 router.post("/logout", authenticatePassenger, logoutController);

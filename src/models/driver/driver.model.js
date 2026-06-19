@@ -5,6 +5,10 @@ import {
   DRIVER_AVAILABILITY_STATUS,
   USER_STATUS,
 } from "../../constants/userStatus.constants.js";
+import {
+  createQueryGeoSyncMiddleware,
+  createSaveGeoSyncMiddleware,
+} from "../../utils/geoLocationSync.js";
 
 const driverSchema = new mongoose.Schema(
   {
@@ -36,6 +40,9 @@ const driverSchema = new mongoose.Schema(
       enum: [USER_STATUS.ACTIVE, USER_STATUS.PENDING, USER_STATUS.INACTIVE, USER_STATUS.BLOCKED],
       default: USER_STATUS.PENDING
     },
+    blockedReason: { type: String, trim: true },
+    blockedAt: { type: Date },
+    blockedBy: { type: mongoose.Schema.Types.ObjectId, ref: "Admin" },
     location: {
       type: {
         type: String,
@@ -77,32 +84,63 @@ const driverSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-driverSchema.pre("save", function (next) {
-  if (this.isModified("longitude") || this.isModified("latitude")) {
-    if (this.longitude !== undefined && this.latitude !== undefined) {
-      this.location = {
-        type: "Point",
-        coordinates: [this.longitude, this.latitude],
-      };
-    } else {
-      this.location = undefined;
-    }
-  }
+driverSchema.pre(
+  "save",
+  createSaveGeoSyncMiddleware({
+    modelName: "Driver",
+    locationField: "location",
+    longitudeField: "longitude",
+    latitudeField: "latitude",
+  }),
+);
 
-  if (
-    this.location &&
-    (!Array.isArray(this.location.coordinates) ||
-      this.location.coordinates.length !== 2)
-  ) {
-    this.location = undefined;
-  }
-  next();
-});
+driverSchema.pre(
+  "findOneAndUpdate",
+  createQueryGeoSyncMiddleware({
+    modelName: "Driver",
+    locationField: "location",
+    longitudeField: "longitude",
+    latitudeField: "latitude",
+  }),
+);
+driverSchema.pre(
+  "updateOne",
+  createQueryGeoSyncMiddleware({
+    modelName: "Driver",
+    locationField: "location",
+    longitudeField: "longitude",
+    latitudeField: "latitude",
+  }),
+);
+driverSchema.pre(
+  "updateMany",
+  createQueryGeoSyncMiddleware({
+    modelName: "Driver",
+    locationField: "location",
+    longitudeField: "longitude",
+    latitudeField: "latitude",
+  }),
+);
+driverSchema.pre(
+  "replaceOne",
+  createQueryGeoSyncMiddleware({
+    modelName: "Driver",
+    locationField: "location",
+    longitudeField: "longitude",
+    latitudeField: "latitude",
+  }),
+);
+driverSchema.pre(
+  "findOneAndReplace",
+  createQueryGeoSyncMiddleware({
+    modelName: "Driver",
+    locationField: "location",
+    longitudeField: "longitude",
+    latitudeField: "latitude",
+  }),
+);
+
 
 driverSchema.index({ location: "2dsphere" });
 
 export const Driver = mongoose.models.Driver || mongoose.model('Driver', driverSchema);
-
-if (!mongoose.models.driver) {
-  mongoose.model("driver", driverSchema);
-}
