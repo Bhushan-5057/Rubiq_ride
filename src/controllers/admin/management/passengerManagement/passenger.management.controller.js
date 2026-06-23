@@ -5,7 +5,7 @@ import { sendSuccess } from "../../../../utils/apiResponse.js";
 export async function updatePassengerStatusController(req, res, next) {
   try {
     const { passengerId } = req.params; 
-    const { status, blockedReason } = req.body; 
+    const { status, blockedReason, adminComment, forceBlock } = req.body; 
 
     if (!status) {
       return res.status(400).json({ status: false, message: "status is required" });
@@ -14,6 +14,8 @@ export async function updatePassengerStatusController(req, res, next) {
     const result = await updatePassangerStatus(passengerId, status, {
       adminId: req.admin?._id || req.user?.id,
       blockedReason,
+      adminComment,
+      forceBlock,
     });
     return sendSuccess(res, 200, result.message, result.passenger);
   } catch (err) {

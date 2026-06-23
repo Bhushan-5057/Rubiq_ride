@@ -5,7 +5,11 @@ import {
   getRideFeedbackService,
   getAllFeedbackService
 } from '../../services/feedback/feedback.service.js';
-import { getIO } from '../../config/socket/socket.js';
+import {
+  SOCKET_EVENTS,
+  emitToDriver,
+  emitToPassenger,
+} from '../../config/socket/socket.js';
 import { Ride } from '../../models/ride/ride.model.js';
 import { sendToUser } from '../../services/notification/sendToUser.js';
 import { Driver } from '../../models/driver/driver.model.js';
@@ -30,9 +34,8 @@ export const submitDriverFeedback = async (req, res) => {
     });
 
     const ride = await Ride.findById(rideId).select("driver")
-    const io = getIO()
 
-    io.to(ride.driver.toString()).emit("passenger_feedback_received", {
+    emitToDriver(ride.driver, SOCKET_EVENTS.FEEDBACK_DRIVER_SUBMITTED, {
       rideId,
       rating: feedback.rating,
       comment: feedback.comment,
@@ -40,7 +43,7 @@ export const submitDriverFeedback = async (req, res) => {
     })
     emitAdminEvent("admin:passenger_activity", {
       passengerId: req.passenger._id.toString(),
-      action: "driver_feedback_submitted",
+      action: SOCKET_EVENTS.FEEDBACK_DRIVER_SUBMITTED,
       rideId,
       rating: feedback.rating,
     });
@@ -49,9 +52,9 @@ export const submitDriverFeedback = async (req, res) => {
     await sendToUser({
       user: driver,
       title: "New Passenger feedback",
-      body: `${req.passenger.name} rated you ${feedback.rating} ⭐`,
+      body: "Passenger submitted feedback.",
       data: {
-        type: "passenger_feedback_received",
+        type: SOCKET_EVENTS.FEEDBACK_DRIVER_SUBMITTED,
         rideId
       },
       userType: "driver"
@@ -88,9 +91,8 @@ export const submitPassengerFeedback = async (req, res) => {
     });
 
     const ride = await Ride.findById(rideId).select("passenger")
-    const io = getIO()
 
-    io.to(ride.passenger.toString()).emit("driver_feedback_received", {
+    emitToPassenger(ride.passenger, SOCKET_EVENTS.FEEDBACK_PASSENGER_SUBMITTED, {
       rideId,
       rating: feedback.rating,
       comment: feedback.comment,
@@ -98,7 +100,7 @@ export const submitPassengerFeedback = async (req, res) => {
     })
     emitAdminEvent("admin:passenger_activity", {
       passengerId: ride.passenger.toString(),
-      action: "driver_feedback_received",
+      action: SOCKET_EVENTS.FEEDBACK_PASSENGER_SUBMITTED,
       rideId,
       rating: feedback.rating,
     });
@@ -107,9 +109,9 @@ export const submitPassengerFeedback = async (req, res) => {
     await sendToUser({
       user: passenger,
       title: "New Driver feedback",
-      body: `${req.driver.name} rated you ${feedback.rating} ⭐`,
+      body: "Driver submitted feedback.",
       data: {
-        type: "driver_feedback_received",
+        type: SOCKET_EVENTS.FEEDBACK_PASSENGER_SUBMITTED,
         rideId
       },
       userType: "passenger"

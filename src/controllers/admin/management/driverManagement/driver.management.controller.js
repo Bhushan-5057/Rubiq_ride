@@ -7,7 +7,7 @@ import { emitAdminEvent } from "../../../../helpers/admin-realtime.helper.js";
 export async function updateStatusController(req, res, next) {
   try {
     const { driverId } = req.params;
-    const { status, blockedReason } = req.body;
+    const { status, blockedReason, adminComment, forceBlock } = req.body;
 
     if (!driverId || !status) {
       return res.status(400).json({ status: false, message: "Driver ID and status are required" });
@@ -16,6 +16,8 @@ export async function updateStatusController(req, res, next) {
     const result = await updateDriverStatus(driverId, status, {
       adminId: req.admin?._id || req.user?.id,
       blockedReason,
+      adminComment,
+      forceBlock,
     });
     emitAdminEvent("admin:driver_status_updated", {
       driverId,

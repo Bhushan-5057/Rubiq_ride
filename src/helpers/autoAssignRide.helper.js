@@ -1,4 +1,4 @@
-import { getIO } from "../config/socket/socket.js";
+import { SOCKET_EVENTS, emitToDriver } from "../config/socket/socket.js";
 import { emitAdminRideEvent } from "./admin-realtime.helper.js";
 import { Driver } from "../models/driver/driver.model.js";
 import { Ride } from "../models/ride/ride.model.js";
@@ -6,7 +6,6 @@ import { driverRideEligibilityQuery } from "./driverStatus.helper.js";
 
 export async function autoAssignRideToNextDriver(ride) {
   try {
-    const io = getIO();
     const nearbyDrivers = await findNearbyDrivers(ride.pickup.coordinates);
 
     if (!nearbyDrivers || nearbyDrivers.length === 0) {
@@ -25,7 +24,7 @@ export async function autoAssignRideToNextDriver(ride) {
 
     // Notify each driver
     nearbyDrivers.forEach(driver => {
-      io.to(driver._id.toString()).emit("new_ride_request", {
+      emitToDriver(driver._id, SOCKET_EVENTS.RIDE_REQUESTED, {
         rideId: ride._id,
         pickup: ride.pickup,
         drop: ride.drop,

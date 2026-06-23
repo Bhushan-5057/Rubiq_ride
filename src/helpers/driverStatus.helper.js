@@ -14,7 +14,10 @@ export function isDriverReadyForRide(driver) {
 }
 
 export function canDriverLogin(driver) {
-  return Boolean(driver && driver.status !== USER_STATUS.INACTIVE && driver.status !== USER_STATUS.BLOCKED);
+  // Allow drivers to sign in for all lifecycle states so they can view
+  // their account status and blocking/administrative notes. Ride-receiving
+  // and booking eligibility remain governed by other helpers.
+  return Boolean(driver);
 }
 
 export function canDriverReceiveRide(driver) {

@@ -1,12 +1,16 @@
-import { getIO } from "../../../config/socket/socket.js";
+import {
+  SOCKET_EVENTS,
+  emitToDriver,
+  emitToPassenger,
+} from "../../../config/socket/socket.js";
 import {
   acceptRideService,
-  cancelRideService,
   driverArrivedService,
   startRideService,
   completeRideService,
   updateDriverLocationService
 } from "../../../services/rideServices/driverTrackingService/driverTracking.service.js";
+import { cancelRideService } from "../../../services/rideServices/rideCancellation.service.js";
 import { getDistanceMatrix } from "../../../services/googleMaps/googleMaps.service.js";
 import { Ride } from "../../../models/ride/ride.model.js";
 import { refundPayment } from "../../../services/payment/payment.service.js";
@@ -37,8 +41,6 @@ export const acceptRide = async (req, res, next) => {
 
     const ride = await acceptRideService({ rideId, driverId });
 
-    const io = getIO();
-
     const payload = {
       rideId: ride._id,
       driver: {
@@ -55,9 +57,9 @@ export const acceptRide = async (req, res, next) => {
     }
 
     // Notify passenger about driver assignment
-    io.to(ride.passenger._id.toString()).emit("driver_assigned", payload)
+    emitToPassenger(ride.passenger, SOCKET_EVENTS.RIDE_DRIVER_ASSIGNED, payload)
     await emitAdminRideEvent("admin:ride_status_updated", ride, {
-      action: "driver_assigned",
+      action: SOCKET_EVENTS.RIDE_DRIVER_ASSIGNED,
       driverId: driverId.toString(),
     });
 
@@ -68,9 +70,9 @@ export const acceptRide = async (req, res, next) => {
     await sendToUser({
       user: passenger,
       title: "Ride Accepted",
-      body: `Your ride has been accepted by ${req.driver.name}.`,
+      body: "Driver accepted your ride request.",
       data: {
-        type: "driver_assigned",
+        type: SOCKET_EVENTS.RIDE_DRIVER_ASSIGNED,
         rideId: ride._id.toString()
       },
       userType: "passenger",
@@ -109,11 +111,9 @@ export const driverArrived = async (req, res, next) => {
     }
 
     // Notify passenger that driver has arrived
-    const io = getIO();
-
-    io.to(ride.passenger._id.toString()).emit("driver_arrived",payload)
+    emitToPassenger(ride.passenger, SOCKET_EVENTS.DRIVER_ARRIVED, payload)
     await emitAdminRideEvent("admin:ride_status_updated", ride, {
-      action: "driver_arrived",
+      action: SOCKET_EVENTS.DRIVER_ARRIVED,
       driverId: driverId.toString(),
     });
 
@@ -122,9 +122,9 @@ export const driverArrived = async (req, res, next) => {
     await sendToUser({
       user: passenger,
       title: "Driver Arrived",
-      body: "Your driver has arrived. Please get ready.",
+      body: "Driver has arrived at your pickup location.",
       data: {
-        type: "driver_arrived",
+        type: SOCKET_EVENTS.DRIVER_ARRIVED,
         rideId: ride._id.toString(),
       },
       userType: "passenger",
@@ -149,12 +149,11 @@ export const startRide = async (req, res, next) => {
     });
 
     // Notify passenger that ride has started
-    const io = getIO();
-    io.to(ride.passenger._id.toString()).emit("ride_started", {
+    emitToPassenger(ride.passenger, SOCKET_EVENTS.RIDE_STARTED, {
       rideId: ride._id,
     });
     await emitAdminRideEvent("admin:ride_status_updated", ride, {
-      action: "ride_started",
+      action: SOCKET_EVENTS.RIDE_STARTED,
       driverId: driverId.toString(),
     });
 
@@ -163,9 +162,9 @@ export const startRide = async (req, res, next) => {
     await sendToUser({
       user: passenger,
       title: "Ride Started",
-      body: "Your ride has started. Enjoy your trip!",
+      body: "Your ride has started.",
       data: {
-        type: "ride_started",
+        type: SOCKET_EVENTS.RIDE_STARTED,
         rideId: ride._id.toString(),
       },
       userType: "passenger",
@@ -190,10 +189,8 @@ export const completeRide = async (req, res, next) => {
       driverLocationCoordinates,
     });
 
-    const io = getIO();
-
     // Emit ride ended event with payment status
-    io.to(ride.passenger._id.toString()).emit("ride_ended", {
+    emitToPassenger(ride.passenger, SOCKET_EVENTS.RIDE_COMPLETED, {
       rideId: ride._id,
       status: ride.status,
       paymentStatus: ride.paymentStatus,
@@ -210,9 +207,9 @@ export const completeRide = async (req, res, next) => {
     await sendToUser({
       user: passenger,
       title: "Ride Completed",
-      body: "Your ride has been completed. Please proceed with payment.",
+      body: "Your ride has been completed.",
       data: {
-        type: "ride_ended",
+        type: SOCKET_EVENTS.RIDE_COMPLETED,
         rideId: ride._id.toString(),
       },
       userType: "passenger",
@@ -228,7 +225,7 @@ export const completeRide = async (req, res, next) => {
     if (ride.paymentStatus === 'paid') {
       const driver = await Driver.findById(driverId).select("fcmTokens");
 
-      io.to(driverId.toString()).emit('payment_received', {
+      emitToDriver(driverId, "payment:received", {
         rideId: ride._id,
         amount: ride.fareEstimate,
         currency: 'inr',
@@ -247,7 +244,7 @@ export const completeRide = async (req, res, next) => {
         title: "Payment Received",
         body: "Payment for the ride has been received.",
         data: {
-          type: "payment_received",
+          type: "payment:received",
           rideId: ride._id.toString(),
         },
         userType: "driver",
@@ -308,17 +305,17 @@ export const cancelRide = async (req, res, next) => {
       await ride.save();
     }
 
-    // Cancel the ride
-    const updatedRide = await cancelRideService({ rideId, driverId, reasonCode, reasonText });
-
-    await Driver.findByIdAndUpdate(driverId, {
-      driverStatus: "available",
-      isOnline: true
+    const updatedRide = await cancelRideService({
+      rideId,
+      actorId: driverId,
+      cancelledBy: "Driver",
+      reasonCode,
+      reasonText,
+      paymentStatus: ride.paymentStatus,
     });
 
     // Notify passenger about ride cancellation
-    const io = getIO();
-    io.to(updatedRide.passenger._id.toString()).emit("ride_cancelled", {
+    emitToPassenger(updatedRide.passenger, SOCKET_EVENTS.RIDE_CANCELLED_BY_DRIVER, {
       rideId: updatedRide._id,
       cancelledBy: "Driver",
       reasonCode: updatedRide.cancellation.reasonCode,
@@ -338,9 +335,9 @@ export const cancelRide = async (req, res, next) => {
     await sendToUser({
       user: passenger,
       title: "Ride Cancelled",
-      body: "Your ride has been cancelled by the driver.",
+      body: "Your driver cancelled the ride.",
       data: {
-        type: "ride_cancelled",
+        type: SOCKET_EVENTS.RIDE_CANCELLED_BY_DRIVER,
         rideId: updatedRide._id.toString(),
       },
       userType: "passenger",
@@ -376,11 +373,10 @@ export const updateDriverLocation = async (req, res, next) => {
     const { ride, ...driverLocation } = updatedDriver;
 
     if (ride?.passenger) {
-      const io = getIO();
       const passengerId = ride.passenger.toString();
 
       // Always emit real-time location update
-      io.to(passengerId).emit("driver_location_update", {
+      emitToPassenger(passengerId, SOCKET_EVENTS.DRIVER_LOCATION_UPDATED, {
         rideId,
         driver: driverLocation,
         status: ride.status,
@@ -410,7 +406,7 @@ export const updateDriverLocation = async (req, res, next) => {
         }
 
         // Notify passenger that driver is on the way
-        io.to(passengerId).emit("on_the_way", {
+        emitToPassenger(passengerId, SOCKET_EVENTS.DRIVER_EN_ROUTE, {
           rideId,
           driver: driverLocation,
           pickupLocation: ride.pickup,
@@ -437,7 +433,7 @@ export const updateDriverLocation = async (req, res, next) => {
           etaToDrop = null;
         }
 
-        io.to(passengerId).emit("ride_in_progress", {
+        emitToPassenger(passengerId, SOCKET_EVENTS.DRIVER_LOCATION_UPDATED, {
           rideId,
           driver: driverLocation,
           dropLocation: ride.drop,

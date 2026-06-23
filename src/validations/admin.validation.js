@@ -124,6 +124,15 @@ export const validateLifecycleStatusUpdate = [
         .required()
         .messages({ "any.only": "Invalid status" }),
       blockedReason: Joi.string().trim().max(500).optional(),
+      adminComment: Joi.string()
+        .trim()
+        .max(500)
+        .when("status", {
+          is: USER_STATUS.INACTIVE,
+          then: Joi.required().messages({ "any.required": "adminComment is required when setting status to inactive" }),
+          otherwise: Joi.optional(),
+        }),
+      forceBlock: Joi.boolean().strict().optional(),
     })
       .unknown(false)
       .messages(messages)

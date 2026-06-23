@@ -5,7 +5,10 @@ export function isPassengerActive(passenger) {
 }
 
 export function canPassengerLogin(passenger) {
-  return isPassengerActive(passenger);
+  // Allow passengers to sign in for all lifecycle states so they can view
+  // account status and any blocking/administrative notes. Booking eligibility
+  // remains enforced via `canPassengerBookRide` and status checks elsewhere.
+  return Boolean(passenger);
 }
 
 export function canPassengerBookRide(passenger) {

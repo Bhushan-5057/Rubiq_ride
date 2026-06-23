@@ -21,6 +21,23 @@ export async function updateDriverStatus(driverId, newStatus, options = {}) {
   const driver = await driverRepository.findById(driverId);
   if (!driver) throw new Error("Driver not found");
 
+  if (newStatus === USER_STATUS.ACTIVE) {
+    const missing = [];
+    if (driver.profileCompleted !== true) missing.push("profile completion");
+    if (driver.approvalStatus !== DRIVER_APPROVAL_STATUS.APPROVED) missing.push("driver approval");
+    if (driver.documentsVerified !== true) missing.push("document verification");
+
+    if (missing.length) {
+      throw new Error(
+        `Driver cannot be activated until ${missing.join(", ")}.`
+      );
+    }
+  }
+
+  if (newStatus === USER_STATUS.INACTIVE && !options.adminComment) {
+    throw new Error("adminComment is required when setting status to inactive.");
+  }
+
   const stats = await getDriverStats(driver._id);
   const riskSupportData = await getUserRiskSupportData({
     userId: driver._id,
@@ -37,20 +54,43 @@ export async function updateDriverStatus(driverId, newStatus, options = {}) {
   }
 
   if (newStatus === USER_STATUS.BLOCKED) {
-    driver.blockedReason = options.blockedReason;
+    const adminComment = options.adminComment || options.blockedReason || null;
+    const isRiskBlock = Boolean(riskSupportData.riskAssessment?.eligibleForBlockReview);
+
+    if (!isRiskBlock && !options.forceBlock) {
+      throw new Error(
+        "Driver does not qualify for blocking without forceBlock."
+      );
+    }
+
+    driver.blockedReason = adminComment;
+    driver.adminComment = adminComment;
+    driver.blockedUsingRiskAssessment = isRiskBlock;
     driver.blockedAt = new Date();
     driver.blockedBy = options.adminId;
+    driver.riskAssessmentSnapshot = {
+      level: riskSupportData.riskAssessment?.level || null,
+      complaintsCount: riskSupportData.riskAssessment?.complaintsCount || 0,
+      cancellationRate: riskSupportData.riskAssessment?.cancellationRate || 0,
+      missedRides: riskSupportData.riskAssessment?.missedRides || 0,
+      capturedAt: new Date(),
+    };
 
     console.warn("admin_driver_block_review", {
       driverId: driver._id.toString(),
       adminId: options.adminId?.toString?.() || options.adminId,
-      blockedReason: options.blockedReason,
+      adminComment,
+      blockedUsingRiskAssessment: isRiskBlock,
+      forceBlock: options.forceBlock,
       riskAssessment: riskSupportData.riskAssessment,
     });
-  } else if (driver.status !== USER_STATUS.BLOCKED) {
+  } else {
     driver.blockedReason = undefined;
+    driver.adminComment = undefined;
     driver.blockedAt = undefined;
     driver.blockedBy = undefined;
+    driver.blockedUsingRiskAssessment = undefined;
+    driver.riskAssessmentSnapshot = undefined;
   }
 
   await driver.save();

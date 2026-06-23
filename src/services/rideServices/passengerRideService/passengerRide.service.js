@@ -8,10 +8,9 @@ import {
 import { areCoordinatesClose } from "../../../common/utils.js";
 import { addRideTimeoutJob } from "../../../queues/rideTimeout.queue.js";
 import {
-  PASSENGER_CANCELLATION_REASONS,
-  PASSENGER_REASON_CODES,
-} from "../../../common/cancellationReasons.js";
-import { USER_STATUS } from "../../../constants/userStatus.constants.js";
+  DRIVER_AVAILABILITY_STATUS,
+  USER_STATUS,
+} from "../../../constants/userStatus.constants.js";
 import { driverRideEligibilityQuery } from "../../../helpers/driverStatus.helper.js";
 import { canPassengerBookRide } from "../../../helpers/passengerStatus.helper.js";
 import {
@@ -250,53 +249,10 @@ export async function updateRideService({ rideId, passengerId, drop }) {
   }
 
   await ride.save();
-  return ride;
-}
-
-//-------------------- Cancel Ride --------------------
-
-export async function cancelRideService({
-  passengerId,
-  rideId,
-  reasonCode,
-  reasonText,
-}) {
-  const ride = await Ride.findById(rideId);
-
-  if (!ride) {
-    throw new Error("Ride not found");
-  }
-
-  if (ride.passenger.toString() !== passengerId.toString()) {
-    throw new Error("You are not authorized to cancel this ride");
-  }
-
-  if (["ongoing", "completed", "cancelled"].includes(ride.status)) {
-    throw new Error(`Cannot cancel the ride with status ${ride.status}`);
-  }
-
-  if (!PASSENGER_REASON_CODES.includes(reasonCode)) {
-    throw new Error("Invalid cancellation reason");
-  }
-
-  let finalReasonText;
-  if (reasonCode === "OTHER") {
-    if (!reasonText || !reasonText.trim()) {
-      throw new Error("Reason text is required for Other");
-    }
-    finalReasonText = reasonText.trim();
-  } else {
-    finalReasonText = PASSENGER_CANCELLATION_REASONS[reasonCode];
-  }
-
-  ride.status = "cancelled";
-  ride.cancellation = {
-    cancelledBy: "Passenger",
-    reasonCode,
-    reasonText: finalReasonText,
-    cancelledAt: new Date(),
-  };
-  await ride.save();
+  await ride.populate({
+    path: "passenger",
+    select: "name contactNumber rating",
+  });
   return ride;
 }
 
@@ -358,6 +314,11 @@ export async function endRideService({
       platformFee = pf || 0;
     }
     await Driver.findByIdAndUpdate(ride.driver, {
+      $set: {
+        driverStatus: DRIVER_AVAILABILITY_STATUS.AVAILABLE,
+        currentRide: null,
+        lastRideCompletedAt: new Date(),
+      },
       $inc: {
         "earnings.totalEarnings": fare,
         "earnings.totalDriverPayout": driverShare,

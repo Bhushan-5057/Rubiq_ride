@@ -15,6 +15,36 @@ import { passengerActiveQuery } from "../../helpers/passengerStatus.helper.js";
 
 let ioInstance;
 
+export const SOCKET_EVENTS = Object.freeze({
+  AUTH_ERROR: "auth_error",
+  RIDE_REQUESTED: "ride.requested",
+  RIDE_CREATED: "ride.created",
+  RIDE_DRIVER_ASSIGNED: "ride.driver_assigned",
+  DRIVER_EN_ROUTE: "driver.en_route",
+  DRIVER_LOCATION_UPDATED: "driver.location_updated",
+  RIDE_DROP_LOCATION_UPDATED: "ride.drop_location_updated",
+  RIDE_CANCELLED_BY_PASSENGER: "ride.cancelled_by_passenger",
+  RIDE_CANCELLED_BY_DRIVER: "ride.cancelled_by_driver",
+  RIDE_MISSED: "ride.missed",
+  DRIVER_ARRIVED: "driver.arrived",
+  RIDE_STARTED: "ride.started",
+  RIDE_COMPLETED: "ride.completed",
+  FEEDBACK_DRIVER_SUBMITTED: "feedback.driver.submitted",
+  FEEDBACK_DRIVER_RECEIVED: "feedback.driver.received",
+  FEEDBACK_PASSENGER_SUBMITTED: "feedback.passenger.submitted",
+  FEEDBACK_PASSENGER_RECEIVED: "feedback.passenger.received",
+});
+
+export const getRoleRoom = (role, userId) => `${role}_${userId.toString()}`;
+
+export const emitToPassenger = (passengerId, event, payload) => {
+  getIO().to(getRoleRoom("passenger", passengerId)).emit(event, payload);
+};
+
+export const emitToDriver = (driverId, event, payload) => {
+  getIO().to(getRoleRoom("driver", driverId)).emit(event, payload);
+};
+
 export const initSocket = (server) => {
   const allowedOrigins = [
     "http://localhost:5173",
@@ -76,6 +106,9 @@ export const initSocket = (server) => {
 
   io.on("connection", (socket) => {
     console.log("Socket connected:", socket.id);
+    const roleRoom = getRoleRoom(socket.user.role, socket.user.id);
+    socket.join(roleRoom);
+    console.log(`User ${socket.user.id} joined role room ${roleRoom}`);
 
     registerDriverPresenceEvents(socket);
     registerAdminEvents(io, socket);
@@ -85,18 +118,19 @@ export const initSocket = (server) => {
       if (!userId) return;
       const room = userId.toString();
       if (room !== socket.user?.id) {
-        socket.emit("auth_error", "Cannot register another user's socket room");
+        socket.emit(SOCKET_EVENTS.AUTH_ERROR, "Cannot register another user's socket room");
         if (typeof ack === "function") {
           ack({ success: false, message: "Cannot register another user's socket room" });
         }
         return;
       }
-      if (!socket.rooms.has(room)) {
-        socket.join(room);
-        console.log(`User ${userId} joined their personal room`);
+      const registeredRoleRoom = getRoleRoom(socket.user.role, room);
+      if (!socket.rooms.has(registeredRoleRoom)) {
+        socket.join(registeredRoleRoom);
+        console.log(`User ${userId} joined role room ${registeredRoleRoom}`);
       }
       if (typeof ack === "function") {
-        ack({ success: true, room, message: "Personal room registered" });
+        ack({ success: true, room: registeredRoleRoom, message: "Role room registered" });
       }
     });
 

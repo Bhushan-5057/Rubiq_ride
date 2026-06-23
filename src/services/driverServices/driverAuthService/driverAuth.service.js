@@ -89,6 +89,11 @@ export async function otpLogin(payload) {
     token,
     driver: normalizeDriverMediaUrls(driver.toObject()),
     profileCompleted: driver.profileCompleted,
+    status: driver.status,
+    blockedReason: driver.blockedReason || null,
+    adminComment: driver.adminComment || null,
+    approvalStatus: driver.approvalStatus || null,
+    documentsVerified: Boolean(driver.documentsVerified),
   };
 }
 
@@ -177,7 +182,12 @@ export async function googleLogin(payload) {
   return {
     token,
     driver: normalizeDriverMediaUrls(driver.toObject()),
-    profileCompleted: driver.profileCompleted
+    profileCompleted: driver.profileCompleted,
+    status: driver.status,
+    blockedReason: driver.blockedReason || null,
+    adminComment: driver.adminComment || null,
+    approvalStatus: driver.approvalStatus || null,
+    documentsVerified: Boolean(driver.documentsVerified),
   };
 }
 

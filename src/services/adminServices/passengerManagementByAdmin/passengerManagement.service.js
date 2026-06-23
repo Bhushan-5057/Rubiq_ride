@@ -99,6 +99,14 @@ export async function updatePassangerStatus(passengerId, newStatus, options = {}
   const passenger = await passengerRepository.findById(passengerId);
   if (!passenger) throw new Error("Passenger not found");
 
+  if (newStatus === USER_STATUS.ACTIVE && passenger.profileCompleted !== true) {
+    throw new Error("Passenger profile is incomplete; cannot activate until profile completion is done.");
+  }
+
+  if (newStatus === USER_STATUS.INACTIVE && !options.adminComment) {
+    throw new Error("adminComment is required when setting status to inactive.");
+  }
+
   const stats = await getPassengerStats(passenger._id);
   const riskSupportData = await getUserRiskSupportData({
     userId: passenger._id,
@@ -108,20 +116,43 @@ export async function updatePassangerStatus(passengerId, newStatus, options = {}
 
   passenger.status = newStatus;
   if (newStatus === USER_STATUS.BLOCKED) {
-    passenger.blockedReason = options.blockedReason;
+    const adminComment = options.adminComment || options.blockedReason || null;
+    const isRiskBlock = Boolean(riskSupportData.riskAssessment?.eligibleForBlockReview);
+
+    if (!isRiskBlock && !options.forceBlock) {
+      throw new Error(
+        "Passenger does not qualify for blocking without forceBlock."
+      );
+    }
+
+    passenger.blockedReason = adminComment;
+    passenger.adminComment = adminComment;
+    passenger.blockedUsingRiskAssessment = isRiskBlock;
     passenger.blockedAt = new Date();
     passenger.blockedBy = options.adminId;
+    passenger.riskAssessmentSnapshot = {
+      level: riskSupportData.riskAssessment?.level || null,
+      complaintsCount: riskSupportData.riskAssessment?.complaintsCount || 0,
+      cancellationRate: riskSupportData.riskAssessment?.cancellationRate || 0,
+      missedRides: riskSupportData.riskAssessment?.missedRides || 0,
+      capturedAt: new Date(),
+    };
 
     console.warn("admin_passenger_block_review", {
       passengerId: passenger._id.toString(),
       adminId: options.adminId?.toString?.() || options.adminId,
-      blockedReason: options.blockedReason,
+      adminComment,
+      blockedUsingRiskAssessment: isRiskBlock,
+      forceBlock: options.forceBlock,
       riskAssessment: riskSupportData.riskAssessment,
     });
   } else {
     passenger.blockedReason = undefined;
+    passenger.adminComment = undefined;
     passenger.blockedAt = undefined;
     passenger.blockedBy = undefined;
+    passenger.blockedUsingRiskAssessment = undefined;
+    passenger.riskAssessmentSnapshot = undefined;
   }
 
   await passenger.save();

@@ -5,7 +5,7 @@ import { connectDB, mongoose } from "../config/dbConnect.js";
 import { initRedis, getRedis } from '../config/redis.js';
 import { Ride } from "../models/ride/ride.model.js";
 import { autoAssignRideToNextDriver } from "../helpers/autoAssignRide.helper.js";
-import { getIO } from "../config/socket/socket.js";
+import { SOCKET_EVENTS, emitToPassenger } from "../config/socket/socket.js";
 import { emitAdminRideEvent } from "../helpers/admin-realtime.helper.js";
 
 const shutdownWorker = async (worker) => {
@@ -63,8 +63,7 @@ const createWorker = async () => {
           await ride.save();
 
           // Notify passenger
-          const io = getIO();
-          io.to(ride.passenger.toString()).emit("ride_missed", {
+          emitToPassenger(ride.passenger, SOCKET_EVENTS.RIDE_MISSED, {
             rideId: ride._id,
             message: "No driver accepted your ride.",
           });

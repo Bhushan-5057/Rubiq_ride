@@ -40,9 +40,18 @@ const driverSchema = new mongoose.Schema(
       enum: [USER_STATUS.ACTIVE, USER_STATUS.PENDING, USER_STATUS.INACTIVE, USER_STATUS.BLOCKED],
       default: USER_STATUS.PENDING
     },
-    blockedReason: { type: String, trim: true },
-    blockedAt: { type: Date },
-    blockedBy: { type: mongoose.Schema.Types.ObjectId, ref: "Admin" },
+    blockedReason: { type: String, trim: true, default: null },
+    adminComment: { type: String, trim: true, default: null },
+    blockedBy: { type: mongoose.Schema.Types.ObjectId, ref: "Admin", default: null },
+    blockedAt: { type: Date, default: null },
+    blockedUsingRiskAssessment: { type: Boolean, default: false },
+    riskAssessmentSnapshot: {
+      level: { type: String, default: null },
+      complaintsCount: { type: Number, default: 0 },
+      cancellationRate: { type: Number, default: 0 },
+      missedRides: { type: Number, default: 0 },
+      capturedAt: { type: Date, default: null },
+    },
     location: {
       type: {
         type: String,
@@ -80,6 +89,12 @@ const driverSchema = new mongoose.Schema(
       enum: Object.values(DRIVER_AVAILABILITY_STATUS),
       default: DRIVER_AVAILABILITY_STATUS.UNAVAILABLE
     },
+    currentRide: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Ride",
+      default: null,
+    },
+    lastRideCompletedAt: { type: Date, default: null },
   },
   { timestamps: true }
 );

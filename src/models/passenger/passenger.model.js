@@ -35,9 +35,18 @@ const passengerSchema = new mongoose.Schema(
       enum: [USER_STATUS.ACTIVE, USER_STATUS.INACTIVE, USER_STATUS.BLOCKED, USER_STATUS.PENDING],
       default: USER_STATUS.ACTIVE
     },
-    blockedReason: { type: String, trim: true },
-    blockedAt: { type: Date },
-    blockedBy: { type: mongoose.Schema.Types.ObjectId, ref: "Admin" },
+    blockedReason: { type: String, trim: true, default: null },
+    adminComment: { type: String, trim: true, default: null },
+    blockedBy: { type: mongoose.Schema.Types.ObjectId, ref: "Admin", default: null },
+    blockedAt: { type: Date, default: null },
+    blockedUsingRiskAssessment: { type: Boolean, default: false },
+    riskAssessmentSnapshot: {
+      level: { type: String, default: null },
+      complaintsCount: { type: Number, default: 0 },
+      cancellationRate: { type: Number, default: 0 },
+      missedRides: { type: Number, default: 0 },
+      capturedAt: { type: Date, default: null },
+    },
     location: {
       type: {
         type: String,

@@ -54,7 +54,10 @@ export async function googleLogin(payload) {
   return {
     token,
     passenger: normalizePassengerMediaUrls(passenger.toObject()),
-    profileCompleted: passenger.profileCompleted
+    profileCompleted: passenger.profileCompleted,
+    status: passenger.status,
+    blockedReason: passenger.blockedReason || null,
+    adminComment: passenger.adminComment || null,
   };
 }
 
@@ -106,5 +109,8 @@ export async function otpLogin({ contactNumber, otp, name, email, gender, fcmTok
     token,
     passenger: normalizePassengerMediaUrls(passenger.toObject()),
     profileCompleted,
+    status: passenger.status,
+    blockedReason: passenger.blockedReason || null,
+    adminComment: passenger.adminComment || null,
   };
 }

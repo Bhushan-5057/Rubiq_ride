@@ -9,6 +9,8 @@
     "worker": "node src/workers/rideTimeout.worker.js",
     "dev:all": "concurrently \"npm run dev\" \"npm run worker\"",
     "start": "node src/server.js",
+    "migrate:blocking-fields": "node src/migrations/20260619_migrate_blocking_fields.js",
+    "migrate:driver-ride-state": "node src/migrations/20260620_migrate_driver_ride_state_fields.js",
     "lint": "echo \"No linter configured yet\""
   },
   "keywords": [

@@ -95,7 +95,7 @@ const rideSchema = new mongoose.Schema(
     cancellation: {
       cancelledBy: {
         type: String,
-        enum: ["Passenger", "Driver"],
+        enum: ["Passenger", "Driver", "Admin"],
         default: null,
       },
       reasonCode: {

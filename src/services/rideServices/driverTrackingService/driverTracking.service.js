@@ -3,7 +3,6 @@ import { Driver } from "../../../models/driver/driver.model.js";
 import { areCoordinatesClose } from "../../../common/utils.js";
 import { calculateEarningsFromDistance } from "../../../helpers/rideHelpers.js";
 import { getRideTimeoutQueue } from "../../../queues/rideTimeout.queue.js";
-import { DRIVER_CANCELLATION_REASONS, DRIVER_REASON_CODES } from "../../../common/cancellationReasons.js"
 import {
   DRIVER_AVAILABILITY_STATUS,
 } from "../../../constants/userStatus.constants.js";
@@ -32,9 +31,10 @@ export async function acceptRideService({ rideId, driverId }) {
       await job.remove();
     }
   }
-  const driverStatus = await Driver.findById(driverId).select("driverStatus");
+  const driverStatus = await Driver.findById(driverId).select("driverStatus currentRide");
   if (driverStatus) {
     driverStatus.driverStatus = DRIVER_AVAILABILITY_STATUS.ON_TRIP;
+    driverStatus.currentRide = ride._id;
     await driverStatus.save();
   }
   return ride;
@@ -208,46 +208,6 @@ export async function completeRideService({ rideId, driverId, driverLocationCoor
     );
   }
 
-  return ride;
-}
-
-//-------------------- Cancel Ride --------------------
-
-export async function cancelRideService({ rideId, driverId, reasonCode, reasonText }) {
-  const ride = await Ride.findOne({
-    _id: rideId,
-    driver: driverId,
-    status: { $in: ["accepted", "pending"] }
-  });
-
-  if (!ride) {
-    throw new Error("Ride not found or cannot be cancelled");
-  }
-
-  if (!DRIVER_REASON_CODES.includes(reasonCode)) {
-    throw new Error("Invalid cancellation reason");
-  }
-
-  let finalReasonText;
-
-  if (reasonCode === "OTHER") {
-    if (!reasonText) {
-      throw new Error("Reason text is required for OTHER");
-    }
-    finalReasonText = reasonText.trim();
-  } else {
-    finalReasonText = DRIVER_CANCELLATION_REASONS[reasonCode];
-  }
-
-  ride.status = "cancelled";
-  ride.cancellation = {
-    cancelledBy: "Driver",
-    reasonCode,
-    reasonText: finalReasonText,
-    cancelledAt: new Date()
-  };
-
-  await ride.save();
   return ride;
 }
 
