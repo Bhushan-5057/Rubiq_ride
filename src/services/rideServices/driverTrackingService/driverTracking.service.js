@@ -2,16 +2,22 @@ import { Ride } from "../../../models/ride/ride.model.js";
 import { Driver } from "../../../models/driver/driver.model.js";
 import { areCoordinatesClose } from "../../../common/utils.js";
 import { calculateEarningsFromDistance } from "../../../helpers/rideHelpers.js";
-import { getRideTimeoutQueue } from "../../../queues/rideTimeout.queue.js";
 import {
-  DRIVER_AVAILABILITY_STATUS,
-} from "../../../constants/userStatus.constants.js";
-import { canDriverAcceptRide, driverRideEligibilityQuery } from "../../../helpers/driverStatus.helper.js";
+  getRideTimeoutQueue,
+  removeRideTimeoutJob,
+} from "../../../queues/rideTimeout.queue.js";
+import { DRIVER_AVAILABILITY_STATUS } from "../../../constants/userStatus.constants.js";
+import {
+  canDriverAcceptRide,
+  driverRideEligibilityQuery,
+} from "../../../helpers/driverStatus.helper.js";
 
 //-------------------- Accept Ride --------------------
 
 export async function acceptRideService({ rideId, driverId }) {
-  const eligibleDriver = await Driver.findOne(driverRideEligibilityQuery({ _id: driverId }));
+  const eligibleDriver = await Driver.findOne(
+    driverRideEligibilityQuery({ _id: driverId }),
+  );
 
   if (!eligibleDriver || !canDriverAcceptRide(eligibleDriver)) {
     throw new Error("Driver is not eligible to accept rides");
@@ -20,18 +26,17 @@ export async function acceptRideService({ rideId, driverId }) {
   const ride = await Ride.findOneAndUpdate(
     { _id: rideId, status: "pending" },
     { driver: driverId, status: "accepted", acceptedAt: new Date() },
-    { new: true }
+    { new: true },
   );
 
   if (!ride) throw new Error("Ride not available or already accepted");
 
-  const jobs = await getRideTimeoutQueue.getDelayed();
-  for (const job of jobs) {
-    if (job.data.rideId.toString() === rideId.toString()) {
-      await job.remove();
-    }
-  }
-  const driverStatus = await Driver.findById(driverId).select("driverStatus currentRide");
+  await removeRideTimeoutJob(rideId);
+  
+  const driverStatus = await Driver.findById(driverId).select(
+    "driverStatus currentRide",
+  );
+
   if (driverStatus) {
     driverStatus.driverStatus = DRIVER_AVAILABILITY_STATUS.ON_TRIP;
     driverStatus.currentRide = ride._id;
@@ -42,8 +47,11 @@ export async function acceptRideService({ rideId, driverId }) {
 
 //-------------------- Driver Arrived --------------------
 
-export async function driverArrivedService({ rideId, driverId, driverLocationCoordinates }) {
-
+export async function driverArrivedService({
+  rideId,
+  driverId,
+  driverLocationCoordinates,
+}) {
   const ride = await Ride.findById(rideId);
 
   if (!ride) {
@@ -55,21 +63,27 @@ export async function driverArrivedService({ rideId, driverId, driverLocationCoo
   }
 
   if (ride.status !== "accepted") {
-    throw new Error(`Driver can only arrive when ride status is accepted, current status: ${ride.status}`);
+    throw new Error(
+      `Driver can only arrive when ride status is accepted, current status: ${ride.status}`,
+    );
   }
 
   if (!driverLocationCoordinates || driverLocationCoordinates.length !== 2) {
     throw new Error("Driver location is required to mark arrival");
   }
 
-  if (!ride.pickup || !ride.pickup.coordinates || ride.pickup.coordinates.length !== 2) {
+  if (
+    !ride.pickup ||
+    !ride.pickup.coordinates ||
+    ride.pickup.coordinates.length !== 2
+  ) {
     throw new Error("Ride pickup location is not available");
   }
 
   // Convert driver location to [lng, lat] for comparison
   const driverLocation = [
     driverLocationCoordinates[0],
-    driverLocationCoordinates[1]
+    driverLocationCoordinates[1],
   ];
 
   if (!areCoordinatesClose(driverLocation, ride.pickup.coordinates)) {
@@ -84,8 +98,12 @@ export async function driverArrivedService({ rideId, driverId, driverLocationCoo
 
 //-------------------- Start Ride --------------------
 
-export async function startRideService({ rideId, driverId, otpForStartRide, driverLocationCoordinates }) {
-
+export async function startRideService({
+  rideId,
+  driverId,
+  otpForStartRide,
+  driverLocationCoordinates,
+}) {
   const ride = await Ride.findById(rideId);
 
   if (!ride) {
@@ -104,14 +122,18 @@ export async function startRideService({ rideId, driverId, otpForStartRide, driv
     throw new Error("Driver location is required to start the ride");
   }
 
-  if (!ride.pickup || !ride.pickup.coordinates || ride.pickup.coordinates.length !== 2) {
+  if (
+    !ride.pickup ||
+    !ride.pickup.coordinates ||
+    ride.pickup.coordinates.length !== 2
+  ) {
     throw new Error("Ride pickup location is not available");
   }
 
   // Convert driver location to [lng, lat] for comparison
   const driverLocation = [
     driverLocationCoordinates[0],
-    driverLocationCoordinates[1]
+    driverLocationCoordinates[1],
   ];
 
   if (!areCoordinatesClose(driverLocation, ride.pickup.coordinates)) {
@@ -133,7 +155,11 @@ export async function startRideService({ rideId, driverId, otpForStartRide, driv
 
 //-------------------- Complete Ride --------------------
 
-export async function completeRideService({ rideId, driverId, driverLocationCoordinates }) {
+export async function completeRideService({
+  rideId,
+  driverId,
+  driverLocationCoordinates,
+}) {
   const ride = await Ride.findById(rideId);
 
   if (!ride) {
@@ -145,21 +171,27 @@ export async function completeRideService({ rideId, driverId, driverLocationCoor
   }
 
   if (ride.status !== "ongoing") {
-    throw new Error(`Ride cannot be completed in current status: ${ride.status}`);
+    throw new Error(
+      `Ride cannot be completed in current status: ${ride.status}`,
+    );
   }
 
   if (!driverLocationCoordinates || driverLocationCoordinates.length !== 2) {
     throw new Error("Driver location is required to complete the ride");
   }
 
-  if (!ride.drop || !ride.drop.coordinates || ride.drop.coordinates.length !== 2) {
+  if (
+    !ride.drop ||
+    !ride.drop.coordinates ||
+    ride.drop.coordinates.length !== 2
+  ) {
     throw new Error("Ride drop location is not available");
   }
 
   // Convert driver location to [lng, lat] for comparison
   const driverLocation = [
     driverLocationCoordinates[0],
-    driverLocationCoordinates[1]
+    driverLocationCoordinates[1],
   ];
 
   if (!areCoordinatesClose(driverLocation, ride.drop.coordinates)) {
@@ -177,13 +209,8 @@ export async function completeRideService({ rideId, driverId, driverLocationCoor
     let platformFee = 0;
 
     if (ride.distance && ride.vehicleType) {
-      const {
-        platformFee: pf,
-        driverShare: ds,
-      } = calculateEarningsFromDistance(
-        ride.distance,
-        ride.vehicleType
-      );
+      const { platformFee: pf, driverShare: ds } =
+        calculateEarningsFromDistance(ride.distance, ride.vehicleType);
 
       driverShare = ds || 0;
       platformFee = pf || 0;
@@ -204,7 +231,7 @@ export async function completeRideService({ rideId, driverId, driverLocationCoor
           "earnings.totalPlatformFee": platformFee,
         },
       },
-      { new: true }
+      { new: true },
     );
   }
 
@@ -231,7 +258,9 @@ export async function updateDriverLocationService(driver, lng, lat, rideId) {
     driver: driver._id,
     passenger: { $exists: true, $ne: null },
     status: { $in: ["accepted", "ongoing", "started"] },
-  }).select("passenger status pickup drop").lean();
+  })
+    .select("passenger status pickup drop")
+    .lean();
 
   // if (!ride) {
   //   throw new Error("Driver location can be updated only after accepting a ride");
@@ -239,9 +268,13 @@ export async function updateDriverLocationService(driver, lng, lat, rideId) {
 
   const THROTTLE_INTERVAL = 5;
   const currentTime = new Date();
-  const lastUpdateTime = driver.lastLocationUpdateTime ? new Date(driver.lastLocationUpdateTime) : null;
+  const lastUpdateTime = driver.lastLocationUpdateTime
+    ? new Date(driver.lastLocationUpdateTime)
+    : null;
 
-  const shouldUpdateDB = !lastUpdateTime || (currentTime - lastUpdateTime) / 1000 >= THROTTLE_INTERVAL;
+  const shouldUpdateDB =
+    !lastUpdateTime ||
+    (currentTime - lastUpdateTime) / 1000 >= THROTTLE_INTERVAL;
 
   driver.longitude = lng;
   driver.latitude = lat;

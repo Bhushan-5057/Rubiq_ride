@@ -8,6 +8,8 @@ import { autoAssignRideToNextDriver } from "../helpers/autoAssignRide.helper.js"
 import { SOCKET_EVENTS, emitToPassenger } from "../config/socket/socket.js";
 import { emitAdminRideEvent } from "../helpers/admin-realtime.helper.js";
 
+const isBullMQEnabled = process.env.ENABLE_BULLMQ === "true";
+
 const shutdownWorker = async (worker) => {
   console.log('Shutting down worker...');
   if (worker) {
@@ -22,6 +24,13 @@ const shutdownWorker = async (worker) => {
 };
 
 const createWorker = async () => {
+  if (!isBullMQEnabled) {
+    console.log("BullMQ is disabled.");
+    return null;
+  }
+
+  console.log("BullMQ is enabled.");
+
   try {
     await connectDB();
     initRedis();
@@ -108,7 +117,11 @@ const createWorker = async () => {
   }
 };
 
-createWorker().then(worker => {
+createWorker().then((worker) => {
+  if (!worker) {
+    return;
+  }
+
   const shutdownHandler = async () => {
     await shutdownWorker(worker);
   };
@@ -119,7 +132,7 @@ createWorker().then(worker => {
     console.error('Uncaught Exception:', error);
     shutdownHandler().then(() => process.exit(1));
   });
-}).catch(error => {
+}).catch((error) => {
   console.error('Failed to start worker:', error);
   process.exit(1);
 });

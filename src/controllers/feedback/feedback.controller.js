@@ -35,7 +35,7 @@ export const submitDriverFeedback = async (req, res) => {
 
     const ride = await Ride.findById(rideId).select("driver")
 
-    emitToDriver(ride.driver, SOCKET_EVENTS.FEEDBACK_DRIVER_SUBMITTED, {
+    emitToDriver(ride.driver, SOCKET_EVENTS.DRIVER_FEEDBACK_RECEIVED, {
       rideId,
       rating: feedback.rating,
       comment: feedback.comment,
@@ -43,7 +43,7 @@ export const submitDriverFeedback = async (req, res) => {
     })
     emitAdminEvent("admin:passenger_activity", {
       passengerId: req.passenger._id.toString(),
-      action: SOCKET_EVENTS.FEEDBACK_DRIVER_SUBMITTED,
+      action: SOCKET_EVENTS.DRIVER_FEEDBACK_SENT,
       rideId,
       rating: feedback.rating,
     });
@@ -54,7 +54,7 @@ export const submitDriverFeedback = async (req, res) => {
       title: "New Passenger feedback",
       body: "Passenger submitted feedback.",
       data: {
-        type: SOCKET_EVENTS.FEEDBACK_DRIVER_SUBMITTED,
+        type: SOCKET_EVENTS.DRIVER_FEEDBACK_RECEIVED,
         rideId
       },
       userType: "driver"
@@ -92,7 +92,7 @@ export const submitPassengerFeedback = async (req, res) => {
 
     const ride = await Ride.findById(rideId).select("passenger")
 
-    emitToPassenger(ride.passenger, SOCKET_EVENTS.FEEDBACK_PASSENGER_SUBMITTED, {
+    emitToPassenger(ride.passenger, SOCKET_EVENTS.PASSENGER_FEEDBACK_RECEIVED, {
       rideId,
       rating: feedback.rating,
       comment: feedback.comment,
@@ -100,7 +100,7 @@ export const submitPassengerFeedback = async (req, res) => {
     })
     emitAdminEvent("admin:passenger_activity", {
       passengerId: ride.passenger.toString(),
-      action: SOCKET_EVENTS.FEEDBACK_PASSENGER_SUBMITTED,
+      action: SOCKET_EVENTS.PASSENGER_FEEDBACK_SENT,
       rideId,
       rating: feedback.rating,
     });
@@ -111,7 +111,7 @@ export const submitPassengerFeedback = async (req, res) => {
       title: "New Driver feedback",
       body: "Driver submitted feedback.",
       data: {
-        type: SOCKET_EVENTS.FEEDBACK_PASSENGER_SUBMITTED,
+        type: SOCKET_EVENTS.PASSENGER_FEEDBACK_RECEIVED,
         rideId
       },
       userType: "passenger"

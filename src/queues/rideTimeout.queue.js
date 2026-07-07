@@ -1,26 +1,88 @@
-// Redis/BullMQ ride timeout queue is temporarily disabled so the API server can
-// run without Redis. Re-enable the BullMQ implementation when ride timeout jobs
-// are needed again.
+import { Queue } from "bullmq";
+import { getRedis } from "../config/redis.js";
 
-const disabledQueue = {
-  add: async () => null,
-  getDelayed: async () => [],
-  clean: async () => null,
+let rideTimeoutQueue;
+let bullmqStatusLogged = false;
+
+const isBullMQEnabled = () => process.env.ENABLE_BULLMQ === "true";
+
+const logBullMQStatus = () => {
+  if (!bullmqStatusLogged) {
+    console.log(isBullMQEnabled() ? "BullMQ is enabled." : "BullMQ is disabled.");
+    bullmqStatusLogged = true;
+  }
 };
 
-export const getRideTimeoutQueue = () => disabledQueue;
+export const getRideTimeoutQueue = () => {
+  if (!isBullMQEnabled()) {
+    logBullMQStatus();
+    return null;
+  }
 
-// Backwards compatibility for existing code that calls getRideTimeoutQueue.getDelayed().
-getRideTimeoutQueue.getDelayed = disabledQueue.getDelayed;
+  if (!rideTimeoutQueue) {
+    rideTimeoutQueue = new Queue("rideTimeoutQueue", {
+      connection: getRedis(),
+      defaultJobOptions: {
+        removeOnComplete: 1000,
+        removeOnFail: 5000,
+      },
+    });
+  }
+
+  return rideTimeoutQueue;
+};
 
 export const addRideTimeoutJob = async (rideId, delay = 60000) => {
-  console.log(
-    "Ride timeout queue disabled; skipping timeout job",
-    "\nRide ID:", rideId,
-    "\nDelay:", delay / 1000, "seconds"
-  );
+  const queue = getRideTimeoutQueue();
 
-  return null;
+  if (!queue) {
+    return null;
+  }
+
+  const existingJob = await queue.getJob(rideId.toString());
+
+  if (existingJob) {
+    console.log(`Timeout job already exists for ride ${rideId}`);
+    return existingJob;
+  }
+
+  return queue.add(
+    "rideTimeout",
+    {
+      rideId,
+      createdAt: Date.now(),
+    },
+    {
+      delay,
+      jobId: rideId.toString(),
+      removeOnComplete: 1000,
+      removeOnFail: 5000,
+    }
+  );
 };
 
-export const cleanupQueue = async () => null;
+export const removeRideTimeoutJob = async (rideId) => {
+  const queue = getRideTimeoutQueue();
+
+  if (!queue) {
+    return null;
+  }
+
+  const job = await queue.getJob(rideId.toString());
+
+  if (job) {
+    await job.remove();
+    console.log(`Removed timeout job for ride ${rideId}`);
+  }
+};
+
+export const cleanupQueue = async () => {
+  const queue = getRideTimeoutQueue();
+
+  if (!queue) {
+    return null;
+  }
+
+  await queue.clean(0, 1000, "completed");
+  await queue.clean(0, 1000, "failed");
+};

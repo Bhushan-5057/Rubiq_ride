@@ -1,39 +1,49 @@
 import Redis from "ioredis";
 
 let redis;
+let bullmqStatusLogged = false;
+
+const isBullMQEnabled = () => process.env.ENABLE_BULLMQ === "true";
+
+const logBullMQStatus = () => {
+  if (!bullmqStatusLogged) {
+    console.log(isBullMQEnabled() ? "BullMQ is enabled." : "BullMQ is disabled.");
+    bullmqStatusLogged = true;
+  }
+};
 
 export const initRedis = () => {
-  if (redis) return redis;
+  logBullMQStatus();
 
-  const host = process.env.REDIS_HOST || "127.0.0.1";
-  const port = Number(process.env.REDIS_PORT || "6379");
-  const password = process.env.REDIS_PASSWORD;
-
-  if (!host || !port || !password) {
-    throw new Error("❌ Missing Redis config (HOST / PORT / PASSWORD)");
+  if (!isBullMQEnabled()) {
+    return null;
   }
 
+  if (redis) return redis;
+
   redis = new Redis({
-    host,
-    port,
-    password,
-    tls: {},
+    host: process.env.REDIS_HOST || "127.0.0.1",
+    port: Number(process.env.REDIS_PORT || 6379),
     maxRetriesPerRequest: null,
     retryStrategy: (times) => Math.min(times * 1000, 5000),
   });
 
   redis.on("connect", () => {
-    console.log("Connected to Redis (Upstash)");
+    console.log("✅ Redis Connected");
   });
 
   redis.on("error", (err) => {
-    console.error("Redis error:", err);
+    console.error("Redis Error:", err);
   });
 
   return redis;
 };
 
 export const getRedis = () => {
-  if (!redis) return initRedis();
-  return redis;
+  if (!isBullMQEnabled()) {
+    logBullMQStatus();
+    return null;
+  }
+
+  return redis || initRedis();
 };

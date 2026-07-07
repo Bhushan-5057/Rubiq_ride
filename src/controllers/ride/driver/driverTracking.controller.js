@@ -406,7 +406,7 @@ export const updateDriverLocation = async (req, res, next) => {
         }
 
         // Notify passenger that driver is on the way
-        emitToPassenger(passengerId, SOCKET_EVENTS.DRIVER_EN_ROUTE, {
+        emitToPassenger(passengerId, SOCKET_EVENTS.DRIVER_ON_ROUTE, {
           rideId,
           driver: driverLocation,
           pickupLocation: ride.pickup,
