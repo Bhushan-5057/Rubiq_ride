@@ -109,12 +109,6 @@ export function isDriverProfileComplete(driver = {}) {
   );
 }
 
-//genrate otken for passenger
-export function generateToken(passenger) {
-  const payload = { id: passenger._id };
-  return jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: "7d" });
-}
-
 // Haversine formula to calculate distance between two coordinates
 export function toRadians(degrees) {
   return (degrees * Math.PI) / 180;
