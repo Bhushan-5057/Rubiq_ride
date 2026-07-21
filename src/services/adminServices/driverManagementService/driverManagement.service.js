@@ -4,6 +4,7 @@ import { normalizeNumber } from "../../../helpers/helper.js";
 import { getDriverStats } from "../../../services/rideServices/rideStats.service.js";
 import { normalizeDriverMediaUrls } from "../../../utils/mediaUrl.js";
 import {
+  DRIVER_APPROVAL_STATUS,
   DRIVER_AVAILABILITY_STATUS,
   USER_STATUS,
 } from "../../../constants/userStatus.constants.js";
@@ -200,7 +201,7 @@ export async function getDriverProfileStatus(contactNumber) {
     name: driver.name,
     email: driver.email,
     vehicleNumber: driver.vehicleNumber,
-    licenseNumber: driver.licenseNumber,
+    licenseNumber: driver.documents?.licenseNumber || null,
     status: driver.status,
   };
 }

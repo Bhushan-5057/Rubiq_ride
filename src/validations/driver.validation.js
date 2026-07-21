@@ -91,17 +91,6 @@ export const updateProfileValidation = [
         "string.max": "Name must be at most 60 characters",
         "string.pattern.base": "Name can contain only letters and spaces",
       }),
-      location: Joi.object({
-        type: Joi.string().valid("Point").required(),
-
-        coordinates: Joi.array()
-          .items(
-            Joi.number().required(),
-            Joi.number().required()
-          )
-          .length(2)
-          .required(),
-      }),
       email: Joi.string().trim().lowercase().email().messages({
         "string.email": "Invalid email format",
       }),
@@ -139,14 +128,6 @@ export const updateProfileValidation = [
       rcNumber: Joi.string().trim().uppercase().pattern(DOCUMENT_REGEX.rc).messages({
         "string.pattern.base": "Invalid RC number. Example: TS09AB1234",
       }),
-      insuranceNumber: Joi.string()
-        .trim()
-        .uppercase()
-        .pattern(DOCUMENT_REGEX.insurance)
-        .messages({
-          "string.pattern.base":
-            "Invalid Insurance number. Example: INS-123456 or ABC12345",
-        }),
     })
       .min(1)
       .unknown(false)

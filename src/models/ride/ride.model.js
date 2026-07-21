@@ -62,6 +62,7 @@ const rideSchema = new mongoose.Schema(
       enum: [
         "pending",
         "accepted",
+        "driver_arrived",
         "ongoing",
         "started",
         "completed",
@@ -72,6 +73,8 @@ const rideSchema = new mongoose.Schema(
     },
 
     acceptedAt: { type: Date },
+
+    arrivedAt: { type: Date },
 
     startedAt: { type: Date },
 

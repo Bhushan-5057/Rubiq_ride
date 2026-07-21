@@ -13,7 +13,7 @@ const createError = (message, status) => {
 const complaintPopulation = [
   { path: "raisedBy", select: "name email phone" },
   { path: "against", select: "name email phone" },
-  { path: "rideId", select: "pickupLocation dropoffLocation fare" },
+  { path: "rideId", select: "pickup drop fare" },
 ];
 
 //------------------ Create Complaint ------------------
@@ -112,7 +112,7 @@ export const getComplaintsService = async (filter, options) => {
   const complaintsPromise = Complaint.find(query)
     .populate("raisedBy", "name email phone")
     .populate("against", "name email phone")
-    .populate("rideId", "pickupLocation dropoffLocation fare")
+    .populate("rideId", "pickup drop fare")
     .sort({ createdAt: -1 })
     .skip(skip)
     .limit(limit);
@@ -149,7 +149,7 @@ export const getMyComplaintsService = async (userId, options) => {
   const complaintsPromise = Complaint.find(query)
     .populate("raisedBy", "name email phone")
     .populate("against", "name email phone")
-    .populate("rideId", "pickupLocation dropoffLocation fare")
+    .populate("rideId", "pickup drop fare")
     .sort({ createdAt: -1 })
     .skip(skip)
     .limit(limit);

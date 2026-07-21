@@ -11,7 +11,7 @@ import {
   setDriverOnlineController,
 } from "../../controllers/driver/driverProfile/driverProfile.controller.js";
 import { validate } from "../../middleware/validate.js";
-import { upload } from "../../middleware/upload.middleware.js";
+import { uploadDriverProfileFields } from "../../middleware/upload.middleware.js";
 
 const router = Router();
 
@@ -22,7 +22,7 @@ router.get("/", authenticateDriver, profileController);
 router.put(
   "/",
   authenticateDriver,
-  upload.any(),
+  uploadDriverProfileFields,
   updateProfileValidation,
   validate,
   updateProfileController,

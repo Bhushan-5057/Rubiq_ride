@@ -1,4 +1,10 @@
-import { isDriverProfileComplete, requiredDocsNumber, updatableFields } from "../../../common/utils.js";
+import {
+  isDriverProfileComplete,
+  isFilled,
+  logDriverProfileCompletion,
+  requiredDocsNumber,
+  updatableFields,
+} from "../../../common/utils.js";
 import { getDriverStats } from "../../../services/rideServices/rideStats.service.js"
 import { Driver } from "../../../models/driver/driver.model.js"
 import { Ride } from "../../../models/ride/ride.model.js";
@@ -11,6 +17,12 @@ import {
 } from "../../../constants/userStatus.constants.js";
 import { isDriverReadyForRide } from "../../../helpers/driverStatus.helper.js";
 
+const toPlainDocuments = (documents) => {
+  if (!documents) return {};
+  if (typeof documents.toObject === "function") return documents.toObject();
+  return { ...documents };
+};
+
 const driverDocumentFileFields = [
   "aadhaarFront",
   "aadhaarBack",
@@ -19,7 +31,6 @@ const driverDocumentFileFields = [
   "licenseBack",
   "rcFront",
   "rcBack",
-  "insurance",
 ];
 
 const containsAmazonAwsUrl = (value) =>
@@ -47,14 +58,44 @@ export const setDriverOnlineService = async (driverId) => {
     if (!driver) {
       throw new Error("Driver not found");
     }
+
+    // Recompute from current documents so stale flags don't block wrongly.
+    const completion = logDriverProfileCompletion(driver, "go-online");
+    if (driver.profileCompleted !== completion.profileCompleted) {
+      console.log("[setDriverOnline] syncing stale profileCompleted", {
+        driverId: driver._id.toString(),
+        stored: driver.profileCompleted,
+        computed: completion.profileCompleted,
+      });
+      driver.profileCompleted = completion.profileCompleted;
+      await driver.save();
+    }
+
+    console.log("[setDriverOnline] eligibility checks", {
+      driverId: driver._id.toString(),
+      approvalStatus: driver.approvalStatus,
+      profileCompleted: driver.profileCompleted,
+      documentsVerified: driver.documentsVerified,
+      status: driver.status,
+      readyForRide: isDriverReadyForRide(driver),
+    });
+
     if (driver.approvalStatus !== DRIVER_APPROVAL_STATUS.APPROVED) {
       throw new Error("Driver is not approved to go online");
     }
     if (driver.profileCompleted !== true) {
-      throw new Error("Driver profile is not completed");
+      throw new Error(
+        `Driver profile is not completed. Missing: ${[
+          ...completion.missing.fields,
+          ...completion.missing.documentFiles,
+          ...completion.missing.documentNumbers,
+        ].join(", ") || "unknown fields"}`,
+      );
     }
     if (driver.documentsVerified !== true) {
-      throw new Error("Driver documents are not verified");
+      throw new Error(
+        "Driver documents are not verified. Admin must approve aadhaar/pan/license/rc statuses.",
+      );
     }
     if (driver.status !== USER_STATUS.ACTIVE) {
       throw new Error("Driver account is not active");
@@ -148,8 +189,12 @@ export async function updateProfile(driver, data = {}) {
   });
 
   if (data.documents && typeof data.documents === "object") {
-
-    driver.documents = { ...(driver.documents || {}), ...data.documents };
+    // IMPORTANT: never spread a Mongoose subdocument directly — it can wipe
+    // existing document fields. Always merge from a plain object first.
+    const mergedDocuments = {
+      ...toPlainDocuments(driver.documents),
+      ...data.documents,
+    };
 
     const docToStatusMap = {
       aadhaarFront: "aadhaarStatus",
@@ -159,66 +204,100 @@ export async function updateProfile(driver, data = {}) {
       licenseBack: "licenseStatus",
       rcFront: "rcStatus",
       rcBack: "rcStatus",
-      insurance: "insuranceStatus",
     };
 
     Object.keys(data.documents).forEach((docKey) => {
       const statusKey = docToStatusMap[docKey];
       if (!statusKey) return;
-      const currentStatus = driver.documents[statusKey];
+      const currentStatus = mergedDocuments[statusKey];
       if (!currentStatus || currentStatus === "not_uploaded" || currentStatus === "rejected") {
-        driver.documents[statusKey] = "pending";
+        mergedDocuments[statusKey] = "pending";
       }
     });
+
+    console.log("[updateProfile] document upload merge", {
+      driverId: driver._id?.toString?.() || driver._id,
+      incomingDocumentKeys: Object.keys(data.documents),
+      incomingDocuments: data.documents,
+      numberFieldsFromBody: Object.fromEntries(
+        numberDocFields
+          .filter((field) => data[field] !== undefined)
+          .map((field) => [field, data[field]]),
+      ),
+      mergedDocumentStatuses: {
+        aadhaarStatus: mergedDocuments.aadhaarStatus,
+        panStatus: mergedDocuments.panStatus,
+        licenseStatus: mergedDocuments.licenseStatus,
+        rcStatus: mergedDocuments.rcStatus,
+      },
+      mergedDocumentNumbers: {
+        aadhaarNumber: mergedDocuments.aadhaarNumber || null,
+        panNumber: mergedDocuments.panNumber || null,
+        licenseNumber: mergedDocuments.licenseNumber || null,
+        rcNumber: mergedDocuments.rcNumber || null,
+      },
+      mergedDocumentFiles: Object.fromEntries(
+        driverDocumentFileFields.map((key) => [
+          key,
+          isFilled(mergedDocuments[key])
+            ? String(mergedDocuments[key]).slice(0, 80)
+            : null,
+        ]),
+      ),
+    });
+
+    driver.documents = mergedDocuments;
+    driver.markModified("documents");
   }
 
-  driver.profileCompleted = isDriverProfileComplete(driver); 
+  driver.profileCompleted = isDriverProfileComplete(driver);
+  logDriverProfileCompletion(driver, "update-profile");
 
   const forceEmail = data.forceEmail === true;
 
-// true only when profile transitions from false → true
-const profileJustCompleted =
-  !wasProfileCompleted && driver.profileCompleted === true;
+  // true only when profile transitions from false → true
+  const profileJustCompleted =
+    !wasProfileCompleted && driver.profileCompleted === true;
 
-// Decide if email is allowed to send
-const shouldSendEmail =
-  driver.email &&
-  (
-    // normal production flow
-    (profileJustCompleted && !driver.welcomeEmailSent) ||
-    // testing flow
-    forceEmail
-  );
+  // Decide if email is allowed to send
+  const shouldSendEmail =
+    driver.email &&
+    (
+      // normal production flow
+      (profileJustCompleted && !driver.welcomeEmailSent) ||
+      // testing flow
+      forceEmail
+    );
 
-console.log({
-  wasProfileCompleted,
-  profileCompleted: driver.profileCompleted,
-  profileJustCompleted,
-  welcomeEmailSent: driver.welcomeEmailSent,
-  forceEmail,
-});
+  console.log("[updateProfile] welcome email gate", {
+    wasProfileCompleted,
+    profileCompleted: driver.profileCompleted,
+    profileJustCompleted,
+    welcomeEmailSent: driver.welcomeEmailSent,
+    forceEmail,
+  });
 
-if (shouldSendEmail) {
-  try {
-    const html = renderTemplate("driver.welcome.html", {
-      name: driver.name || "Driver",
-      year: new Date().getFullYear(),
-    });
+  if (shouldSendEmail) {
+    try {
+      const html = renderTemplate("driver.welcome.html", {
+        name: driver.name || "Driver",
+        year: new Date().getFullYear(),
+      });
 
-    await sendEmail({
-      to: driver.email,
-      subject: "Welcome to Rubiq Ride – You’re Ready to Drive 🚗",
-      html,
-    });
+      await sendEmail({
+        to: driver.email,
+        subject: "Welcome to Rubiq Ride – You’re Ready to Drive 🚗",
+        html,
+      });
 
-    // Only mark sent in real flow
-    if (!forceEmail) {
-      driver.welcomeEmailSent = true;
+      // Only mark sent in real flow
+      if (!forceEmail) {
+        driver.welcomeEmailSent = true;
+      }
+    } catch (err) {
+      console.error("Welcome email failed:", err.message);
     }
-  } catch (err) {
-    console.error("Welcome email failed:", err.message);
   }
-}
 
   driver.updatedAt = new Date();
   await driver.save();

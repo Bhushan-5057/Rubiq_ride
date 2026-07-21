@@ -11,8 +11,13 @@ import {
   DRIVER_AVAILABILITY_STATUS,
   USER_STATUS,
 } from "../../../constants/userStatus.constants.js";
-import { driverRideEligibilityQuery } from "../../../helpers/driverStatus.helper.js";
 import { canPassengerBookRide } from "../../../helpers/passengerStatus.helper.js";
+import { findNearbyDrivers } from "../../../helpers/nearbyDrivers.helper.js";
+import {
+  applyLocationToDocument,
+  buildLocationSetPayload,
+  normalizeLocationInput,
+} from "../../../utils/location.js";
 import {
   getDriverEtasToDestination,
   getPrimaryRoute,
@@ -26,28 +31,20 @@ export async function updatePassengerLocationService(passenger, lng, lat) {
     throw new Error("Passenger not found or unauthorized");
   }
 
-  if (typeof lng !== "number" || typeof lat !== "number") {
-    throw new Error("Latitude and longitude must be valid numbers");
-  }
-
   const currentTime = new Date();
-
-  // Set all three fields to ensure sync
-  passenger.location = {
-    type: "Point",
-    coordinates: [lng, lat],
-  };
-  passenger.longitude = lng;
-  passenger.latitude = lat;
+  const payload = applyLocationToDocument(passenger, lng, lat, {
+    updatedAt: currentTime,
+  });
 
   await passenger.save();
 
   return {
     id: passenger._id,
     name: passenger.name,
-    coordinates: [lng, lat],
-    longitude: lng,
-    latitude: lat,
+    coordinates: payload.coordinates || [payload.longitude, payload.latitude],
+    longitude: payload.longitude,
+    latitude: payload.latitude,
+    location: payload.location,
     updatedAt: currentTime,
     dbSaved: true,
   };
@@ -138,20 +135,13 @@ export async function createRideService({
     select: "name contactNumber rating",
   });
 
-  const nearbyDrivers = await Driver.find(
-    driverRideEligibilityQuery({
-      vehicleType: vehicleType,
-      location: {
-        $near: {
-          $geometry: { type: "Point", coordinates: resolvedPickup.coordinates },
-          $maxDistance: 5000,
-        },
-      },
-    }),
-  ).select("_id location");
+  const nearbyDrivers = await findNearbyDrivers(resolvedPickup.coordinates, {
+    vehicleType,
+  });
 
-  console.log(`Found ${nearbyDrivers.length} nearby drivers for new ride ${ride._id}`);
-  console.log(`Found ${nearbyDrivers} nearby drivers for new ride ${ride._id}`);
+  console.log(
+    `Found ${nearbyDrivers.length} nearby drivers for new ride ${ride._id}`,
+  );
 
   let driverEtas = [];
   try {
@@ -168,8 +158,10 @@ export async function createRideService({
 
   await addRideTimeoutJob(ride._id.toString(), 60000);
 
+  const { coordinates: _coords, ...pickupLocationPayload } =
+    buildLocationSetPayload(resolvedPickup.coordinates);
   await Passenger.findByIdAndUpdate(passengerId, {
-    location: { type: "Point", coordinates: resolvedPickup.coordinates },
+    $set: pickupLocationPayload,
   });
 
   return { ride, nearbyDrivers, driverEtas };
@@ -288,11 +280,12 @@ export async function endRideService({
     throw new Error("Ride drop location is not available");
   }
 
-  // Convert passenger location to [lng, lat] for comparison
-  const passengerLocation = [
-    passengerLocationCoordinates[0],
-    passengerLocationCoordinates[1],
-  ];
+  // Convert passenger location to [lng, lat] for comparison.
+  // Clients may send [lat, lng]; resolve against stored drop [lng, lat].
+  const passengerLocation = normalizeLocationInput(
+    passengerLocationCoordinates,
+    { referenceCoordinates: ride.drop.coordinates },
+  ).coordinates;
 
   if (!areCoordinatesClose(passengerLocation, ride.drop.coordinates)) {
     throw new Error("Passenger is not at the drop location");

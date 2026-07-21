@@ -57,8 +57,11 @@ const passengerSchema = new mongoose.Schema(
         default: undefined,
       },
     },
+    // Legacy scalar aliases kept for dual-write / API compatibility.
+    // Canonical query field is `location` (GeoJSON Point, [lng, lat]).
     longitude: Number,
     latitude: Number,
+    locationUpdatedAt: { type: Date, default: null },
     fcmTokens: [
       {
         token: { type: String },

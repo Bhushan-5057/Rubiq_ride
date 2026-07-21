@@ -9,9 +9,10 @@
     "worker": "node src/workers/rideTimeout.worker.js",
     "dev:all": "concurrently \"npm run dev\" \"npm run worker\"",
     "start": "node src/server.js",
-    "migrate:blocking-fields": "node src/migrations/20260619_migrate_blocking_fields.js",
-    "migrate:driver-ride-state": "node src/migrations/20260620_migrate_driver_ride_state_fields.js",
-    "lint": "echo \"No linter configured yet\""
+    "test": "node --test tests/unit/location.test.js tests/unit/driverProfileComplete.test.js tests/unit/driverDocumentValidation.test.js tests/unit/socketEvents.test.js tests/unit/rideStatusMachine.test.js",
+    "migrate:location-geo-backfill": "node scripts/migrations/location_geo_backfill.js",
+    "migrate:remove-legacy-driver-doc-fields": "node scripts/migrations/remove_legacy_driver_doc_fields.js",
+    "lint": "node --check src/server.js"
   },
   "keywords": [
     "ride",

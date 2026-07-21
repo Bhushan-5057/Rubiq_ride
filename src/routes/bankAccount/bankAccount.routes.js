@@ -1,5 +1,9 @@
-import express from 'express';
-import { authenticateAdmin, authenticateUser } from '../../middleware/auth.middleware.js';
+import express from "express";
+import {
+  authenticateAdmin,
+  authenticateUser,
+  authorizeAdmin,
+} from "../../middleware/auth.middleware.js";
 import {
   addBankAccountController,
   getOwnBankAccountController,
@@ -7,11 +11,8 @@ import {
   getAllBankAccountsForAdminController,
   verifyBankAccountController,
   updateBankAccountController,
-} from '../../controllers/bankAccount/bankAccount.controller.js';
-import {
-  bankAccountValidation,
-} from '../../validations/bankAccount.validations.js'; 
-import { authorizeAdmin } from '../../middleware/auth.middleware.js';
+} from "../../controllers/bankAccount/bankAccount.controller.js";
+import { bankAccountValidation } from "../../validations/bankAccount.validations.js";
 
 const router = express.Router();
 
@@ -19,51 +20,47 @@ const router = express.Router();
 
 // Add Bank Account
 router.post(
-  '/add-bank-account',
+  "/add-bank-account",
   authenticateUser,
   bankAccountValidation,
-  addBankAccountController
+  addBankAccountController,
 );
 
 // Get Own Bank Account
-router.get(
-  '/get-bank-account',
-  authenticateUser,
-  getOwnBankAccountController
-);
+router.get("/get-bank-account", authenticateUser, getOwnBankAccountController);
 
 // Update Own Bank Account
 router.put(
-  '/update-bank-details',
+  "/update-bank-details",
   authenticateUser,
   bankAccountValidation,
-  updateBankAccountController
+  updateBankAccountController,
 );
 
 //----------------- Admin Routes -----------------//
 
 // Get Bank Account for User (Admin)
 router.get(
-  '/admin/:userId/:userType',
+  "/admin/:userId/:userType",
   authenticateAdmin,
-  authorizeAdmin("super_admin","admin"),
-  getBankAccountForAdminController
+  authorizeAdmin("super_admin", "admin"),
+  getBankAccountForAdminController,
 );
 
 // Get All Bank Accounts (Admin)
 router.get(
-  '/admin/get-all-bank-accounts',
+  "/admin/get-all-bank-accounts",
   authenticateAdmin,
-  authorizeAdmin("super_admin","admin"),
-  getAllBankAccountsForAdminController
+  authorizeAdmin("super_admin", "admin"),
+  getAllBankAccountsForAdminController,
 );
 
 // Verify/Reject Bank Account (Admin)
 router.put(
-  '/admin/verify-bank-details/:userId/:userType',
+  "/admin/verify-bank-details/:userId/:userType",
   authenticateAdmin,
-  authorizeAdmin("super_admin","admin"),
-  verifyBankAccountController
+  authorizeAdmin("super_admin", "admin"),
+  verifyBankAccountController,
 );
 
 export default router;

@@ -11,23 +11,19 @@ const documentSchema = new mongoose.Schema(
 
     panNumber: { type: String, unique: true, sparse: true },
     panFront: { type: String },
-    panStatus: { type: String, enum: statusEnum, default: "not_uploaded", },
+    panStatus: { type: String, enum: statusEnum, default: "not_uploaded" },
 
     licenseNumber: { type: String, unique: true, sparse: true },
     licenseFront: { type: String },
     licenseBack: { type: String },
-    licenseStatus: { type: String, enum: statusEnum, default: "not_uploaded", },
+    licenseStatus: { type: String, enum: statusEnum, default: "not_uploaded" },
 
     rcNumber: { type: String, unique: true, sparse: true },
     rcFront: { type: String },
     rcBack: { type: String },
-    rcStatus: { type: String, enum: statusEnum, default: "not_uploaded", },
-
-    insuranceNumber: { type: String, unique: true, sparse: true },
-    insurance: { type: String },
-    insuranceStatus: { type: String, enum: statusEnum, default: "not_uploaded", },
+    rcStatus: { type: String, enum: statusEnum, default: "not_uploaded" },
   },
-  { _id: false }
+  { _id: false },
 );
 
 export default documentSchema;

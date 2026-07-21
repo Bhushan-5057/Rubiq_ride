@@ -53,33 +53,30 @@ export async function profileController(req, res, next) {
   }
 }
 
+function flattenUploadedFiles(files) {
+  if (!files) return [];
+  if (Array.isArray(files)) return files;
+  return Object.values(files).flat().filter(Boolean);
+}
+
 // -------------------- Update Driver Profile --------------------
 export async function updateProfileController(req, res, next) {
   try {
-    // // Handle multer file parsing
-    // await new Promise((resolve, reject) => {
-    //   upload.any()(req, res, (err) => {
-    //     if (err) return reject(err);
-    //     resolve();
-    //   });
-    // });
-
     const data = { ...req.body, documents: {} };
+    const uploadedFiles = flattenUploadedFiles(req.files);
 
-    if (req.files && req.files.length > 0) {
-      for (const file of req.files) {
-        const folder =
-          file.fieldname === "profileImage"
-            ? "driver_profile_images"
-            : "driver_documents";
+    for (const file of uploadedFiles) {
+      const folder =
+        file.fieldname === "profileImage"
+          ? "driver_profile_images"
+          : "driver_documents";
 
-        const uploadedFile = await uploadFileToS3(file, folder);
+      const uploadedFile = await uploadFileToS3(file, folder);
 
-        if (file.fieldname === "profileImage") {
-          data.profileImage = uploadedFile.key;
-        } else {
-          data.documents[file.fieldname] = uploadedFile.key;
-        }
+      if (file.fieldname === "profileImage") {
+        data.profileImage = uploadedFile.key;
+      } else {
+        data.documents[file.fieldname] = uploadedFile.key;
       }
     }
 

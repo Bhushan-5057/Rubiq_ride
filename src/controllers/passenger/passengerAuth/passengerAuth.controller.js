@@ -2,8 +2,6 @@ import { sendOtp } from "../../../services/otpService/otp.service.js";
 import { googleLogin, logout, otpLogin } from "../../../services/passengerServices/index.js";
 import { getGoogleClient } from "../../../config/googleOAuth.js"
 
-// const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID)
-
 // -------------------- Send Otp --------------------
 export async function sendOtpController(req, res, next) {
   try {

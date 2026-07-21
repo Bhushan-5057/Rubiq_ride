@@ -62,8 +62,12 @@ const driverSchema = new mongoose.Schema(
         default: undefined,
       },
     },
+    // Legacy scalar aliases kept for dual-write / API compatibility.
+    // Canonical query field is `location` (GeoJSON Point, [lng, lat]).
     longitude: Number,
     latitude: Number,
+    locationUpdatedAt: { type: Date, default: null },
+    lastLocationUpdateTime: { type: Date, default: null },
     earnings: {
       totalEarnings: { type: Number, default: 0 },
       totalDriverPayout: { type: Number, default: 0 },

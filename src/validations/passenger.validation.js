@@ -40,11 +40,12 @@ function hasOnlyObjectMinError(error) {
   return error.details.length === 1 && error.details[0].type === "object.min";
 }
 
-function validateBody(schema, statusCode = 422) {
+function validateBody(schema, statusCode = 422, options = {}) {
   return (req, res, next) => {
     const { error, value } = schema.validate(req.body, {
       abortEarly: false,
       stripUnknown: false,
+      ...options,
     });
 
     if (
@@ -58,6 +59,12 @@ function validateBody(schema, statusCode = 422) {
     }
 
     if (error) {
+      console.warn("[passenger.validation] body validation failed", {
+        path: req.originalUrl || req.url,
+        method: req.method,
+        bodyKeys: Object.keys(req.body || {}),
+        errors: formatErrors(error, "body"),
+      });
       return res.status(statusCode).json({
         success: false,
         message: "Validation failed",
@@ -170,13 +177,24 @@ export const updatePassengerValidation = [
         "string.max": "City must be at most 60 characters",
         "string.pattern.base": "City can contain only letters and spaces",
       }),
+      contactNumber: Joi.string().trim().pattern(indianMobileRegex).messages({
+        "string.pattern.base": "Invalid phone number",
+      }),
+      profileImage: Joi.string().trim().min(1).messages({
+        "string.min": "profileImage cannot be empty",
+      }),
+      // Client often echoes this; server recomputes it — strip instead of rejecting.
+      profileCompleted: Joi.any().strip(),
+      forceEmail: Joi.boolean().optional(),
     })
       .min(1)
       .unknown(false)
       .messages({
         ...messages,
         "object.min": "At least one profile field is required",
-      })
+      }),
+    422,
+    { stripUnknown: true },
   ),
 ];
 

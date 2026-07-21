@@ -110,8 +110,9 @@ export const driverArrived = async (req, res, next) => {
       fareEstimate: ride.fareEstimate,
     }
 
-    // Notify passenger that driver has arrived
-    emitToPassenger(ride.passenger, SOCKET_EVENTS.DRIVER_ARRIVED, payload)
+    // Notify passenger that driver has arrived (canonical + legacy event name)
+    emitToPassenger(ride.passenger, SOCKET_EVENTS.DRIVER_ARRIVED, payload);
+    emitToPassenger(ride.passenger, SOCKET_EVENTS.DRIVER_ARRIVED_LEGACY, payload);
     await emitAdminRideEvent("admin:ride_status_updated", ride, {
       action: SOCKET_EVENTS.DRIVER_ARRIVED,
       driverId: driverId.toString(),
@@ -374,14 +375,43 @@ export const updateDriverLocation = async (req, res, next) => {
 
     if (ride?.passenger) {
       const passengerId = ride.passenger.toString();
-
-      // Always emit real-time location update
-      emitToPassenger(passengerId, SOCKET_EVENTS.DRIVER_LOCATION_UPDATED, {
+      const locationPayload = {
         rideId,
         driver: driverLocation,
         status: ride.status,
         timestamp: new Date().getTime(),
-      });
+      };
+
+      if (
+        (ride.status === "ongoing" || ride.status === "started") &&
+        driverLocation.dbSaved &&
+        ride.drop?.coordinates?.length === 2 &&
+        driverLocation?.coordinates
+      ) {
+        try {
+          const matrix = await getDistanceMatrix({
+            origins: [driverLocation.coordinates],
+            destinations: [ride.drop.coordinates],
+          });
+          const element = matrix.rows[0]?.elements[0];
+          locationPayload.dropLocation = ride.drop;
+          locationPayload.etaToDropMinutes =
+            element?.durationInTraffic?.minutes ||
+            element?.duration?.minutes ||
+            null;
+          locationPayload.distanceToDrop = element?.distance || null;
+          locationPayload.message = "Your ride is in progress";
+        } catch {
+          locationPayload.message = "Your ride is in progress";
+        }
+      }
+
+      // Canonical location event (distinct from DRIVER_ON_ROUTE).
+      emitToPassenger(
+        passengerId,
+        SOCKET_EVENTS.DRIVER_LOCATION_UPDATED,
+        locationPayload,
+      );
       emitAdminDriverLocation(driverLocation, {
         rideId,
         status: ride.status,
@@ -392,20 +422,26 @@ export const updateDriverLocation = async (req, res, next) => {
         let etaMinutes = null;
         let distanceToPickup = null;
         try {
-          if (driverLocation.dbSaved && ride.pickup?.coordinates?.length === 2 && driverLocation?.coordinates) {
+          if (
+            driverLocation.dbSaved &&
+            ride.pickup?.coordinates?.length === 2 &&
+            driverLocation?.coordinates
+          ) {
             const matrix = await getDistanceMatrix({
               origins: [driverLocation.coordinates],
               destinations: [ride.pickup.coordinates],
             });
             const element = matrix.rows[0]?.elements[0];
-            etaMinutes = element?.durationInTraffic?.minutes || element?.duration?.minutes || null;
+            etaMinutes =
+              element?.durationInTraffic?.minutes ||
+              element?.duration?.minutes ||
+              null;
             distanceToPickup = element?.distance || null;
           }
-        } catch (e) {
+        } catch {
           etaMinutes = null;
         }
 
-        // Notify passenger that driver is on the way
         emitToPassenger(passengerId, SOCKET_EVENTS.DRIVER_ON_ROUTE, {
           rideId,
           driver: driverLocation,
@@ -413,33 +449,6 @@ export const updateDriverLocation = async (req, res, next) => {
           etaMinutes,
           distanceToPickup,
           message: "Your driver is on the way",
-        });
-      }
-
-      if (ride.status === "ongoing" || ride.status === "started") {
-        let etaToDrop = null;
-        let distanceToDrop = null;
-        try {
-          if (driverLocation.dbSaved && ride.drop?.coordinates?.length === 2 && driverLocation?.coordinates) {
-            const matrix = await getDistanceMatrix({
-              origins: [driverLocation.coordinates],
-              destinations: [ride.drop.coordinates],
-            });
-            const element = matrix.rows[0]?.elements[0];
-            etaToDrop = element?.durationInTraffic?.minutes || element?.duration?.minutes || null;
-            distanceToDrop = element?.distance || null;
-          }
-        } catch (e) {
-          etaToDrop = null;
-        }
-
-        emitToPassenger(passengerId, SOCKET_EVENTS.DRIVER_LOCATION_UPDATED, {
-          rideId,
-          driver: driverLocation,
-          dropLocation: ride.drop,
-          etaToDropMinutes: etaToDrop,
-          distanceToDrop,
-          message: "Your ride is in progress",
         });
       }
     }

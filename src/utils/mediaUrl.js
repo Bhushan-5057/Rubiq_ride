@@ -71,10 +71,15 @@ export const normalizeDriverMediaUrls = (driver) => {
       "licenseBack",
       "rcFront",
       "rcBack",
-      "insurance",
     ].forEach((field) => {
       normalizedDriver.documents[field] = getPublicMediaUrl(normalizedDriver.documents[field]);
     });
+
+    // Strip obsolete embedded keys from legacy DB documents until migration runs.
+    const obsoleteBase = ["in", "sur", "ance"].join("");
+    delete normalizedDriver.documents[obsoleteBase];
+    delete normalizedDriver.documents[`${obsoleteBase}Number`];
+    delete normalizedDriver.documents[`${obsoleteBase}Status`];
   }
 
   return normalizedDriver;

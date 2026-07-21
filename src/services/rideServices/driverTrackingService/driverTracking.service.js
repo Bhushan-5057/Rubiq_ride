@@ -2,15 +2,17 @@ import { Ride } from "../../../models/ride/ride.model.js";
 import { Driver } from "../../../models/driver/driver.model.js";
 import { areCoordinatesClose } from "../../../common/utils.js";
 import { calculateEarningsFromDistance } from "../../../helpers/rideHelpers.js";
-import {
-  getRideTimeoutQueue,
-  removeRideTimeoutJob,
-} from "../../../queues/rideTimeout.queue.js";
+import { removeRideTimeoutJob } from "../../../queues/rideTimeout.queue.js";
 import { DRIVER_AVAILABILITY_STATUS } from "../../../constants/userStatus.constants.js";
 import {
   canDriverAcceptRide,
   driverRideEligibilityQuery,
 } from "../../../helpers/driverStatus.helper.js";
+import {
+  applyLocationToDocument,
+  LOCATION_THROTTLE_SECONDS,
+  normalizeLocationInput,
+} from "../../../utils/location.js";
 
 //-------------------- Accept Ride --------------------
 
@@ -32,7 +34,7 @@ export async function acceptRideService({ rideId, driverId }) {
   if (!ride) throw new Error("Ride not available or already accepted");
 
   await removeRideTimeoutJob(rideId);
-  
+
   const driverStatus = await Driver.findById(driverId).select(
     "driverStatus currentRide",
   );
@@ -68,10 +70,6 @@ export async function driverArrivedService({
     );
   }
 
-  if (!driverLocationCoordinates || driverLocationCoordinates.length !== 2) {
-    throw new Error("Driver location is required to mark arrival");
-  }
-
   if (
     !ride.pickup ||
     !ride.pickup.coordinates ||
@@ -80,16 +78,17 @@ export async function driverArrivedService({
     throw new Error("Ride pickup location is not available");
   }
 
-  // Convert driver location to [lng, lat] for comparison
-  const driverLocation = [
-    driverLocationCoordinates[0],
-    driverLocationCoordinates[1],
-  ];
+  // Canonical DB order is [lng, lat]. Clients often send [lat, lng];
+  // resolve against pickup so both orders work.
+  const driverLocation = normalizeLocationInput(driverLocationCoordinates, {
+    referenceCoordinates: ride.pickup.coordinates,
+  }).coordinates;
 
   if (!areCoordinatesClose(driverLocation, ride.pickup.coordinates)) {
     throw new Error("Driver is not at the passenger pickup location");
   }
 
+  ride.status = "driver_arrived";
   ride.arrivedAt = new Date();
   await ride.save();
 
@@ -114,12 +113,8 @@ export async function startRideService({
     throw new Error("You are not assigned to this ride");
   }
 
-  // if (ride.status !== "driver_arrived") {
-  //   throw new Error(`Ride cannot be started in current status: ${ride.status}`);
-  // }
-
-  if (!driverLocationCoordinates || driverLocationCoordinates.length !== 2) {
-    throw new Error("Driver location is required to start the ride");
+  if (ride.status !== "driver_arrived") {
+    throw new Error(`Ride cannot be started in current status: ${ride.status}`);
   }
 
   if (
@@ -130,11 +125,9 @@ export async function startRideService({
     throw new Error("Ride pickup location is not available");
   }
 
-  // Convert driver location to [lng, lat] for comparison
-  const driverLocation = [
-    driverLocationCoordinates[0],
-    driverLocationCoordinates[1],
-  ];
+  const driverLocation = normalizeLocationInput(driverLocationCoordinates, {
+    referenceCoordinates: ride.pickup.coordinates,
+  }).coordinates;
 
   if (!areCoordinatesClose(driverLocation, ride.pickup.coordinates)) {
     throw new Error("Driver is not at the passenger pickup location");
@@ -146,7 +139,6 @@ export async function startRideService({
   }
 
   ride.status = "ongoing";
-
   ride.startedAt = new Date();
   await ride.save();
 
@@ -176,10 +168,6 @@ export async function completeRideService({
     );
   }
 
-  if (!driverLocationCoordinates || driverLocationCoordinates.length !== 2) {
-    throw new Error("Driver location is required to complete the ride");
-  }
-
   if (
     !ride.drop ||
     !ride.drop.coordinates ||
@@ -188,11 +176,9 @@ export async function completeRideService({
     throw new Error("Ride drop location is not available");
   }
 
-  // Convert driver location to [lng, lat] for comparison
-  const driverLocation = [
-    driverLocationCoordinates[0],
-    driverLocationCoordinates[1],
-  ];
+  const driverLocation = normalizeLocationInput(driverLocationCoordinates, {
+    referenceCoordinates: ride.drop.coordinates,
+  }).coordinates;
 
   if (!areCoordinatesClose(driverLocation, ride.drop.coordinates)) {
     throw new Error("Driver is not at the passenger drop location");
@@ -245,28 +231,17 @@ export async function updateDriverLocationService(driver, lng, lat, rideId) {
     throw new Error("Driver not found or unauthorized");
   }
 
-  if (typeof lng !== "number" || typeof lat !== "number") {
-    throw new Error("Latitude and longitude must be valid numbers");
-  }
-
-  // if (!rideId) {
-  //   throw new Error("rideId is required to update driver location");
-  // }
+  const normalized = normalizeLocationInput(lng, lat);
 
   const ride = await Ride.findOne({
     _id: rideId,
     driver: driver._id,
     passenger: { $exists: true, $ne: null },
-    status: { $in: ["accepted", "ongoing", "started"] },
+    status: { $in: ["accepted", "driver_arrived", "ongoing", "started"] },
   })
     .select("passenger status pickup drop")
     .lean();
 
-  // if (!ride) {
-  //   throw new Error("Driver location can be updated only after accepting a ride");
-  // }
-
-  const THROTTLE_INTERVAL = 5;
   const currentTime = new Date();
   const lastUpdateTime = driver.lastLocationUpdateTime
     ? new Date(driver.lastLocationUpdateTime)
@@ -274,14 +249,15 @@ export async function updateDriverLocationService(driver, lng, lat, rideId) {
 
   const shouldUpdateDB =
     !lastUpdateTime ||
-    (currentTime - lastUpdateTime) / 1000 >= THROTTLE_INTERVAL;
+    (currentTime - lastUpdateTime) / 1000 >= LOCATION_THROTTLE_SECONDS;
 
-  driver.longitude = lng;
-  driver.latitude = lat;
-  driver.lastOnline = currentTime;
+  applyLocationToDocument(driver, normalized.longitude, normalized.latitude, {
+    updatedAt: currentTime,
+    includeLastOnline: true,
+    includeThrottleTimestamp: true,
+  });
 
   if (shouldUpdateDB) {
-    driver.lastLocationUpdateTime = currentTime;
     await driver.save();
   }
 
@@ -290,9 +266,10 @@ export async function updateDriverLocationService(driver, lng, lat, rideId) {
     name: driver.name,
     vehicleType: driver.vehicleType,
     vehicleNumber: driver.vehicleNumber,
-    coordinates: [lng, lat],
-    longitude: lng,
-    latitude: lat,
+    coordinates: normalized.coordinates,
+    longitude: normalized.longitude,
+    latitude: normalized.latitude,
+    location: normalized.location,
     updatedAt: currentTime,
     dbSaved: shouldUpdateDB,
     status: driver.driverStatus,
