@@ -63,8 +63,9 @@ const rideSchema = new mongoose.Schema(
         "pending",
         "accepted",
         "driver_arrived",
-        "ongoing",
         "started",
+        // Legacy: previously written on OTP start; retained for in-flight docs.
+        "ongoing",
         "completed",
         "cancelled",
         "missed",
@@ -79,6 +80,23 @@ const rideSchema = new mongoose.Schema(
     startedAt: { type: Date },
 
     completedAt: { type: Date },
+
+    // Driver currently holding the pending offer (sequential rotation).
+    currentOfferedDriver: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Driver",
+      default: null,
+      index: true,
+    },
+
+    // Drivers who missed/ignored the offer in the current rotation cycle.
+    // Cleared when the cycle resets so they become eligible again.
+    skippedDrivers: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Driver",
+      },
+    ],
 
     notifiedDrivers: [
       {
@@ -148,6 +166,10 @@ const rideSchema = new mongoose.Schema(
 
   { timestamps: true },
 );
+
+rideSchema.index({ passenger: 1, createdAt: -1 });
+rideSchema.index({ driver: 1, createdAt: -1 });
+rideSchema.index({ status: 1, currentOfferedDriver: 1 });
 
 rideSchema.pre("validate", function (next) {
   if (this.status === "cancelled") {

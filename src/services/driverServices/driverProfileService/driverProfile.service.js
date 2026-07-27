@@ -5,7 +5,6 @@ import {
   requiredDocsNumber,
   updatableFields,
 } from "../../../common/utils.js";
-import { getDriverStats } from "../../../services/rideServices/rideStats.service.js"
 import { Driver } from "../../../models/driver/driver.model.js"
 import { Ride } from "../../../models/ride/ride.model.js";
 import { sendEmail, renderTemplate } from "../../../utils/mailer.js";
@@ -16,6 +15,7 @@ import {
   USER_STATUS,
 } from "../../../constants/userStatus.constants.js";
 import { isDriverReadyForRide } from "../../../helpers/driverStatus.helper.js";
+import { readDriverRideStats } from "../../../helpers/rideStatsCounters.helper.js";
 
 const toPlainDocuments = (documents) => {
   if (!documents) return {};
@@ -125,7 +125,10 @@ export const setDriverOfflineService = async (driverId) => {
       throw new Error("Cannot go offline while on a trip");
     }
 
-    const selectedRides = await Ride.find({ driver: driverId, status: { $in: ["accepted", "ongoing"] } });
+    const selectedRides = await Ride.find({
+      driver: driverId,
+      status: { $in: ["accepted", "driver_arrived", "started", "ongoing"] },
+    });
     if (selectedRides.length > 0) {
       throw new Error("Cannot go offline with active rides");
     }
@@ -151,9 +154,10 @@ export async function getProfile(driver) {
   delete result.otpExpiry;
   delete result.__v;
 
-  // Add ride statistics to the profile result
-  const stats = await getDriverStats(driver._id);
+  // Ride statistics from durable counters (no live aggregation).
+  const stats = readDriverRideStats(result);
   result.getDriverStats = stats;
+  result.rideStats = stats;
 
   return result;
 }

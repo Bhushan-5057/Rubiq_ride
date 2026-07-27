@@ -4,7 +4,7 @@ import {
 } from "../../../services/driverServices/index.js";
 
 //--------------------------- Get Ride by ID ---------------------------
-export const getRideById = async (req, res,next) => {
+export const getRideById = async (req, res, next) => {
   try {
     const driverId = req.driver._id;
     const { rideId } = req.params;
@@ -23,10 +23,12 @@ export const getRideById = async (req, res,next) => {
 export const getAllRidesForDriver = async (req, res) => {
   try {
     const driverId = req.driver._id;
-    const rides = await getAllRidesForDriverService(driverId);
-    res.status(200).json({ success: true, rides });
+    const { rides, stats } = await getAllRidesForDriverService(
+      driverId,
+      req.query,
+    );
+    res.status(200).json({ success: true, rides, stats });
   } catch (e) {
     res.status(400).json({ success: false, message: e.message });
   }
 };
-

@@ -1,7 +1,6 @@
 import { getAllDrivers, getDriverById, updateDriverStatus } from "../../../../services/adminServices/driverManagementService/driverManagement.service.js";
 import { verifyDriverDocuments } from "../../../../services/adminServices/driverDocumentationService/driverDocument.service.js";
 import { sendSuccess } from "../../../../utils/apiResponse.js";
-import { emitAdminEvent } from "../../../../helpers/admin-realtime.helper.js";
 
 // -------------------- Admin Udate Status --------------------
 export async function updateStatusController(req, res, next) {
@@ -18,11 +17,6 @@ export async function updateStatusController(req, res, next) {
       blockedReason,
       adminComment,
       forceBlock,
-    });
-    emitAdminEvent("admin:driver_status_updated", {
-      driverId,
-      status,
-      updatedBy: req.admin?._id?.toString?.() || req.user?.id,
     });
 
     return sendSuccess(res, 200, result.message, result.driver);
@@ -95,25 +89,6 @@ export async function verifyDriverDocumentsController(req, res, next) {
     const verificationData = req.body;
 
     const result = await verifyDriverDocuments(driverId, verificationData);
-    emitAdminEvent("admin:driver_approval_updated", {
-      driverId,
-      approvalStatus: result.driver?.approvalStatus,
-      documentsVerified: result.driver?.documentsVerified,
-      remarks: result.driver?.remarks,
-      updatedBy: req.admin?._id?.toString?.() || req.user?.id,
-    });
-    emitAdminEvent(
-      result.driver?.approvalStatus === "approved"
-        ? "admin:driver_approved"
-        : result.driver?.approvalStatus === "rejected"
-          ? "admin:driver_rejected"
-          : "admin:driver_verification_updated",
-      {
-        driverId,
-        driver: result.driver,
-        updatedBy: req.admin?._id?.toString?.() || req.user?.id,
-      }
-    );
     res.status(200).json(result);
   } catch (err) {
     next(err);

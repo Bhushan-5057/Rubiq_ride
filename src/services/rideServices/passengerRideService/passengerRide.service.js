@@ -13,6 +13,11 @@ import {
 } from "../../../constants/userStatus.constants.js";
 import { canPassengerBookRide } from "../../../helpers/passengerStatus.helper.js";
 import { findNearbyDrivers } from "../../../helpers/nearbyDrivers.helper.js";
+import { offerRideToNextDriver } from "../../../helpers/autoAssignRide.helper.js";
+import { RIDE_REQUEST_TIMEOUT_MS } from "../../../constants/ride.constants.js";
+import {
+  incrementPassengerRideStat,
+} from "../../../helpers/rideStatsCounters.helper.js";
 import {
   applyLocationToDocument,
   buildLocationSetPayload,
@@ -153,10 +158,30 @@ export async function createRideService({
     console.error("Unable to calculate nearby driver ETAs:", error.message);
   }
 
-  ride.notifiedDrivers = nearbyDrivers.map((d) => d._id);
-  await ride.save();
+  // Sequential offer: first closest driver only. Timeout worker rotates the rest.
+  const offer = await offerRideToNextDriver(ride, {
+    scheduleTimeout: false,
+    emitSocket: false,
+    passengerPayload: {
+      passenger: {
+        name: ride.passenger?.name,
+        contactNumber: ride.passenger?.contactNumber,
+        rating: ride.passenger?.rating,
+      },
+    },
+  });
 
-  await addRideTimeoutJob(ride._id.toString(), 60000);
+  if (offer.offered) {
+    await addRideTimeoutJob(ride._id.toString(), RIDE_REQUEST_TIMEOUT_MS);
+  } else if (nearbyDrivers.length === 0) {
+    // Keep polling for drivers while passenger waits.
+    await addRideTimeoutJob(ride._id.toString(), RIDE_REQUEST_TIMEOUT_MS);
+  }
+
+  const refreshedRide = await Ride.findById(ride._id).populate({
+    path: "passenger",
+    select: "name contactNumber rating",
+  });
 
   const { coordinates: _coords, ...pickupLocationPayload } =
     buildLocationSetPayload(resolvedPickup.coordinates);
@@ -164,7 +189,12 @@ export async function createRideService({
     $set: pickupLocationPayload,
   });
 
-  return { ride, nearbyDrivers, driverEtas };
+  return {
+    ride: refreshedRide || ride,
+    nearbyDrivers,
+    offeredDriver: offer.driver || null,
+    driverEtas,
+  };
 }
 
 //-------------------- Update Ride --------------------
@@ -272,6 +302,13 @@ export async function endRideService({
     throw new Error("Passenger location is required to end the ride");
   }
 
+  // Allow legacy "ongoing" for rides started before the status rename.
+  if (ride.status !== "started" && ride.status !== "ongoing") {
+    throw new Error(
+      `Ride cannot be ended in current status: ${ride.status}`,
+    );
+  }
+
   if (
     !ride.drop ||
     !ride.drop.coordinates ||
@@ -316,12 +353,13 @@ export async function endRideService({
         "earnings.totalEarnings": fare,
         "earnings.totalDriverPayout": driverShare,
         "earnings.totalPlatformFee": platformFee,
+        "rideStats.completed": 1,
       },
     });
   }
 
   if (ride.passenger) {
-    await Passenger.findByIdAndUpdate(ride.passenger, {});
+    await incrementPassengerRideStat(ride.passenger, "completed");
   }
 
   return ride;

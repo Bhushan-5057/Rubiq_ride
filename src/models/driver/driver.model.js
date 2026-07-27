@@ -52,6 +52,12 @@ const driverSchema = new mongoose.Schema(
       missedRides: { type: Number, default: 0 },
       capturedAt: { type: Date, default: null },
     },
+    // Durable counters for Driver app profile / history (avoid live aggregations).
+    rideStats: {
+      completed: { type: Number, default: 0 },
+      cancelled: { type: Number, default: 0 },
+      missed: { type: Number, default: 0 },
+    },
     location: {
       type: {
         type: String,

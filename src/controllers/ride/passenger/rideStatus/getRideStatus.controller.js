@@ -19,28 +19,31 @@ export const getRideStatus = async (req, res) => {
 
 export const getPassengerRides = async (req, res) => {
   try {
-    const passengerId = req.passenger._id; 
-    const rides = await getPassengerAllRideService(passengerId);
+    const passengerId = req.passenger._id;
+    const { rides, stats } = await getPassengerAllRideService(
+      passengerId,
+      req.query,
+    );
 
-    res.status(200).json({ success: true, rides });
+    res.status(200).json({ success: true, rides, stats });
   } catch (err) {
     res.status(400).json({ success: false, message: err.message });
   }
-}; 
+};
 
 //---------------------------- Get Ride By Id For Passenger ----------------------------
 
 export const getPassengerRideById = async (req, res, next) => {
   try {
-    const passengerId = req.passenger._id
-    const { rideId } = req.params
-    const ride = await getPassengerRideByIdService(rideId, passengerId)
+    const passengerId = req.passenger._id;
+    const { rideId } = req.params;
+    const ride = await getPassengerRideByIdService(rideId, passengerId);
     res.status(200).json({
       success: true,
       message: "Passenger Ride Data Fetched Successfully",
-      data: ride
-    })
+      data: ride,
+    });
   } catch (error) {
-    next(error)
+    next(error);
   }
-}
+};

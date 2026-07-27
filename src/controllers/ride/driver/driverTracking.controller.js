@@ -18,12 +18,6 @@ import { Driver } from "../../../models/driver/driver.model.js";
 import { Passenger } from "../../../models/passenger/passenger.model.js";
 import { sendToUser } from "../../../services/notification/sendToUser.js";
 import { DRIVER_CANCELLATION_REASONS } from "../../../common/cancellationReasons.js";
-import {
-  emitAdminDashboardStats,
-  emitAdminDriverLocation,
-  emitAdminEvent,
-  emitAdminRideEvent,
-} from "../../../helpers/admin-realtime.helper.js";
 
 //----------------------------- Driver Accept Ride -----------------------------
 
@@ -58,10 +52,6 @@ export const acceptRide = async (req, res, next) => {
 
     // Notify passenger about driver assignment
     emitToPassenger(ride.passenger, SOCKET_EVENTS.RIDE_DRIVER_ASSIGNED, payload)
-    await emitAdminRideEvent("admin:ride_status_updated", ride, {
-      action: SOCKET_EVENTS.RIDE_DRIVER_ASSIGNED,
-      driverId: driverId.toString(),
-    });
 
     // Notify passenger that driver assigned via push notification 
     const passengerId = ride.passenger;
@@ -113,10 +103,6 @@ export const driverArrived = async (req, res, next) => {
     // Notify passenger that driver has arrived (canonical + legacy event name)
     emitToPassenger(ride.passenger, SOCKET_EVENTS.DRIVER_ARRIVED, payload);
     emitToPassenger(ride.passenger, SOCKET_EVENTS.DRIVER_ARRIVED_LEGACY, payload);
-    await emitAdminRideEvent("admin:ride_status_updated", ride, {
-      action: SOCKET_EVENTS.DRIVER_ARRIVED,
-      driverId: driverId.toString(),
-    });
 
     // Notify passenger that driver arrived via push notification
     const passenger = await Passenger.findById(ride.passenger).select("fcmTokens");
@@ -152,10 +138,6 @@ export const startRide = async (req, res, next) => {
     // Notify passenger that ride has started
     emitToPassenger(ride.passenger, SOCKET_EVENTS.RIDE_STARTED, {
       rideId: ride._id,
-    });
-    await emitAdminRideEvent("admin:ride_status_updated", ride, {
-      action: SOCKET_EVENTS.RIDE_STARTED,
-      driverId: driverId.toString(),
     });
 
     // Notify passenger that ride started via push notification
@@ -198,10 +180,6 @@ export const completeRide = async (req, res, next) => {
       paymentMethod: ride.paymentMethod,
       fare: ride.fareEstimate
     });
-    await emitAdminRideEvent("admin:trip_completed", ride, {
-      completedBy: "Driver",
-      driverId: driverId.toString(),
-    });
 
     // Notify passenger that ride ended via push notification
     const passenger = await Passenger.findById(ride.passenger).select("fcmTokens");;
@@ -231,13 +209,6 @@ export const completeRide = async (req, res, next) => {
         amount: ride.fareEstimate,
         currency: 'inr',
         paymentMethod: ride.paymentMethod
-      });
-      emitAdminEvent("admin:payout_notification", {
-        rideId: ride._id.toString(),
-        driverId: driverId.toString(),
-        amount: ride.fareEstimate,
-        currency: "inr",
-        paymentMethod: ride.paymentMethod,
       });
 
       await sendToUser({
@@ -324,12 +295,6 @@ export const cancelRide = async (req, res, next) => {
       paymentStatus: updatedRide.paymentStatus,
       refundProcessed: updatedRide.paymentStatus === 'refunded'
     });
-    await emitAdminRideEvent("admin:ride_cancelled", updatedRide, {
-      cancelledBy: "Driver",
-      reasonCode: updatedRide.cancellation.reasonCode,
-      reasonText: updatedRide.cancellation.reasonText,
-      refundProcessed: updatedRide.paymentStatus === "refunded",
-    });
 
     // Notify passenger about ride cancellation via push notification
     const passenger = await Passenger.findById(updatedRide.passenger).select("fcmTokens");
@@ -383,7 +348,7 @@ export const updateDriverLocation = async (req, res, next) => {
       };
 
       if (
-        (ride.status === "ongoing" || ride.status === "started") &&
+        (ride.status === "started" || ride.status === "ongoing") &&
         driverLocation.dbSaved &&
         ride.drop?.coordinates?.length === 2 &&
         driverLocation?.coordinates
@@ -412,11 +377,6 @@ export const updateDriverLocation = async (req, res, next) => {
         SOCKET_EVENTS.DRIVER_LOCATION_UPDATED,
         locationPayload,
       );
-      emitAdminDriverLocation(driverLocation, {
-        rideId,
-        status: ride.status,
-        passengerId,
-      });
 
       if (ride.status === "accepted") {
         let etaMinutes = null;
@@ -459,7 +419,6 @@ export const updateDriverLocation = async (req, res, next) => {
       driver: driverLocation,
       dbSaved: driverLocation.dbSaved,
     });
-    await emitAdminDashboardStats();
   } catch (error) {
     next(error);
   }

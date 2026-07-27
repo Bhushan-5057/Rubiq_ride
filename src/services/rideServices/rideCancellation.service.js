@@ -7,8 +7,11 @@ import {
   PASSENGER_REASON_CODES,
 } from "../../common/cancellationReasons.js";
 import { DRIVER_AVAILABILITY_STATUS } from "../../constants/userStatus.constants.js";
+import { removeRideTimeoutJob } from "../../queues/rideTimeout.queue.js";
+import { incrementPassengerRideStat } from "../../helpers/rideStatsCounters.helper.js";
 
-const cancellableStatuses = ["pending", "accepted"];
+// Cancellable only before OTP verification / ride start.
+const cancellableStatuses = ["pending", "accepted", "driver_arrived"];
 
 const cancellationConfig = {
   Passenger: {
@@ -60,6 +63,10 @@ export async function cancelRideService({
     reasons: config.reasons,
   });
 
+  const offeredDriverId = ride.currentOfferedDriver
+    ? ride.currentOfferedDriver.toString()
+    : null;
+
   ride.status = "cancelled";
   ride.cancellation = {
     cancelledBy,
@@ -67,6 +74,8 @@ export async function cancelRideService({
     reasonText: finalReasonText,
     cancelledAt: new Date(),
   };
+  ride.currentOfferedDriver = null;
+  ride.skippedDrivers = [];
 
   if (paymentStatus) {
     ride.paymentStatus = paymentStatus;
@@ -74,14 +83,26 @@ export async function cancelRideService({
 
   await ride.save();
 
+  await removeRideTimeoutJob(rideId);
+
   if (ride.driver) {
     await Driver.findByIdAndUpdate(ride.driver, {
       $set: {
         driverStatus: DRIVER_AVAILABILITY_STATUS.AVAILABLE,
         currentRide: null,
       },
+      $inc: {
+        "rideStats.cancelled": 1,
+      },
     });
   }
+
+  if (ride.passenger) {
+    await incrementPassengerRideStat(ride.passenger, "cancelled");
+  }
+
+  // Non-schema helper field for controllers to notify the pending offer target.
+  ride._offeredDriverId = offeredDriverId;
 
   return ride;
 }

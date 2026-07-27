@@ -13,6 +13,7 @@ import {
   LOCATION_THROTTLE_SECONDS,
   normalizeLocationInput,
 } from "../../../utils/location.js";
+import { incrementPassengerRideStat } from "../../../helpers/rideStatsCounters.helper.js";
 
 //-------------------- Accept Ride --------------------
 
@@ -25,13 +26,28 @@ export async function acceptRideService({ rideId, driverId }) {
     throw new Error("Driver is not eligible to accept rides");
   }
 
+  // Only the driver currently holding the sequential offer may accept.
   const ride = await Ride.findOneAndUpdate(
-    { _id: rideId, status: "pending" },
-    { driver: driverId, status: "accepted", acceptedAt: new Date() },
+    {
+      _id: rideId,
+      status: "pending",
+      currentOfferedDriver: driverId,
+    },
+    {
+      driver: driverId,
+      status: "accepted",
+      acceptedAt: new Date(),
+      currentOfferedDriver: null,
+      skippedDrivers: [],
+    },
     { new: true },
   );
 
-  if (!ride) throw new Error("Ride not available or already accepted");
+  if (!ride) {
+    throw new Error(
+      "Ride not available, already accepted, or not offered to this driver",
+    );
+  }
 
   await removeRideTimeoutJob(rideId);
 
@@ -138,7 +154,7 @@ export async function startRideService({
     throw new Error("Invalid OTP");
   }
 
-  ride.status = "ongoing";
+  ride.status = "started";
   ride.startedAt = new Date();
   await ride.save();
 
@@ -146,6 +162,9 @@ export async function startRideService({
 }
 
 //-------------------- Complete Ride --------------------
+
+// Legacy "ongoing" accepted for in-flight rides created before the started refactor.
+const COMPLETABLE_STATUSES = new Set(["started", "ongoing"]);
 
 export async function completeRideService({
   rideId,
@@ -162,7 +181,7 @@ export async function completeRideService({
     throw new Error("You are not assigned to this ride");
   }
 
-  if (ride.status !== "ongoing") {
+  if (!COMPLETABLE_STATUSES.has(ride.status)) {
     throw new Error(
       `Ride cannot be completed in current status: ${ride.status}`,
     );
@@ -215,10 +234,15 @@ export async function completeRideService({
           "earnings.totalEarnings": fare,
           "earnings.totalDriverPayout": driverShare,
           "earnings.totalPlatformFee": platformFee,
+          "rideStats.completed": 1,
         },
       },
       { new: true },
     );
+  }
+
+  if (ride.passenger) {
+    await incrementPassengerRideStat(ride.passenger, "completed");
   }
 
   return ride;
@@ -237,7 +261,8 @@ export async function updateDriverLocationService(driver, lng, lat, rideId) {
     _id: rideId,
     driver: driver._id,
     passenger: { $exists: true, $ne: null },
-    status: { $in: ["accepted", "driver_arrived", "ongoing", "started"] },
+    // Include legacy "ongoing" for in-flight rides started before the status rename.
+    status: { $in: ["accepted", "driver_arrived", "started", "ongoing"] },
   })
     .select("passenger status pickup drop")
     .lean();

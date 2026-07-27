@@ -1,7 +1,4 @@
-import {
-  ADMIN_ROLES,
-} from "../../constants/userStatus.constants.js";
-import { emitAdminDashboardStats, emitAdminEvent } from "../../helpers/admin-realtime.helper.js";
+import { ADMIN_ROLES } from "../../constants/userStatus.constants.js";
 import { Driver } from "../../models/driver/driver.model.js";
 import { ADMIN_SOCKET_EVENTS, ADMIN_SOCKET_ROOMS } from "./admin-socket.constants.js";
 
@@ -26,99 +23,11 @@ export const getAdminRoomsForRole = (role) => {
   return rooms;
 };
 
-export const registerAdminEvents = (io, socket) => {
-  if (!isAdminSocketRole(socket.user?.role)) return;
+/** Admin realtime socket handlers disabled. */
+export const registerAdminEvents = () => {};
 
-  const rooms = getAdminRoomsForRole(socket.user.role);
-  rooms.forEach((room) => socket.join(room));
-
-  socket.emit(ADMIN_SOCKET_EVENTS.REGISTERED, {
-    adminId: socket.user.id,
-    role: socket.user.role,
-    rooms,
-    connectedAt: new Date().toISOString(),
-  });
-
-  emitAdminDashboardStats().catch((error) => {
-    console.error("Failed to emit admin dashboard stats:", error.message);
-  });
-
-  socket.on(ADMIN_SOCKET_EVENTS.JOIN_DASHBOARD, async (_payload = {}, ack) => {
-    socket.join(ADMIN_SOCKET_ROOMS.DASHBOARD);
-    const response = {
-      success: true,
-      room: ADMIN_SOCKET_ROOMS.DASHBOARD,
-      message: "Joined admin dashboard realtime room",
-    };
-    if (typeof ack === "function") ack(response);
-    await emitAdminDashboardStats();
-  });
-
-  socket.on(ADMIN_SOCKET_EVENTS.LEAVE_DASHBOARD, (_payload = {}, ack) => {
-    socket.leave(ADMIN_SOCKET_ROOMS.DASHBOARD);
-    const response = {
-      success: true,
-      room: ADMIN_SOCKET_ROOMS.DASHBOARD,
-      message: "Left admin dashboard realtime room",
-    };
-    if (typeof ack === "function") ack(response);
-  });
-
-  socket.on(ADMIN_SOCKET_EVENTS.REQUEST_DASHBOARD_STATS, async (_payload = {}, ack) => {
-    try {
-      const stats = await emitAdminDashboardStats();
-      if (typeof ack === "function") ack({ success: true, stats });
-    } catch (error) {
-      if (typeof ack === "function") ack({ success: false, message: error.message });
-    }
-  });
-
-  socket.on(ADMIN_SOCKET_EVENTS.BROADCAST_NOTIFICATION, (payload = {}, ack) => {
-    if (!payload.title && !payload.message) {
-      const response = {
-        success: false,
-        message: "title or message is required",
-      };
-      if (typeof ack === "function") ack(response);
-      return;
-    }
-
-    emitAdminEvent("admin:broadcast_notification", {
-      ...payload,
-      sentBy: socket.user.id,
-      sentByRole: socket.user.role,
-      emittedAt: new Date().toISOString(),
-    });
-
-    if (typeof ack === "function") {
-      ack({ success: true, message: "Admin broadcast notification emitted" });
-    }
-  });
-};
-
-export const registerSafetyEvents = (socket) => {
-  socket.on(ADMIN_SOCKET_EVENTS.SOS_ALERT, (payload = {}, ack) => {
-    if (!payload.rideId && !payload.location) {
-      const response = {
-        success: false,
-        message: "rideId or location is required for SOS alerts",
-      };
-      if (typeof ack === "function") ack(response);
-      return;
-    }
-
-    emitAdminEvent("admin:sos_alert", {
-      ...payload,
-      userId: socket.user?.id,
-      userRole: socket.user?.role,
-      socketId: socket.id,
-    });
-
-    if (typeof ack === "function") {
-      ack({ success: true, message: "SOS alert delivered to admin realtime rooms" });
-    }
-  });
-};
+/** Admin SOS / safety realtime handlers disabled. */
+export const registerSafetyEvents = () => {};
 
 export const registerDriverPresenceEvents = (socket) => {
   if (socket.user?.role !== "driver") return;
@@ -135,12 +44,6 @@ export const registerDriverPresenceEvents = (socket) => {
       lastOnline: new Date(),
     }).catch((error) => {
       console.error("Failed to mark driver online:", error.message);
-    });
-
-    emitAdminEvent("admin:driver_online", {
-      driverId,
-      socketId: socket.id,
-      onlineAt: new Date().toISOString(),
     });
   }
 };
@@ -161,12 +64,4 @@ export const emitDriverOffline = async (socket) => {
     isOnline: false,
     lastOffline: new Date(),
   });
-
-  emitAdminEvent("admin:driver_offline", {
-    driverId,
-    socketId: socket.id,
-    offlineAt: new Date().toISOString(),
-  });
-
-  await emitAdminDashboardStats();
 };

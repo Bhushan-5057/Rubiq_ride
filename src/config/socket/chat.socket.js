@@ -1,6 +1,5 @@
 import { ChatMessage } from "../../models/chat/chatMessageSchema.model.js";
 import { validatedRideChatAccess } from "../../validations/chatMessage.validation.js";
-import { emitAdminSupportChatEvent } from "../../helpers/admin-realtime.helper.js";
 
 export const registerChatEvents = (io, socket) => {
     socket.on("join_ride_chat", async ({ rideId, userId, userType }, ack) => {
@@ -37,14 +36,6 @@ export const registerChatEvents = (io, socket) => {
             })
             io.to(`ride_${rideId}`).emit("receive_message", {
                 _id: chat._id,
-                rideId,
-                senderId,
-                senderType,
-                message,
-                createdAt: chat.createdAt
-            })
-            emitAdminSupportChatEvent({
-                messageId: chat._id,
                 rideId,
                 senderId,
                 senderType,

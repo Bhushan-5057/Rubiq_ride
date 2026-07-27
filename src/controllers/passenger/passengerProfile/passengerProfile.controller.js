@@ -1,7 +1,7 @@
 import { uploadFileToS3 } from "../../../utils/s3Upload.js";
 import { deleteProfile, updateProfile } from "../../../services/passengerServices/passengerProfileService/passengerProfile.service.js";
-import {getPassengerStats} from "../../../services/rideServices/rideStats.service.js"
 import { normalizePassengerMediaUrls } from "../../../utils/mediaUrl.js";
+import { readPassengerRideStats } from "../../../helpers/rideStatsCounters.helper.js";
 
 // -------------------- Get Profile --------------------
 export async function profileController(req, res, next) {
@@ -16,9 +16,9 @@ export async function profileController(req, res, next) {
     delete result.otpExpiry;
     delete result.__v;
 
-    // Add ride statistics to the profile result
-    const stats = await getPassengerStats(passenger._id);
+    const stats = readPassengerRideStats(result);
     result.getPassengerStats = stats;
+    result.rideStats = stats;
 
     res.json({
       success: true,

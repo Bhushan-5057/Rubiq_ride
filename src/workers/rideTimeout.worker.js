@@ -4,9 +4,10 @@ import { Worker } from "bullmq";
 import { connectDB, mongoose } from "../config/dbConnect.js";
 import { initRedis, getRedis } from '../config/redis.js';
 import { Ride } from "../models/ride/ride.model.js";
-import { autoAssignRideToNextDriver } from "../helpers/autoAssignRide.helper.js";
-import { SOCKET_EVENTS, emitToPassenger } from "../config/socket/socket.js";
-import { emitAdminRideEvent } from "../helpers/admin-realtime.helper.js";
+import {
+  markCurrentDriverMissed,
+  offerRideToNextDriver,
+} from "../helpers/autoAssignRide.helper.js";
 
 const isBullMQEnabled = process.env.ENABLE_BULLMQ === "true";
 
@@ -54,36 +55,59 @@ const createWorker = async () => {
             "\nActual Delay:", actualDelaySec, "seconds"
           );
 
-          const ride = await Ride.findById(job.data.rideId)
-            .populate('notifiedDrivers');
+          const ride = await Ride.findById(job.data.rideId).populate({
+            path: "passenger",
+            select: "name contactNumber rating",
+          });
 
           if (!ride) {
             console.log(`Ride ${job.data.rideId} not found`);
             return;
           }
 
+          // Only rotate offers while the ride is still waiting for acceptance.
           if (ride.status !== "pending") {
             console.log(`Ride ${ride._id} already ${ride.status}`);
             return;
           }
 
-          // Update ride status to missed
-          ride.status = "missed";
-          await ride.save();
+          // Current offer window expired → missed for that driver only.
+          // Ride status stays pending; passenger is not notified.
+          const missResult = await markCurrentDriverMissed(ride);
+          if (!missResult.stillPending) {
+            console.log(
+              `Ride ${ride._id} left pending during timeout; skipping rotation`,
+            );
+            return;
+          }
 
-          // Notify passenger
-          emitToPassenger(ride.passenger, SOCKET_EVENTS.RIDE_MISSED, {
-            rideId: ride._id,
-            message: "No driver accepted your ride.",
+          // Re-load to pick up skippedDrivers / status after concurrent accept.
+          const latest = await Ride.findById(ride._id).populate({
+            path: "passenger",
+            select: "name contactNumber rating",
           });
-          await emitAdminRideEvent("admin:ride_missed", ride, {
-            message: "No driver accepted the ride before timeout.",
+
+          if (!latest || latest.status !== "pending") {
+            console.log(
+              `Ride ${ride._id} no longer pending after timeout handling`,
+            );
+            return;
+          }
+
+          await offerRideToNextDriver(latest, {
+            scheduleTimeout: true,
+            passengerPayload: {
+              passenger: latest.passenger
+                ? {
+                    name: latest.passenger.name,
+                    contactNumber: latest.passenger.contactNumber,
+                    rating: latest.passenger.rating,
+                  }
+                : undefined,
+            },
           });
 
-          // Try to reassign
-          await autoAssignRideToNextDriver(ride);
-
-          console.log(`Successfully processed timeout for ride ${ride._id}`);
+          console.log(`Successfully rotated offer for ride ${ride._id}`);
         } catch (error) {
           console.error("Error in ride timeout worker:", error);
           throw error;

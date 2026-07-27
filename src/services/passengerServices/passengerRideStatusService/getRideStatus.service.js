@@ -1,7 +1,13 @@
 
 import { Ride } from "../../../models/ride/ride.model.js";
 import { Driver } from "../../../models/driver/driver.model.js";
+import { Passenger } from "../../../models/passenger/passenger.model.js";
 import { getDistanceMatrix } from "../../googleMaps/googleMaps.service.js";
+import {
+  buildRideHistoryDateFilter,
+  summarizeRideStatuses,
+} from "../../../helpers/rideHistoryFilter.helper.js";
+import { readPassengerRideStats } from "../../../helpers/rideStatsCounters.helper.js";
 
 //------------------------ Get Ride Status ------------------------
 export async function getRideStatusService({ rideId, passengerId }) {
@@ -32,7 +38,15 @@ export async function getRideStatusService({ rideId, passengerId }) {
     };
   }
 
-  if (ride.status !== "accepted" && ride.status !== "ongoing") {
+  // Driver details are relevant from accept through in-progress (legacy "ongoing" included).
+  const statusesWithDriverTracking = new Set([
+    "accepted",
+    "driver_arrived",
+    "started",
+    "ongoing",
+  ]);
+
+  if (!statusesWithDriverTracking.has(ride.status)) {
     return {
       rideId: ride._id,
       status: ride.status,
@@ -84,14 +98,15 @@ export async function getRideStatusService({ rideId, passengerId }) {
 }
 
 //------------------------ Get All Rides ------------------------
-export async function getPassengerAllRideService(passengerId) {
+export async function getPassengerAllRideService(passengerId, filters = {}) {
   if (!passengerId) throw new Error("Passenger ID is required");
 
-  const rides = await Ride.find({ passenger: passengerId })
+  const dateFilter = buildRideHistoryDateFilter(filters);
+  const rides = await Ride.find({ passenger: passengerId, ...dateFilter })
     .populate("driver", "name vehicleNumber vehicleType contactNumber")
     .sort({ createdAt: -1 });
 
-  return rides.map((ride) => ({
+  const mapped = rides.map((ride) => ({
     rideId: ride._id,
     status: ride.status,
     fareEstimate: ride.fareEstimate,
@@ -99,16 +114,30 @@ export async function getPassengerAllRideService(passengerId) {
     drop: ride.drop,
     driver: ride.driver
       ? {
-        id: ride.driver._id,
-        name: ride.driver.name,
-        vehicleNumber: ride.driver.vehicleNumber,
-        vehicleType: ride.driver.vehicleType,
-        contactNumber: ride.driver.contactNumber,
-      }
+          id: ride.driver._id,
+          name: ride.driver.name,
+          vehicleNumber: ride.driver.vehicleNumber,
+          vehicleType: ride.driver.vehicleType,
+          contactNumber: ride.driver.contactNumber,
+        }
       : null,
     createdAt: ride.createdAt,
     updatedAt: ride.updatedAt,
   }));
+
+  const passenger = await Passenger.findById(passengerId).select("rideStats");
+  const filteredStats = summarizeRideStatuses(rides);
+
+  return {
+    rides: mapped,
+    stats: {
+      lifetime: readPassengerRideStats(passenger),
+      filtered: {
+        completed: filteredStats.completed,
+        cancelled: filteredStats.cancelled,
+      },
+    },
+  };
 }
 
 //--------------------- Get Passenger Ride By Id ---------------------

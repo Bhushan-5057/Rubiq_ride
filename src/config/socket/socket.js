@@ -3,9 +3,7 @@ import jwt from "jsonwebtoken";
 import { registerChatEvents } from "./chat.socket.js";
 import {
   emitDriverOffline,
-  registerAdminEvents,
   registerDriverPresenceEvents,
-  registerSafetyEvents,
 } from "./admin.socket.js";
 import { Admin } from "../../models/admin/admin.model.js";
 import { Driver } from "../../models/driver/driver.model.js";
@@ -94,8 +92,6 @@ export const initSocket = (server) => {
     console.log(`User ${socket.user.id} joined role room ${roleRoom}`);
 
     registerDriverPresenceEvents(socket);
-    registerAdminEvents(io, socket);
-    registerSafetyEvents(socket);
 
     socket.on("register", ({ userId }, ack) => {
       if (!userId) return;

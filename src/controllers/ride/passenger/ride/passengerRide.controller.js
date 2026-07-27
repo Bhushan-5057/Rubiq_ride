@@ -19,11 +19,6 @@ import { Passenger } from "../../../../models/passenger/passenger.model.js";
 import { sendToUser } from "../../../../services/notification/sendToUser.js";
 import { Driver } from "../../../../models/driver/driver.model.js";
 import { PASSENGER_CANCELLATION_REASONS } from "../../../../common/cancellationReasons.js";
-import {
-  emitAdminDashboardStats,
-  emitAdminEvent,
-  emitAdminRideEvent,
-} from "../../../../helpers/admin-realtime.helper.js";
 
 //-------------------------- Update passenger Location --------------------------
 
@@ -71,7 +66,7 @@ export const createRide = async (req, res) => {
       });
     }
 
-    const { ride, nearbyDrivers, driverEtas } = await createRideService({
+    const { ride, nearbyDrivers, offeredDriver, driverEtas } = await createRideService({
       passengerId,
       pickup,
       drop,
@@ -118,8 +113,10 @@ export const createRide = async (req, res) => {
       };
     }
 
-    // Notify nearby drivers about the new ride request
-    nearbyDrivers.forEach((driver) => {
+    // Notify only the sequentially offered driver (rotation continues via timeout).
+    const driversToNotify = offeredDriver ? [offeredDriver] : [];
+
+    driversToNotify.forEach((driver) => {
       const driverId = driver._id.toString();
       console.log("Emitting ride.requested to driver room:", driverId);
       emitToDriver(driverId, SOCKET_EVENTS.RIDE_REQUESTED, {
@@ -143,11 +140,13 @@ export const createRide = async (req, res) => {
       });
     });
     console.log(
-      "Nearby drivers:",
+      "Offered driver:",
+      offeredDriver?._id?.toString?.() || null,
+      "| Nearby candidates:",
       nearbyDrivers.map((d) => d._id.toString()),
     );
-    // Send push notifications to nearby drivers
-    for (const driver of nearbyDrivers) {
+    // Send push notifications to the offered driver
+    for (const driver of driversToNotify) {
       const driverData = await Driver.findById(driver._id).select("fcmTokens");
 
       if (!driverData?.fcmTokens?.length) {
@@ -205,16 +204,6 @@ export const createRide = async (req, res) => {
       driverEtas,
       ...paymentData,
     });
-
-    await emitAdminRideEvent("admin:new_ride", ride, {
-      nearbyDriverCount: nearbyDrivers.length,
-      driverEtas,
-    });
-    emitAdminEvent("admin:passenger_activity", {
-      passengerId: passengerId.toString(),
-      action: SOCKET_EVENTS.RIDE_CREATED,
-      rideId: ride._id.toString(),
-    });
   } catch (error) {
     console.error("Error creating ride:", error);
     res.status(error.status || 500).json({
@@ -243,10 +232,6 @@ export const updateRide = async (req, res) => {
       distance: ride.distance,
       fareEstimate: ride.fareEstimate,
       routeDetails: ride.routeDetails,
-    });
-
-    await emitAdminRideEvent("admin:ride_status_updated", ride, {
-      action: SOCKET_EVENTS.RIDE_DROP_LOCATION_UPDATED,
     });
 
     // Send push notification to passenger
@@ -346,12 +331,6 @@ export const cancelRide = async (req, res, next) => {
       reasonText: ride.cancellation.reasonText,
     });
 
-    await emitAdminRideEvent("admin:ride_cancelled", ride, {
-      cancelledBy: "Passenger",
-      reasonCode,
-      reasonText,
-    });
-
     // Send push notification to passenger
     const passenger = await Passenger.findById(passengerId).select("fcmTokens");
 
@@ -366,20 +345,19 @@ export const cancelRide = async (req, res, next) => {
       userType: "passenger",
     });
 
-    // Notify driver about ride cancellation
-    if (ride.driver) {
-      emitToDriver(ride.driver, SOCKET_EVENTS.RIDE_CANCELLED_BY_PASSENGER, {
+    const driverToNotify = ride.driver || ride._offeredDriverId;
+
+    // Notify assigned or currently offered driver about ride cancellation
+    if (driverToNotify) {
+      emitToDriver(driverToNotify, SOCKET_EVENTS.RIDE_CANCELLED_BY_PASSENGER, {
         rideId: ride._id,
         status: ride.status,
         cancelledBy: "Passenger",
         reasonCode: ride.cancellation.reasonCode,
         reasonText: ride.cancellation.reasonText,
       });
-    }
 
-    // Send push notification to driver
-    if (ride.driver) {
-      const driver = await Driver.findById(ride.driver).select("fcmTokens");
+      const driver = await Driver.findById(driverToNotify).select("fcmTokens");
       await sendToUser({
         user: driver,
         title: "Ride Cancelled",
@@ -465,10 +443,6 @@ export const endRide = async (req, res) => {
       rideId: completedRide._id,
       status: completedRide.status,
       paymentStatus: completedRide.paymentStatus,
-    });
-
-    await emitAdminRideEvent("admin:trip_completed", completedRide, {
-      completedBy: "Passenger",
     });
 
     // Send push notification to passenger
@@ -606,15 +580,7 @@ export const confirmPayment = async (req, res) => {
           amount: ride.fareEstimate,
           currency: "inr",
         });
-        emitAdminEvent("admin:payout_notification", {
-          rideId: ride._id.toString(),
-          driverId: ride.driver.toString(),
-          amount: ride.fareEstimate,
-          currency: "inr",
-          paymentStatus: ride.paymentStatus,
-        });
       }
-      await emitAdminDashboardStats();
     }
 
     res.status(200).json({
