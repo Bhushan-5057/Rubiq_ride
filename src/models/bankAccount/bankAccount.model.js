@@ -1,11 +1,15 @@
 import mongoose from "mongoose";
 
+const userTypeModelName = function () {
+  return this.userType === "driver" ? "Driver" : "Passenger";
+};
+
 const bankAccountSchema = new mongoose.Schema(
   {
     userId: {
       type: mongoose.Schema.Types.ObjectId,
       required: true,
-      refPath: 'userType',
+      ref: userTypeModelName,
       index: true,
     },
     userType: {

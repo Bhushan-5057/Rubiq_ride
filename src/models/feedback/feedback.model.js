@@ -12,7 +12,9 @@ const feedbackSchema = new mongoose.Schema(
     },
     givenByUser: {
       type: mongoose.Schema.Types.ObjectId,
-      refPath: "givenBy", 
+      ref: function () {
+        return this.givenBy === "driver" ? "Driver" : "Passenger";
+      },
       required: true,
     },
 
@@ -24,7 +26,9 @@ const feedbackSchema = new mongoose.Schema(
     },
     givenToUser: {
       type: mongoose.Schema.Types.ObjectId,
-      refPath: "givenTo", 
+      ref: function () {
+        return this.givenTo === "driver" ? "Driver" : "Passenger";
+      },
       required: true,
     },
 
