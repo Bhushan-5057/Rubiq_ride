@@ -7,13 +7,9 @@ import {
 } from '../../services/feedback/feedback.service.js';
 import {
   SOCKET_EVENTS,
-  emitToDriver,
-  emitToPassenger,
 } from '../../config/socket/socket.js';
 import { Ride } from '../../models/ride/ride.model.js';
-import { sendToUser } from '../../services/notification/sendToUser.js';
-import { Driver } from '../../models/driver/driver.model.js';
-import { Passenger } from '../../models/passenger/passenger.model.js';
+import { notifyRideParticipant } from '../../helpers/rideNotify.helper.js';
 
 
 //---------------------- Passenger Feedback To Driver ----------------------
@@ -32,26 +28,22 @@ export const submitDriverFeedback = async (req, res) => {
       comment
     });
 
-    const ride = await Ride.findById(rideId).select("driver")
+    const ride = await Ride.findById(rideId).select("driver passenger")
 
-    emitToDriver(ride.driver, SOCKET_EVENTS.DRIVER_FEEDBACK_RECEIVED, {
-      rideId,
-      rating: feedback.rating,
-      comment: feedback.comment,
-      fromPassenger: req.passenger._id
-    })
-
-    const driver = await Driver.findById(ride.driver).select("fcmTokens")
-    await sendToUser({
-      user: driver,
-      title: "New Passenger feedback",
-      body: "Passenger submitted feedback.",
-      data: {
-        type: SOCKET_EVENTS.DRIVER_FEEDBACK_RECEIVED,
-        rideId
-      },
-      userType: "driver"
-    })
+    if (ride?.driver) {
+      await notifyRideParticipant({
+        ride,
+        userId: ride.driver,
+        role: "driver",
+        event: SOCKET_EVENTS.DRIVER_FEEDBACK_RECEIVED,
+        payload: {
+          rideId,
+          rating: feedback.rating,
+          comment: feedback.comment,
+          fromPassenger: req.passenger._id,
+        },
+      });
+    }
 
     return res.status(201).json({
       success: true,
@@ -83,26 +75,27 @@ export const submitPassengerFeedback = async (req, res) => {
       comment
     });
 
-    const ride = await Ride.findById(rideId).select("passenger")
+    const ride = await Ride.findById(rideId).select("passenger driver")
 
-    emitToPassenger(ride.passenger, SOCKET_EVENTS.PASSENGER_FEEDBACK_RECEIVED, {
-      rideId,
-      rating: feedback.rating,
-      comment: feedback.comment,
-      fromDriver: req.driver._id
-    })
-
-    const passenger = await Passenger.findById(ride.passenger).select("fcmTokens")
-    await sendToUser({
-      user: passenger,
-      title: "New Driver feedback",
-      body: "Driver submitted feedback.",
-      data: {
-        type: SOCKET_EVENTS.PASSENGER_FEEDBACK_RECEIVED,
-        rideId
-      },
-      userType: "passenger"
-    })
+    if (ride?.passenger) {
+      await notifyRideParticipant({
+        ride,
+        userId: ride.passenger,
+        role: "passenger",
+        event: SOCKET_EVENTS.PASSENGER_FEEDBACK_RECEIVED,
+        payload: {
+          rideId,
+          rating: feedback.rating,
+          comment: feedback.comment,
+          fromDriver: req.driver._id,
+        },
+        push: {
+          title: "New Driver feedback",
+          body: "Driver submitted feedback.",
+          data: { rideId: rideId.toString() },
+        },
+      });
+    }
 
     return res.status(201).json({
       success: true,

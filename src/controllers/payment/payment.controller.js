@@ -4,6 +4,7 @@ import {
   verifyPayment as verifyPaymentService,
 } from "../../services/payment/payment.service.js";
 import { Ride } from "../../models/ride/ride.model.js";
+import { notifyRideParticipant } from "../../helpers/rideNotify.helper.js";
 
 export const createPaymentOrder = async (req, res) => {
   try {
@@ -94,17 +95,33 @@ export const verifyPayment = async (req, res) => {
       });
     }
 
-    req.io?.to(result.ride.passenger.toString()).emit("payment:success", {
+    const paymentPayload = {
       rideId: result.ride._id,
       amount: result.ride.fareEstimate,
       currency: "INR",
+    };
+
+    // Ride-scoped role rooms only (never raw user-id rooms / nearby drivers)
+    await notifyRideParticipant({
+      ride: result.ride,
+      userId: result.ride.passenger,
+      role: "passenger",
+      event: "payment:success",
+      payload: paymentPayload,
+      push: {
+        title: "Payment Successful",
+        body: "Your ride payment was successful.",
+        data: { rideId: result.ride._id.toString() },
+      },
     });
 
     if (result.ride.driver) {
-      req.io?.to(result.ride.driver.toString()).emit("payment:received", {
-        rideId: result.ride._id,
-        amount: result.ride.fareEstimate,
-        currency: "INR",
+      await notifyRideParticipant({
+        ride: result.ride,
+        userId: result.ride.driver,
+        role: "driver",
+        event: "payment:received",
+        payload: paymentPayload,
       });
     }
 

@@ -11,14 +11,13 @@ import {
 } from "../../../../services/payment/payment.service.js";
 import {
   SOCKET_EVENTS,
-  emitToDriver,
-  emitToPassenger,
 } from "../../../../config/socket/socket.js";
 import { Ride } from "../../../../models/ride/ride.model.js";
-import { Passenger } from "../../../../models/passenger/passenger.model.js";
-import { sendToUser } from "../../../../services/notification/sendToUser.js";
-import { Driver } from "../../../../models/driver/driver.model.js";
 import { PASSENGER_CANCELLATION_REASONS } from "../../../../common/cancellationReasons.js";
+import {
+  notifyOfferedDriver,
+  notifyRideParticipant,
+} from "../../../../helpers/rideNotify.helper.js";
 
 //-------------------------- Update passenger Location --------------------------
 
@@ -113,89 +112,65 @@ export const createRide = async (req, res) => {
       };
     }
 
-    // Notify only the sequentially offered driver (rotation continues via timeout).
-    const driversToNotify = offeredDriver ? [offeredDriver] : [];
-
-    driversToNotify.forEach((driver) => {
-      const driverId = driver._id.toString();
+    // Discovery: socket-only to the currently offered online/connected driver. Never FCM.
+    if (offeredDriver) {
+      const driverId = offeredDriver._id.toString();
       console.log("Emitting ride.requested to driver room:", driverId);
-      emitToDriver(driverId, SOCKET_EVENTS.RIDE_REQUESTED, {
-        rideId: ride._id,
-        pickup: ride.pickup,
-        drop: ride.drop,
-        fareEstimate: ride.fareEstimate,
-        distance: ride.distance,
-        routeDetails: ride.routeDetails,
-        driverEta:
-          driverEtas.find((eta) => eta.driverId.toString() === driverId) ||
-          null,
-        vehicleType: ride.vehicleType,
-        paymentMethod: ride.paymentMethod,
-        paymentStatus: ride.paymentStatus,
-        passenger: {
-          name: ride.passenger.name,
-          contactNumber: ride.passenger.contactNumber,
-          rating: ride.passenger.rating,
+      await notifyOfferedDriver({
+        driverId,
+        event: SOCKET_EVENTS.RIDE_REQUESTED,
+        payload: {
+          rideId: ride._id,
+          pickup: ride.pickup,
+          drop: ride.drop,
+          fareEstimate: ride.fareEstimate,
+          distance: ride.distance,
+          routeDetails: ride.routeDetails,
+          driverEta:
+            driverEtas.find((eta) => eta.driverId.toString() === driverId) ||
+            null,
+          vehicleType: ride.vehicleType,
+          paymentMethod: ride.paymentMethod,
+          paymentStatus: ride.paymentStatus,
+          passenger: {
+            name: ride.passenger.name,
+            contactNumber: ride.passenger.contactNumber,
+            rating: ride.passenger.rating,
+          },
         },
       });
-    });
+    }
     console.log(
       "Offered driver:",
       offeredDriver?._id?.toString?.() || null,
       "| Nearby candidates:",
       nearbyDrivers.map((d) => d._id.toString()),
     );
-    // Send push notifications to the offered driver
-    for (const driver of driversToNotify) {
-      const driverData = await Driver.findById(driver._id).select("fcmTokens");
 
-      if (!driverData?.fcmTokens?.length) {
-        console.log(
-          "Skipping driver, no FCM tokens:",
-          driver._id.toString(),
-        );
-        continue;
-      }
-
-      await sendToUser({
-        user: driverData,
-        title: "New Ride Request",
-        body: "You have received a new ride request.",
-        data: {
-          type: SOCKET_EVENTS.RIDE_REQUESTED,
-          rideId: ride._id.toString(),
-        },
-        userType: "driver",
-      });
-    }
-
-    // Notify passenger about ride creation
-    emitToPassenger(passengerId, SOCKET_EVENTS.RIDE_CREATED, {
-      rideId: ride._id,
-      pickup: ride.pickup,
-      drop: ride.drop,
-      fareEstimate: ride.fareEstimate,
-      distance: ride.distance,
-      routeDetails: ride.routeDetails,
-      driverEtas,
-      vehicleType: ride.vehicleType,
-      paymentMethod: ride.paymentMethod,
-      paymentStatus: ride.paymentStatus,
-      ...paymentData,
-    });
-
-    // Send push notification to passenger
-    const passenger = await Passenger.findById(passengerId).select("fcmTokens");
-
-    await sendToUser({
-      user: passenger,
-      title: "Ride Created",
-      body: "Your ride has been created successfully.",
-      data: {
-        type: SOCKET_EVENTS.RIDE_CREATED,
-        rideId: ride._id.toString(),
+    // Notify passenger about ride creation (ride participant only)
+    await notifyRideParticipant({
+      ride,
+      userId: passengerId,
+      role: "passenger",
+      event: SOCKET_EVENTS.RIDE_CREATED,
+      payload: {
+        rideId: ride._id,
+        pickup: ride.pickup,
+        drop: ride.drop,
+        fareEstimate: ride.fareEstimate,
+        distance: ride.distance,
+        routeDetails: ride.routeDetails,
+        driverEtas,
+        vehicleType: ride.vehicleType,
+        paymentMethod: ride.paymentMethod,
+        paymentStatus: ride.paymentStatus,
+        ...paymentData,
       },
-      userType: "passenger",
+      push: {
+        title: "Ride Created",
+        body: "Your ride has been created successfully.",
+        data: { rideId: ride._id.toString() },
+      },
     });
 
     res.status(201).json({
@@ -223,8 +198,7 @@ export const updateRide = async (req, res) => {
 
     const ride = await updateRideService({ rideId, passengerId, drop });
 
-    // Notify passenger about ride update
-    emitToPassenger(passengerId, SOCKET_EVENTS.RIDE_DROP_LOCATION_UPDATED, {
+    const dropUpdatePayload = {
       rideId: ride._id,
       status: ride.status,
       pickup: ride.pickup,
@@ -232,54 +206,39 @@ export const updateRide = async (req, res) => {
       distance: ride.distance,
       fareEstimate: ride.fareEstimate,
       routeDetails: ride.routeDetails,
-    });
+    };
 
-    // Send push notification to passenger
-    const passenger = await Passenger.findById(passengerId).select("fcmTokens");
-    await sendToUser({
-      user: passenger,
-      title: "Drop Location Updated",
-      body: "Your destination has been updated.",
-      data: {
-        type: SOCKET_EVENTS.RIDE_DROP_LOCATION_UPDATED,
-        rideId: ride._id.toString(),
-      },
-      userType: "passenger",
-    });
-
-    // Notify driver about ride update
-    if (ride.driver) {
-      emitToDriver(ride.driver, SOCKET_EVENTS.RIDE_DROP_LOCATION_UPDATED, {
-        rideId: ride._id,
-        status: ride.status,
-        pickup: ride.pickup,
-        drop: ride.drop,
-        distance: ride.distance,
-        fareEstimate: ride.fareEstimate,
-        routeDetails: ride.routeDetails,
-        vehicleType: ride.vehicleType,
-        paymentMethod: ride.paymentMethod,
-        paymentStatus: ride.paymentStatus,
-        passenger: {
-          name: ride.passenger.name,
-          contactNumber: ride.passenger.contactNumber,
-          rating: ride.passenger.rating,
-        },
-      });
-    }
-
-    // Send push notification to driver
-    if (ride.driver) {
-      const driver = await Driver.findById(ride.driver).select("fcmTokens");
-      await sendToUser({
-        user: driver,
+    // Ride-scoped: passenger + assigned driver only (never nearby pool)
+    await notifyRideParticipant({
+      ride,
+      userId: passengerId,
+      role: "passenger",
+      event: SOCKET_EVENTS.RIDE_DROP_LOCATION_UPDATED,
+      payload: dropUpdatePayload,
+      push: {
         title: "Drop Location Updated",
-        body: "Passenger updated the destination.",
-        data: {
-          type: SOCKET_EVENTS.RIDE_DROP_LOCATION_UPDATED,
-          rideId: ride._id.toString(),
+        body: "Your destination has been updated.",
+        data: { rideId: ride._id.toString() },
+      },
+    });
+
+    if (ride.driver) {
+      await notifyRideParticipant({
+        ride,
+        userId: ride.driver,
+        role: "driver",
+        event: SOCKET_EVENTS.RIDE_DROP_LOCATION_UPDATED,
+        payload: {
+          ...dropUpdatePayload,
+          vehicleType: ride.vehicleType,
+          paymentMethod: ride.paymentMethod,
+          paymentStatus: ride.paymentStatus,
+          passenger: {
+            name: ride.passenger.name,
+            contactNumber: ride.passenger.contactNumber,
+            rating: ride.passenger.rating,
+          },
         },
-        userType: "driver",
       });
     }
 
@@ -322,51 +281,37 @@ export const cancelRide = async (req, res, next) => {
       reasonText,
     });
 
-    // Notify passenger about ride cancellation
-    emitToPassenger(passengerId, SOCKET_EVENTS.RIDE_CANCELLED_BY_PASSENGER, {
+    const cancelPayload = {
       rideId: ride._id,
       status: ride.status,
       cancelledBy: "Passenger",
       reasonCode: ride.cancellation.reasonCode,
       reasonText: ride.cancellation.reasonText,
-    });
+    };
 
-    // Send push notification to passenger
-    const passenger = await Passenger.findById(passengerId).select("fcmTokens");
-
-    await sendToUser({
-      user: passenger,
-      title: "Ride Cancelled",
-      body: "Your ride has been cancelled successfully.",
-      data: {
-        type: SOCKET_EVENTS.RIDE_CANCELLED_BY_PASSENGER,
-        rideId: ride._id.toString(),
-      },
-      userType: "passenger",
-    });
-
-    const driverToNotify = ride.driver || ride._offeredDriverId;
-
-    // Notify assigned or currently offered driver about ride cancellation
-    if (driverToNotify) {
-      emitToDriver(driverToNotify, SOCKET_EVENTS.RIDE_CANCELLED_BY_PASSENGER, {
-        rideId: ride._id,
-        status: ride.status,
-        cancelledBy: "Passenger",
-        reasonCode: ride.cancellation.reasonCode,
-        reasonText: ride.cancellation.reasonText,
-      });
-
-      const driver = await Driver.findById(driverToNotify).select("fcmTokens");
-      await sendToUser({
-        user: driver,
+    await notifyRideParticipant({
+      ride,
+      userId: passengerId,
+      role: "passenger",
+      event: SOCKET_EVENTS.RIDE_CANCELLED_BY_PASSENGER,
+      payload: cancelPayload,
+      push: {
         title: "Ride Cancelled",
-        body: "Passenger cancelled the ride.",
-        data: {
-          type: SOCKET_EVENTS.RIDE_CANCELLED_BY_PASSENGER,
-          rideId: ride._id.toString(),
-        },
-        userType: "driver",
+        body: "Your ride has been cancelled successfully.",
+        data: { rideId: ride._id.toString() },
+      },
+    });
+
+    // Assigned driver, or currently offered driver if still pending — never nearby pool
+    const driverToNotify = ride.driver || ride._offeredDriverId;
+    if (driverToNotify) {
+      await notifyRideParticipant({
+        ride,
+        userId: driverToNotify,
+        role: "driver",
+        event: SOCKET_EVENTS.RIDE_CANCELLED_BY_PASSENGER,
+        payload: cancelPayload,
+        allowOfferedDriver: true,
       });
     }
     res.status(200).json({
@@ -438,49 +383,32 @@ export const endRide = async (req, res) => {
       passengerLocationCoordinates,
     });
 
-    // Notify passenger about ride completion
-    emitToPassenger(passengerId, SOCKET_EVENTS.RIDE_COMPLETED, {
+    const completedPayload = {
       rideId: completedRide._id,
       status: completedRide.status,
       paymentStatus: completedRide.paymentStatus,
-    });
+    };
 
-    // Send push notification to passenger
-    const passenger = await Passenger.findById(passengerId).select("fcmTokens");
-    await sendToUser({
-      user: passenger,
-      title: "Ride Completed",
-      body: `Your ride has been completed successfully.`,
-      data: {
-        type: SOCKET_EVENTS.RIDE_COMPLETED,
-        rideId: completedRide._id.toString(),
-      },
-      userType: "passenger",
-    });
-
-    // Notify driver about ride completion
-    if (completedRide.driver) {
-      emitToDriver(completedRide.driver, SOCKET_EVENTS.RIDE_COMPLETED, {
-        rideId: completedRide._id,
-        status: completedRide.status,
-        paymentStatus: completedRide.paymentStatus,
-      });
-    }
-
-    // Send push notification to driver
-    if (completedRide.driver) {
-      const driver = await Driver.findById(completedRide.driver).select(
-        "fcmTokens",
-      );
-      await sendToUser({
-        user: driver,
+    await notifyRideParticipant({
+      ride: completedRide,
+      userId: passengerId,
+      role: "passenger",
+      event: SOCKET_EVENTS.RIDE_COMPLETED,
+      payload: completedPayload,
+      push: {
         title: "Ride Completed",
-        body: "Ride completed successfully.",
-        data: {
-          type: SOCKET_EVENTS.RIDE_COMPLETED,
-          rideId: completedRide._id.toString(),
-        },
-        userType: "driver",
+        body: "Your ride has been completed successfully.",
+        data: { rideId: completedRide._id.toString() },
+      },
+    });
+
+    if (completedRide.driver) {
+      await notifyRideParticipant({
+        ride: completedRide,
+        userId: completedRide.driver,
+        role: "driver",
+        event: SOCKET_EVENTS.RIDE_COMPLETED,
+        payload: completedPayload,
       });
     }
     res.status(200).json({
@@ -573,12 +501,18 @@ export const confirmPayment = async (req, res) => {
         });
       }
 
-      // Notify driver about successful payment
+      // Notify assigned driver only about successful payment
       if (ride.driver) {
-        emitToDriver(ride.driver, "payment:received", {
-          rideId: ride._id,
-          amount: ride.fareEstimate,
-          currency: "inr",
+        await notifyRideParticipant({
+          ride,
+          userId: ride.driver,
+          role: "driver",
+          event: "payment:received",
+          payload: {
+            rideId: ride._id,
+            amount: ride.fareEstimate,
+            currency: "inr",
+          },
         });
       }
     }

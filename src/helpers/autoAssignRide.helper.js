@@ -1,9 +1,10 @@
-import { SOCKET_EVENTS, emitToDriver } from "../config/socket/socket.js";
+import { SOCKET_EVENTS } from "../config/socket/socket.js";
 import { Ride } from "../models/ride/ride.model.js";
 import { findNearbyDrivers } from "./nearbyDrivers.helper.js";
 import { addRideTimeoutJob } from "../queues/rideTimeout.queue.js";
 import { RIDE_REQUEST_TIMEOUT_MS } from "../constants/ride.constants.js";
 import { incrementDriverRideStat } from "./rideStatsCounters.helper.js";
+import { notifyOfferedDriver } from "./rideNotify.helper.js";
 
 function toIdString(value) {
   return value?.toString?.() || String(value);
@@ -113,7 +114,11 @@ export async function offerRideToNextDriver(
 
   if (emitSocket) {
     try {
-      emitToDriver(driver._id, SOCKET_EVENTS.RIDE_REQUESTED, payload);
+      await notifyOfferedDriver({
+        driverId: driver._id,
+        event: SOCKET_EVENTS.RIDE_REQUESTED,
+        payload,
+      });
     } catch (error) {
       console.warn(
         `Socket emit skipped for ride ${ride._id}:`,
@@ -177,9 +182,13 @@ export async function markCurrentDriverMissed(ride) {
   await incrementDriverRideStat(missedDriverId, "missed");
 
   try {
-    emitToDriver(missedDriverId, SOCKET_EVENTS.RIDE_MISSED, {
-      rideId: ride._id,
-      message: "Ride request missed. The request was offered to another driver.",
+    await notifyOfferedDriver({
+      driverId: missedDriverId,
+      event: SOCKET_EVENTS.RIDE_MISSED,
+      payload: {
+        rideId: ride._id,
+        message: "Ride request missed. The request was offered to another driver.",
+      },
     });
   } catch (error) {
     console.warn(
