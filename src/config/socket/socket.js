@@ -26,6 +26,12 @@ export const emitToDriver = (driverId, event, payload) => {
   getIO().to(getRoleRoom("driver", driverId)).emit(event, payload);
 };
 
+/** Chat / tracking room (`ride_<rideId>`). Additive; does not replace role-room emits. */
+export const emitToRideRoom = (rideId, event, payload) => {
+  if (!rideId) return;
+  getIO().to(`ride_${rideId.toString()}`).emit(event, payload);
+};
+
 export const initSocket = (server) => {
   const allowedOrigins = [
     "http://localhost:5173",

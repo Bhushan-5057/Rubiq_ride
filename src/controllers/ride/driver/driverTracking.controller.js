@@ -1,5 +1,6 @@
 import {
   SOCKET_EVENTS,
+  emitToRideRoom,
 } from "../../../config/socket/socket.js";
 import {
   acceptRideService,
@@ -14,6 +15,108 @@ import { Ride } from "../../../models/ride/ride.model.js";
 import { refundPayment } from "../../../services/payment/payment.service.js";
 import { DRIVER_CANCELLATION_REASONS } from "../../../common/cancellationReasons.js";
 import { notifyRideParticipant } from "../../../helpers/rideNotify.helper.js";
+import {
+  isValidCoordinatePair,
+  isValidCoordinatesArray,
+  isValidGeoPoint,
+  normalizeLocationInput,
+} from "../../../utils/location.js";
+
+/**
+ * Resolve usable driver lat/lng without inventing placeholders.
+ * Accepts scalar fields, GeoJSON Point, or [lng, lat] coordinates.
+ */
+function resolveDriverLatLng(source) {
+  if (!source || typeof source !== "object") return null;
+
+  let latitude = source.latitude ?? source.lat;
+  let longitude = source.longitude ?? source.lng;
+
+  if (
+    !isValidCoordinatePair(longitude, latitude) &&
+    isValidCoordinatesArray(source.coordinates)
+  ) {
+    longitude = source.coordinates[0];
+    latitude = source.coordinates[1];
+  }
+
+  if (
+    !isValidCoordinatePair(longitude, latitude) &&
+    isValidGeoPoint(source.location)
+  ) {
+    longitude = source.location.coordinates[0];
+    latitude = source.location.coordinates[1];
+  }
+
+  if (!isValidCoordinatePair(longitude, latitude)) return null;
+  // Treat null-island as missing so passenger never seeds a fake marker.
+  if (latitude === 0 && longitude === 0) return null;
+
+  return { latitude, longitude };
+}
+
+/**
+ * Additive passenger-friendly coords. Keeps existing nested driver / GeoJSON fields.
+ */
+function withPassengerFriendlyCoords(payload, coords) {
+  if (!coords) return payload;
+
+  const { latitude, longitude } = coords;
+  const aliases = {
+    latitude,
+    longitude,
+    lat: latitude,
+    lng: longitude,
+  };
+
+  const driver = payload.driver
+    ? {
+        ...payload.driver,
+        ...aliases,
+        location:
+          payload.driver.location && typeof payload.driver.location === "object"
+            ? {
+                ...payload.driver.location,
+                ...aliases,
+              }
+            : {
+                lat: latitude,
+                lng: longitude,
+                latitude,
+                longitude,
+              },
+      }
+    : payload.driver;
+
+  return {
+    ...payload,
+    ...aliases,
+    location: {
+      lat: latitude,
+      lng: longitude,
+      latitude,
+      longitude,
+    },
+    ...(driver !== undefined ? { driver } : {}),
+  };
+}
+
+async function emitLiveLocationToPassenger({
+  ride,
+  passengerId,
+  event,
+  payload,
+}) {
+  await notifyRideParticipant({
+    ride,
+    userId: passengerId,
+    role: "passenger",
+    event,
+    payload,
+  });
+  // Additive: clients that joined ride_<id> for chat/tracking also get GPS.
+  emitToRideRoom(ride._id, event, payload);
+}
 
 //----------------------------- Driver Accept Ride -----------------------------
 
@@ -31,20 +134,25 @@ export const acceptRide = async (req, res, next) => {
 
     const ride = await acceptRideService({ rideId, driverId });
 
-    const payload = {
-      rideId: ride._id,
-      driver: {
-        id: driverId,
-        name: req.driver.name,
-        contactNumber: req.driver.contactNumber,
-        vehicleNumber: req.driver.vehicleNumber,
-        vehicleType: req.driver.vehicleType,
+    const initialCoords = resolveDriverLatLng(req.driver);
+
+    const payload = withPassengerFriendlyCoords(
+      {
+        rideId: ride._id,
+        driver: {
+          id: driverId,
+          name: req.driver.name,
+          contactNumber: req.driver.contactNumber,
+          vehicleNumber: req.driver.vehicleNumber,
+          vehicleType: req.driver.vehicleType,
+        },
+        status: ride.status,
+        pickup: ride.pickup,
+        drop: ride.drop,
+        fareEstimate: ride.fareEstimate,
       },
-      status: ride.status,
-      pickup: ride.pickup,
-      drop: ride.drop,
-      fareEstimate: ride.fareEstimate,
-    }
+      initialCoords,
+    );
 
     // Ride-scoped: only the booking passenger (online → socket, offline → push)
     await notifyRideParticipant({
@@ -59,6 +167,32 @@ export const acceptRide = async (req, res, next) => {
         data: { rideId: ride._id.toString() },
       },
     });
+    emitToRideRoom(ride._id, SOCKET_EVENTS.RIDE_DRIVER_ASSIGNED, payload);
+
+    // Seed live tracking immediately when last-known GPS exists (additive).
+    if (initialCoords && ride.passenger) {
+      const onTheWaySeed = withPassengerFriendlyCoords(
+        {
+          rideId: ride._id,
+          driver: payload.driver,
+          pickupLocation: ride.pickup,
+          etaMinutes: null,
+          distanceToPickup: null,
+          eta: null,
+          distance: null,
+          message: "Your driver is on the way",
+          status: ride.status,
+        },
+        initialCoords,
+      );
+      await emitLiveLocationToPassenger({
+        ride,
+        passengerId: ride.passenger.toString(),
+        event: SOCKET_EVENTS.DRIVER_ON_ROUTE,
+        payload: onTheWaySeed,
+      });
+    }
+
     res.json({ success: true, ride });
   } catch (error) {
     next(error);
@@ -77,20 +211,38 @@ export const driverArrived = async (req, res, next) => {
       driverLocationCoordinates,
     });
 
-    const payload = {
-      rideId: ride._id,
-      driver: {
-        id: driverId,
-        name: req.driver.name,
-        contactNumber: req.driver.contactNumber,
-        vehicleNumber: req.driver.vehicleNumber,
-        vehicleType: req.driver.vehicleType,
-      },
-      status: ride.status,
-      pickup: ride.pickup,
-      drop: ride.drop,
-      fareEstimate: ride.fareEstimate,
+    let arrivedCoords = resolveDriverLatLng(req.driver);
+    if (driverLocationCoordinates != null && ride.pickup?.coordinates) {
+      try {
+        const normalized = normalizeLocationInput(driverLocationCoordinates, {
+          referenceCoordinates: ride.pickup.coordinates,
+        });
+        arrivedCoords = {
+          latitude: normalized.latitude,
+          longitude: normalized.longitude,
+        };
+      } catch {
+        // Keep last-known driver coords if body coords cannot be normalized.
+      }
     }
+
+    const payload = withPassengerFriendlyCoords(
+      {
+        rideId: ride._id,
+        driver: {
+          id: driverId,
+          name: req.driver.name,
+          contactNumber: req.driver.contactNumber,
+          vehicleNumber: req.driver.vehicleNumber,
+          vehicleType: req.driver.vehicleType,
+        },
+        status: ride.status,
+        pickup: ride.pickup,
+        drop: ride.drop,
+        fareEstimate: ride.fareEstimate,
+      },
+      arrivedCoords,
+    );
 
     // Ride-scoped: passenger only (canonical + legacy event names)
     await notifyRideParticipant({
@@ -112,6 +264,7 @@ export const driverArrived = async (req, res, next) => {
       event: SOCKET_EVENTS.DRIVER_ARRIVED_LEGACY,
       payload,
     });
+    emitToRideRoom(ride._id, SOCKET_EVENTS.DRIVER_ARRIVED, payload);
     res.json({ success: true, ride });
   } catch (error) {
     next(error);
@@ -320,12 +473,20 @@ export const updateDriverLocation = async (req, res, next) => {
 
     if (ride?.passenger) {
       const passengerId = ride.passenger.toString();
-      const locationPayload = {
-        rideId,
-        driver: driverLocation,
-        status: ride.status,
-        timestamp: new Date().getTime(),
+      const liveCoords = resolveDriverLatLng(driverLocation) || {
+        latitude: lat,
+        longitude: lng,
       };
+
+      const locationPayload = withPassengerFriendlyCoords(
+        {
+          rideId,
+          driver: driverLocation,
+          status: ride.status,
+          timestamp: new Date().getTime(),
+        },
+        liveCoords,
+      );
 
       if (
         (ride.status === "started" || ride.status === "ongoing") &&
@@ -352,15 +513,16 @@ export const updateDriverLocation = async (req, res, next) => {
       }
 
       // High-frequency: socket only to ride passenger (no push / no nearby fan-out)
-      await notifyRideParticipant({
+      await emitLiveLocationToPassenger({
         ride,
-        userId: passengerId,
-        role: "passenger",
+        passengerId,
         event: SOCKET_EVENTS.DRIVER_LOCATION_UPDATED,
         payload: locationPayload,
       });
 
-      if (ride.status === "accepted") {
+      // Keep live GPS on driver_on_the_way through accepted + arrived (pickup phase).
+      // Event name unchanged; started/ongoing continue via driver_location_updated.
+      if (ride.status === "accepted" || ride.status === "driver_arrived") {
         let etaMinutes = null;
         let distanceToPickup = null;
         try {
@@ -384,19 +546,32 @@ export const updateDriverLocation = async (req, res, next) => {
           etaMinutes = null;
         }
 
-        await notifyRideParticipant({
-          ride,
-          userId: passengerId,
-          role: "passenger",
-          event: SOCKET_EVENTS.DRIVER_ON_ROUTE,
-          payload: {
+        const onTheWayPayload = withPassengerFriendlyCoords(
+          {
             rideId,
             driver: driverLocation,
             pickupLocation: ride.pickup,
             etaMinutes,
             distanceToPickup,
+            // Additive aliases for passenger map parsers (existing keys unchanged).
+            eta: etaMinutes,
+            distance:
+              typeof distanceToPickup?.value === "number"
+                ? distanceToPickup.value / 1000
+                : typeof distanceToPickup === "number"
+                  ? distanceToPickup
+                  : null,
             message: "Your driver is on the way",
+            status: ride.status,
           },
+          liveCoords,
+        );
+
+        await emitLiveLocationToPassenger({
+          ride,
+          passengerId,
+          event: SOCKET_EVENTS.DRIVER_ON_ROUTE,
+          payload: onTheWayPayload,
         });
       }
     }
