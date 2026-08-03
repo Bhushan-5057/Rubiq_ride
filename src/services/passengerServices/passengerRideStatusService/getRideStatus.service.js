@@ -152,10 +152,21 @@ const LIVE_TRACKING_STATUSES = new Set([
 function buildDriverLiveCoords(driver) {
   if (!driver) return null;
 
-  const coordinates = driver.location?.coordinates;
-  if (!Array.isArray(coordinates) || coordinates.length !== 2) return null;
+  let longitude;
+  let latitude;
 
-  const [longitude, latitude] = coordinates;
+  const coordinates = driver.location?.coordinates;
+  if (Array.isArray(coordinates) && coordinates.length === 2) {
+    longitude = coordinates[0];
+    latitude = coordinates[1];
+  } else if (
+    typeof driver.longitude === "number" &&
+    typeof driver.latitude === "number"
+  ) {
+    longitude = driver.longitude;
+    latitude = driver.latitude;
+  }
+
   if (
     typeof longitude !== "number" ||
     typeof latitude !== "number" ||
@@ -175,12 +186,32 @@ function buildDriverLiveCoords(driver) {
 }
 
 async function buildLiveTracking({ ride, driverCoords }) {
-  if (!driverCoords) return null;
-
   const toPickup =
     ride.status === "accepted" || ride.status === "driver_arrived";
   const destination = toPickup ? ride.pickup : ride.drop;
   const phase = toPickup ? "to_pickup" : "to_drop";
+
+  // Driver has not pushed GPS yet (update-location not called / no stored location).
+  if (!driverCoords) {
+    return {
+      phase,
+      status: ride.status,
+      coordinates: null,
+      latitude: null,
+      longitude: null,
+      lat: null,
+      lng: null,
+      locationUpdatedAt: null,
+      destination: destination || null,
+      etaMinutes: null,
+      distance: null,
+      polyline: ride.routeDetails?.polyline || null,
+      available: false,
+      message:
+        "Driver live location not available yet. Waiting for driver update-location.",
+      timestamp: Date.now(),
+    };
+  }
 
   let etaMinutes = null;
   let distance = null;
@@ -215,6 +246,8 @@ async function buildLiveTracking({ ride, driverCoords }) {
     etaMinutes,
     distance,
     polyline: ride.routeDetails?.polyline || null,
+    available: true,
+    message: null,
     timestamp: Date.now(),
   };
 }
@@ -272,3 +305,4 @@ export async function getPassengerRideByIdService(rideId, passengerId) {
     liveTracking,
   };
 }
+ 
