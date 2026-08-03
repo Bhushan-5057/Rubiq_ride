@@ -81,6 +81,35 @@ const rideSchema = new mongoose.Schema(
 
     completedAt: { type: Date },
 
+    // Latest assigned-driver GPS for passenger live tracking (updated ~every 5s).
+    liveLocation: {
+      type: {
+        type: String,
+        enum: ["Point"],
+      },
+      coordinates: {
+        type: [Number],
+        default: undefined,
+      },
+      latitude: { type: Number },
+      longitude: { type: Number },
+      updatedAt: { type: Date },
+      driverId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Driver",
+      },
+    },
+
+    // Capped movement trail for analytics / debugging (newest last).
+    locationHistory: [
+      {
+        coordinates: { type: [Number] },
+        latitude: { type: Number },
+        longitude: { type: Number },
+        updatedAt: { type: Date },
+      },
+    ],
+
     // Driver currently holding the pending offer (sequential rotation).
     currentOfferedDriver: {
       type: mongoose.Schema.Types.ObjectId,

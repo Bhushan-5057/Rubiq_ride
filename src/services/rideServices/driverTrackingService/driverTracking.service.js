@@ -10,10 +10,79 @@ import {
 } from "../../../helpers/driverStatus.helper.js";
 import {
   applyLocationToDocument,
+  isValidCoordinatePair,
   LOCATION_THROTTLE_SECONDS,
   normalizeLocationInput,
 } from "../../../utils/location.js";
 import { incrementPassengerRideStat } from "../../../helpers/rideStatsCounters.helper.js";
+
+const ACTIVE_TRACKING_STATUSES = [
+  "accepted",
+  "driver_arrived",
+  "started",
+  "ongoing",
+];
+
+const LOCATION_HISTORY_MAX = 50;
+
+function buildRideLiveLocationPayload({
+  driverId,
+  longitude,
+  latitude,
+  updatedAt,
+}) {
+  return {
+    type: "Point",
+    coordinates: [longitude, latitude],
+    longitude,
+    latitude,
+    updatedAt,
+    driverId,
+  };
+}
+
+async function persistRideLiveLocation({
+  rideId,
+  driverId,
+  longitude,
+  latitude,
+  updatedAt,
+}) {
+  const liveLocation = buildRideLiveLocationPayload({
+    driverId,
+    longitude,
+    latitude,
+    updatedAt,
+  });
+
+  return Ride.findOneAndUpdate(
+    {
+      _id: rideId,
+      driver: driverId,
+      status: { $in: ACTIVE_TRACKING_STATUSES },
+    },
+    {
+      $set: { liveLocation },
+      $push: {
+        locationHistory: {
+          $each: [
+            {
+              coordinates: [longitude, latitude],
+              longitude,
+              latitude,
+              updatedAt,
+            },
+          ],
+          $slice: -LOCATION_HISTORY_MAX,
+        },
+      },
+    },
+    {
+      new: true,
+      select: "passenger status pickup drop liveLocation routeDetails",
+    },
+  ).lean();
+}
 
 //-------------------- Accept Ride --------------------
 
@@ -26,6 +95,39 @@ export async function acceptRideService({ rideId, driverId }) {
     throw new Error("Driver is not eligible to accept rides");
   }
 
+  const seedCoords = eligibleDriver.location?.coordinates;
+  const hasSeed =
+    Array.isArray(seedCoords) &&
+    seedCoords.length === 2 &&
+    isValidCoordinatePair(seedCoords[0], seedCoords[1]) &&
+    !(seedCoords[0] === 0 && seedCoords[1] === 0);
+
+  const acceptedAt = new Date();
+  const update = {
+    driver: driverId,
+    status: "accepted",
+    acceptedAt,
+    currentOfferedDriver: null,
+    skippedDrivers: [],
+  };
+
+  if (hasSeed) {
+    update.liveLocation = buildRideLiveLocationPayload({
+      driverId,
+      longitude: seedCoords[0],
+      latitude: seedCoords[1],
+      updatedAt: eligibleDriver.locationUpdatedAt || acceptedAt,
+    });
+    update.locationHistory = [
+      {
+        coordinates: [seedCoords[0], seedCoords[1]],
+        longitude: seedCoords[0],
+        latitude: seedCoords[1],
+        updatedAt: eligibleDriver.locationUpdatedAt || acceptedAt,
+      },
+    ];
+  }
+
   // Only the driver currently holding the sequential offer may accept.
   const ride = await Ride.findOneAndUpdate(
     {
@@ -33,13 +135,7 @@ export async function acceptRideService({ rideId, driverId }) {
       status: "pending",
       currentOfferedDriver: driverId,
     },
-    {
-      driver: driverId,
-      status: "accepted",
-      acceptedAt: new Date(),
-      currentOfferedDriver: null,
-      skippedDrivers: [],
-    },
+    update,
     { new: true },
   );
 
@@ -104,8 +200,15 @@ export async function driverArrivedService({
     throw new Error("Driver is not at the passenger pickup location");
   }
 
+  const arrivedAt = new Date();
   ride.status = "driver_arrived";
-  ride.arrivedAt = new Date();
+  ride.arrivedAt = arrivedAt;
+  ride.liveLocation = buildRideLiveLocationPayload({
+    driverId,
+    longitude: driverLocation[0],
+    latitude: driverLocation[1],
+    updatedAt: arrivedAt,
+  });
   await ride.save();
 
   return ride;
@@ -154,8 +257,15 @@ export async function startRideService({
     throw new Error("Invalid OTP");
   }
 
+  const startedAt = new Date();
   ride.status = "started";
-  ride.startedAt = new Date();
+  ride.startedAt = startedAt;
+  ride.liveLocation = buildRideLiveLocationPayload({
+    driverId,
+    longitude: driverLocation[0],
+    latitude: driverLocation[1],
+    updatedAt: startedAt,
+  });
   await ride.save();
 
   return ride;
@@ -257,23 +367,24 @@ export async function updateDriverLocationService(driver, lng, lat, rideId) {
 
   const normalized = normalizeLocationInput(lng, lat);
 
-  const ride = await Ride.findOne({
-    _id: rideId,
-    driver: driver._id,
-    passenger: { $exists: true, $ne: null },
-    // Include legacy "ongoing" for in-flight rides started before the status rename.
-    status: { $in: ["accepted", "driver_arrived", "started", "ongoing"] },
-  })
-    .select("passenger status pickup drop")
-    .lean();
-
   const currentTime = new Date();
   const lastUpdateTime = driver.lastLocationUpdateTime
     ? new Date(driver.lastLocationUpdateTime)
     : null;
 
-  // Always persist during an active ride so passenger REST polls (~5s)
+  // Always persist during an active assigned ride so passenger REST polls (~5s)
   // read fresh GPS. Otherwise throttle background presence writes.
+  let ride = null;
+  if (rideId) {
+    ride = await persistRideLiveLocation({
+      rideId,
+      driverId: driver._id,
+      longitude: normalized.longitude,
+      latitude: normalized.latitude,
+      updatedAt: currentTime,
+    });
+  }
+
   const shouldUpdateDB =
     Boolean(ride) ||
     !lastUpdateTime ||
@@ -287,6 +398,18 @@ export async function updateDriverLocationService(driver, lng, lat, rideId) {
 
   if (shouldUpdateDB) {
     await driver.save();
+  }
+
+  // If rideId was sent but ride was not assigned/active, still load for socket gating.
+  if (!ride && rideId) {
+    ride = await Ride.findOne({
+      _id: rideId,
+      driver: driver._id,
+      passenger: { $exists: true, $ne: null },
+      status: { $in: ACTIVE_TRACKING_STATUSES },
+    })
+      .select("passenger status pickup drop liveLocation routeDetails")
+      .lean();
   }
 
   return {

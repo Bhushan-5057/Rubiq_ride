@@ -56,7 +56,7 @@ export async function getRideStatusService({ rideId, passengerId }) {
   }
 
   const driver = await Driver.findById(ride.driver).lean();
-  if (!driver || !driver.location || !driver.location.coordinates) {
+  if (!driver) {
     return {
       rideId: ride._id,
       status: ride.status,
@@ -65,21 +65,44 @@ export async function getRideStatusService({ rideId, passengerId }) {
     };
   }
 
-  let distanceFromPickup = "N/A";
-  let etaToPickupMinutes = null;
-  if (driver.location.coordinates?.length === 2 && ride.pickup?.coordinates?.length === 2) {
+  const rideWithDriver = { ...ride, driver };
+  const driverCoords = resolveLiveDriverCoords(rideWithDriver);
+  if (!driverCoords) {
+    return {
+      rideId: ride._id,
+      status: ride.status,
+      driver: {
+        id: driver._id,
+        name: driver.name,
+        vehicleNumber: driver.vehicleNumber,
+        vehicleType: driver.vehicleType,
+      },
+      distanceFromPickup: "N/A",
+      liveTracking: await buildLiveTracking({ ride, driverCoords: null }),
+    };
+  }
+
+  const toPickup =
+    ride.status === "accepted" || ride.status === "driver_arrived";
+  const destination = toPickup ? ride.pickup : ride.drop;
+
+  let distanceText = "N/A";
+  let etaMinutes = null;
+  if (destination?.coordinates?.length === 2) {
     try {
       const matrix = await getDistanceMatrix({
-        origins: [driver.location.coordinates],
-        destinations: [ride.pickup.coordinates],
+        origins: [driverCoords.coordinates],
+        destinations: [destination.coordinates],
       });
       const element = matrix.rows[0]?.elements[0];
-      distanceFromPickup = element?.distance?.text || "N/A";
-      etaToPickupMinutes = element?.durationInTraffic?.minutes || element?.duration?.minutes || null;
-    } catch (error) {
-      distanceFromPickup = "N/A";
+      distanceText = element?.distance?.text || "N/A";
+      etaMinutes =
+        element?.durationInTraffic?.minutes ||
+        element?.duration?.minutes ||
+        null;
+    } catch {
+      distanceText = "N/A";
     }
-
   }
 
   return {
@@ -90,10 +113,28 @@ export async function getRideStatusService({ rideId, passengerId }) {
       name: driver.name,
       vehicleNumber: driver.vehicleNumber,
       vehicleType: driver.vehicleType,
-      coordinates: driver.location.coordinates,
+      coordinates: driverCoords.coordinates,
+      latitude: driverCoords.latitude,
+      longitude: driverCoords.longitude,
+      lat: driverCoords.lat,
+      lng: driverCoords.lng,
     },
-    distanceFromPickup,
-    etaToPickupMinutes,
+    distanceFromPickup: toPickup ? distanceText : "N/A",
+    etaToPickupMinutes: toPickup ? etaMinutes : null,
+    distanceToDrop: toPickup ? null : distanceText,
+    etaToDropMinutes: toPickup ? null : etaMinutes,
+    liveTracking: {
+      available: true,
+      phase: toPickup ? "to_pickup" : "to_drop",
+      coordinates: driverCoords.coordinates,
+      latitude: driverCoords.latitude,
+      longitude: driverCoords.longitude,
+      lat: driverCoords.lat,
+      lng: driverCoords.lng,
+      etaMinutes,
+      tripPolyline: ride.routeDetails?.polyline || null,
+      polyline: ride.routeDetails?.polyline || null,
+    },
   };
 }
 
@@ -141,6 +182,8 @@ export async function getPassengerAllRideService(passengerId, filters = {}) {
 }
 
 //--------------------- Get Passenger Ride By Id ---------------------
+// Polled ~every 5s during live tracking. Prefers ride.liveLocation
+// (written by assigned driver update-location); falls back to Driver GPS.
 
 const LIVE_TRACKING_STATUSES = new Set([
   "accepted",
@@ -149,22 +192,21 @@ const LIVE_TRACKING_STATUSES = new Set([
   "ongoing",
 ]);
 
-function buildDriverLiveCoords(driver) {
-  if (!driver) return null;
+function coordsFromPoint(source) {
+  if (!source) return null;
 
   let longitude;
   let latitude;
 
-  const coordinates = driver.location?.coordinates;
-  if (Array.isArray(coordinates) && coordinates.length === 2) {
-    longitude = coordinates[0];
-    latitude = coordinates[1];
+  if (Array.isArray(source.coordinates) && source.coordinates.length === 2) {
+    longitude = source.coordinates[0];
+    latitude = source.coordinates[1];
   } else if (
-    typeof driver.longitude === "number" &&
-    typeof driver.latitude === "number"
+    typeof source.longitude === "number" &&
+    typeof source.latitude === "number"
   ) {
-    longitude = driver.longitude;
-    latitude = driver.latitude;
+    longitude = source.longitude;
+    latitude = source.latitude;
   }
 
   if (
@@ -181,20 +223,64 @@ function buildDriverLiveCoords(driver) {
     latitude,
     lng: longitude,
     lat: latitude,
-    locationUpdatedAt: driver.locationUpdatedAt || null,
+    updatedAt: source.updatedAt || source.locationUpdatedAt || null,
+  };
+}
+
+function resolveLiveDriverCoords(ride) {
+  const fromRide = coordsFromPoint(ride.liveLocation);
+  if (fromRide) {
+    return { ...fromRide, source: "ride" };
+  }
+
+  const fromDriver = coordsFromPoint(ride.driver);
+  if (fromDriver) {
+    return {
+      ...fromDriver,
+      updatedAt: ride.driver?.locationUpdatedAt || fromDriver.updatedAt,
+      source: "driver",
+    };
+  }
+
+  // Driver doc may nest GeoJSON under `.location`
+  const fromDriverLocation = coordsFromPoint(ride.driver?.location);
+  if (fromDriverLocation) {
+    return {
+      ...fromDriverLocation,
+      updatedAt: ride.driver?.locationUpdatedAt || null,
+      source: "driver",
+    };
+  }
+
+  return null;
+}
+
+function mapPhase(status) {
+  if (status === "accepted" || status === "driver_arrived") {
+    return {
+      phase: "to_pickup",
+      destination: null, // filled by caller with ride.pickup
+      message: "Your driver is on the way to pickup",
+    };
+  }
+  return {
+    phase: "to_drop",
+    destination: null, // filled by caller with ride.drop
+    message: "Your ride is in progress",
   };
 }
 
 async function buildLiveTracking({ ride, driverCoords }) {
-  const toPickup =
-    ride.status === "accepted" || ride.status === "driver_arrived";
-  const destination = toPickup ? ride.pickup : ride.drop;
-  const phase = toPickup ? "to_pickup" : "to_drop";
+  const phaseInfo = mapPhase(ride.status);
+  const destination =
+    phaseInfo.phase === "to_pickup" ? ride.pickup : ride.drop;
 
-  // Driver has not pushed GPS yet (update-location not called / no stored location).
+  const tripPolyline = ride.routeDetails?.polyline || null;
+
   if (!driverCoords) {
     return {
-      phase,
+      available: false,
+      phase: phaseInfo.phase,
       status: ride.status,
       coordinates: null,
       latitude: null,
@@ -203,10 +289,21 @@ async function buildLiveTracking({ ride, driverCoords }) {
       lng: null,
       locationUpdatedAt: null,
       destination: destination || null,
+      pickup: ride.pickup || null,
+      drop: ride.drop || null,
       etaMinutes: null,
       distance: null,
-      polyline: ride.routeDetails?.polyline || null,
-      available: false,
+      // Full trip route (pickup → drop) for Google Maps polyline decode.
+      tripPolyline,
+      polyline: tripPolyline,
+      // Remaining route origin for client Directions: driver → destination.
+      remainingRouteOrigin: null,
+      remainingRouteDestination: destination?.coordinates
+        ? {
+            lat: destination.coordinates[1],
+            lng: destination.coordinates[0],
+          }
+        : null,
       message:
         "Driver live location not available yet. Waiting for driver update-location.",
       timestamp: Date.now(),
@@ -234,21 +331,67 @@ async function buildLiveTracking({ ride, driverCoords }) {
   }
 
   return {
-    phase,
+    available: true,
+    phase: phaseInfo.phase,
     status: ride.status,
     coordinates: driverCoords.coordinates,
     latitude: driverCoords.latitude,
     longitude: driverCoords.longitude,
     lat: driverCoords.lat,
     lng: driverCoords.lng,
-    locationUpdatedAt: driverCoords.locationUpdatedAt,
+    locationUpdatedAt: driverCoords.updatedAt,
+    source: driverCoords.source,
     destination: destination || null,
+    pickup: ride.pickup || null,
+    drop: ride.drop || null,
     etaMinutes,
     distance,
-    polyline: ride.routeDetails?.polyline || null,
-    available: true,
-    message: null,
+    tripPolyline,
+    polyline: tripPolyline,
+    // Passenger Google Maps SDK: animate marker to these coords;
+    // optionally request Directions from remainingRouteOrigin → remainingRouteDestination.
+    remainingRouteOrigin: {
+      lat: driverCoords.latitude,
+      lng: driverCoords.longitude,
+    },
+    remainingRouteDestination: destination?.coordinates
+      ? {
+          lat: destination.coordinates[1],
+          lng: destination.coordinates[0],
+        }
+      : null,
+    message: phaseInfo.message,
     timestamp: Date.now(),
+  };
+}
+
+function formatDriverForPassenger(driver, driverCoords) {
+  if (!driver) return null;
+
+  return {
+    id: driver._id,
+    name: driver.name,
+    contactNumber: driver.contactNumber,
+    vehicleNumber: driver.vehicleNumber,
+    vehicleType: driver.vehicleType,
+    ...(driverCoords
+      ? {
+          coordinates: driverCoords.coordinates,
+          latitude: driverCoords.latitude,
+          longitude: driverCoords.longitude,
+          lat: driverCoords.lat,
+          lng: driverCoords.lng,
+          location: {
+            type: "Point",
+            coordinates: driverCoords.coordinates,
+            latitude: driverCoords.latitude,
+            longitude: driverCoords.longitude,
+            lat: driverCoords.lat,
+            lng: driverCoords.lng,
+          },
+          locationUpdatedAt: driverCoords.updatedAt,
+        }
+      : {}),
   };
 }
 
@@ -272,37 +415,30 @@ export async function getPassengerRideByIdService(rideId, passengerId) {
     return ride;
   }
 
-  const driverCoords = buildDriverLiveCoords(ride.driver);
+  const driverCoords = resolveLiveDriverCoords(ride);
   const liveTracking = await buildLiveTracking({ ride, driverCoords });
 
+  // Avoid leaking full locationHistory trail to passenger clients.
+  const { locationHistory: _locationHistory, ...rideWithoutHistory } = ride;
+
   return {
-    ...ride,
-    driver: {
-      id: ride.driver._id,
-      name: ride.driver.name,
-      contactNumber: ride.driver.contactNumber,
-      vehicleNumber: ride.driver.vehicleNumber,
-      vehicleType: ride.driver.vehicleType,
-      ...(driverCoords
-        ? {
-            coordinates: driverCoords.coordinates,
-            latitude: driverCoords.latitude,
-            longitude: driverCoords.longitude,
-            lat: driverCoords.lat,
-            lng: driverCoords.lng,
-            location: {
-              type: "Point",
-              coordinates: driverCoords.coordinates,
-              latitude: driverCoords.latitude,
-              longitude: driverCoords.longitude,
-              lat: driverCoords.lat,
-              lng: driverCoords.lng,
-            },
-            locationUpdatedAt: driverCoords.locationUpdatedAt,
-          }
-        : {}),
-    },
+    ...rideWithoutHistory,
+    driver: formatDriverForPassenger(ride.driver, driverCoords),
     liveTracking,
+    // Top-level aliases for map clients that expect flat lat/lng on the ride payload.
+    ...(driverCoords
+      ? {
+          driverLatitude: driverCoords.latitude,
+          driverLongitude: driverCoords.longitude,
+          driverLat: driverCoords.lat,
+          driverLng: driverCoords.lng,
+        }
+      : {
+          driverLatitude: null,
+          driverLongitude: null,
+          driverLat: null,
+          driverLng: null,
+        }),
   };
 }
  

@@ -482,6 +482,12 @@ export const updateDriverLocation = async (req, res, next) => {
         {
           rideId,
           driver: driverLocation,
+          liveLocation: ride.liveLocation || {
+            coordinates: driverLocation.coordinates,
+            latitude: liveCoords.latitude,
+            longitude: liveCoords.longitude,
+            updatedAt: driverLocation.updatedAt,
+          },
           status: ride.status,
           timestamp: new Date().getTime(),
         },
