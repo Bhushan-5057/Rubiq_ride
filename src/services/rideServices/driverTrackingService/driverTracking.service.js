@@ -272,7 +272,10 @@ export async function updateDriverLocationService(driver, lng, lat, rideId) {
     ? new Date(driver.lastLocationUpdateTime)
     : null;
 
+  // Always persist during an active ride so passenger REST polls (~5s)
+  // read fresh GPS. Otherwise throttle background presence writes.
   const shouldUpdateDB =
+    Boolean(ride) ||
     !lastUpdateTime ||
     (currentTime - lastUpdateTime) / 1000 >= LOCATION_THROTTLE_SECONDS;
 

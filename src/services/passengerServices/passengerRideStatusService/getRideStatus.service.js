@@ -142,17 +142,133 @@ export async function getPassengerAllRideService(passengerId, filters = {}) {
 
 //--------------------- Get Passenger Ride By Id ---------------------
 
+const LIVE_TRACKING_STATUSES = new Set([
+  "accepted",
+  "driver_arrived",
+  "started",
+  "ongoing",
+]);
+
+function buildDriverLiveCoords(driver) {
+  if (!driver) return null;
+
+  const coordinates = driver.location?.coordinates;
+  if (!Array.isArray(coordinates) || coordinates.length !== 2) return null;
+
+  const [longitude, latitude] = coordinates;
+  if (
+    typeof longitude !== "number" ||
+    typeof latitude !== "number" ||
+    (longitude === 0 && latitude === 0)
+  ) {
+    return null;
+  }
+
+  return {
+    coordinates: [longitude, latitude],
+    longitude,
+    latitude,
+    lng: longitude,
+    lat: latitude,
+    locationUpdatedAt: driver.locationUpdatedAt || null,
+  };
+}
+
+async function buildLiveTracking({ ride, driverCoords }) {
+  if (!driverCoords) return null;
+
+  const toPickup =
+    ride.status === "accepted" || ride.status === "driver_arrived";
+  const destination = toPickup ? ride.pickup : ride.drop;
+  const phase = toPickup ? "to_pickup" : "to_drop";
+
+  let etaMinutes = null;
+  let distance = null;
+
+  if (destination?.coordinates?.length === 2) {
+    try {
+      const matrix = await getDistanceMatrix({
+        origins: [driverCoords.coordinates],
+        destinations: [destination.coordinates],
+      });
+      const element = matrix.rows[0]?.elements[0];
+      etaMinutes =
+        element?.durationInTraffic?.minutes ||
+        element?.duration?.minutes ||
+        null;
+      distance = element?.distance || null;
+    } catch {
+      // Keep coords even if ETA lookup fails.
+    }
+  }
+
+  return {
+    phase,
+    status: ride.status,
+    coordinates: driverCoords.coordinates,
+    latitude: driverCoords.latitude,
+    longitude: driverCoords.longitude,
+    lat: driverCoords.lat,
+    lng: driverCoords.lng,
+    locationUpdatedAt: driverCoords.locationUpdatedAt,
+    destination: destination || null,
+    etaMinutes,
+    distance,
+    polyline: ride.routeDetails?.polyline || null,
+    timestamp: Date.now(),
+  };
+}
+
 export async function getPassengerRideByIdService(rideId, passengerId) {
   const ride = await Ride.findById(rideId)
     .populate({
       path: "driver",
-      select: "name contactNumber vehicleNumber vehicleType"
+      select:
+        "name contactNumber vehicleNumber vehicleType location latitude longitude locationUpdatedAt",
     })
+    .lean();
+
   if (!ride) {
-    throw new Error("Ride not Found")
+    throw new Error("Ride not Found");
   }
   if (ride.passenger.toString() !== passengerId.toString()) {
-    throw new Error("You Have Not Created This Ride")
+    throw new Error("You Have Not Created This Ride");
   }
-  return ride
+
+  if (!LIVE_TRACKING_STATUSES.has(ride.status) || !ride.driver) {
+    return ride;
+  }
+
+  const driverCoords = buildDriverLiveCoords(ride.driver);
+  const liveTracking = await buildLiveTracking({ ride, driverCoords });
+
+  return {
+    ...ride,
+    driver: {
+      id: ride.driver._id,
+      name: ride.driver.name,
+      contactNumber: ride.driver.contactNumber,
+      vehicleNumber: ride.driver.vehicleNumber,
+      vehicleType: ride.driver.vehicleType,
+      ...(driverCoords
+        ? {
+            coordinates: driverCoords.coordinates,
+            latitude: driverCoords.latitude,
+            longitude: driverCoords.longitude,
+            lat: driverCoords.lat,
+            lng: driverCoords.lng,
+            location: {
+              type: "Point",
+              coordinates: driverCoords.coordinates,
+              latitude: driverCoords.latitude,
+              longitude: driverCoords.longitude,
+              lat: driverCoords.lat,
+              lng: driverCoords.lng,
+            },
+            locationUpdatedAt: driverCoords.locationUpdatedAt,
+          }
+        : {}),
+    },
+    liveTracking,
+  };
 }
