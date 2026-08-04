@@ -47,7 +47,6 @@ const passengerSchema = new mongoose.Schema(
       missedRides: { type: Number, default: 0 },
       capturedAt: { type: Date, default: null },
     },
-    // Durable counters for Passenger app profile / history.
     rideStats: {
       completed: { type: Number, default: 0 },
       cancelled: { type: Number, default: 0 },
@@ -62,8 +61,6 @@ const passengerSchema = new mongoose.Schema(
         default: undefined,
       },
     },
-    // Legacy scalar aliases kept for dual-write / API compatibility.
-    // Canonical query field is `location` (GeoJSON Point, [lng, lat]).
     longitude: Number,
     latitude: Number,
     locationUpdatedAt: { type: Date, default: null },

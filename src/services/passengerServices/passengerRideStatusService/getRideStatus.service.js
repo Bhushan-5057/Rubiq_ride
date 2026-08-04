@@ -1,4 +1,3 @@
-
 import { Ride } from "../../../models/ride/ride.model.js";
 import { Driver } from "../../../models/driver/driver.model.js";
 import { Passenger } from "../../../models/passenger/passenger.model.js";
@@ -8,10 +7,17 @@ import {
   summarizeRideStatuses,
 } from "../../../helpers/rideHistoryFilter.helper.js";
 import { readPassengerRideStats } from "../../../helpers/rideStatsCounters.helper.js";
+import {
+  extractNormalizedCoords,
+  toPassengerCoordAliases,
+} from "../../../utils/location.js";
 
 //------------------------ Get Ride Status ------------------------
 export async function getRideStatusService({ rideId, passengerId }) {
-  const ride = await Ride.findOne({ _id: rideId, passenger: passengerId }).lean();
+  const ride = await Ride.findOne({
+    _id: rideId,
+    passenger: passengerId,
+  }).lean();
 
   if (!ride) throw new Error("Ride not found or unauthorized access");
 
@@ -26,19 +32,18 @@ export async function getRideStatusService({ rideId, passengerId }) {
       drop: ride.drop,
       driver: driver
         ? {
-          id: driver._id,
-          name: driver.name,
-          vehicleNumber: driver.vehicleNumber,
-          vehicleType: driver.vehicleType,
-          contactNumber: driver.contactNumber,
-        }
+            id: driver._id,
+            name: driver.name,
+            vehicleNumber: driver.vehicleNumber,
+            vehicleType: driver.vehicleType,
+            contactNumber: driver.contactNumber,
+          }
         : null,
       createdAt: ride.createdAt,
       updatedAt: ride.updatedAt,
     };
   }
 
-  // Driver details are relevant from accept through in-progress (legacy "ongoing" included).
   const statusesWithDriverTracking = new Set([
     "accepted",
     "driver_arrived",
@@ -105,6 +110,9 @@ export async function getRideStatusService({ rideId, passengerId }) {
     }
   }
 
+  const aliases = toPassengerCoordAliases(driverCoords);
+  const liveTracking = await buildLiveTracking({ ride, driverCoords });
+
   return {
     rideId: ride._id,
     status: ride.status,
@@ -113,28 +121,17 @@ export async function getRideStatusService({ rideId, passengerId }) {
       name: driver.name,
       vehicleNumber: driver.vehicleNumber,
       vehicleType: driver.vehicleType,
-      coordinates: driverCoords.coordinates,
-      latitude: driverCoords.latitude,
-      longitude: driverCoords.longitude,
-      lat: driverCoords.lat,
-      lng: driverCoords.lng,
+      ...aliases,
     },
     distanceFromPickup: toPickup ? distanceText : "N/A",
     etaToPickupMinutes: toPickup ? etaMinutes : null,
     distanceToDrop: toPickup ? null : distanceText,
     etaToDropMinutes: toPickup ? null : etaMinutes,
-    liveTracking: {
-      available: true,
-      phase: toPickup ? "to_pickup" : "to_drop",
-      coordinates: driverCoords.coordinates,
-      latitude: driverCoords.latitude,
-      longitude: driverCoords.longitude,
-      lat: driverCoords.lat,
-      lng: driverCoords.lng,
-      etaMinutes,
-      tripPolyline: ride.routeDetails?.polyline || null,
-      polyline: ride.routeDetails?.polyline || null,
-    },
+    liveTracking,
+    driverLatitude: aliases.latitude,
+    driverLongitude: aliases.longitude,
+    driverLat: aliases.lat,
+    driverLng: aliases.lng,
   };
 }
 
@@ -192,80 +189,79 @@ const LIVE_TRACKING_STATUSES = new Set([
   "ongoing",
 ]);
 
+/**
+ * Build a single consistent GPS view. Prefer flat lat/lng when dual storage
+ * diverges (app/source-of-truth scalars).
+ */
 function coordsFromPoint(source) {
-  if (!source) return null;
-
-  let longitude;
-  let latitude;
-
-  if (Array.isArray(source.coordinates) && source.coordinates.length === 2) {
-    longitude = source.coordinates[0];
-    latitude = source.coordinates[1];
-  } else if (
-    typeof source.longitude === "number" &&
-    typeof source.latitude === "number"
-  ) {
-    longitude = source.longitude;
-    latitude = source.latitude;
-  }
-
-  if (
-    typeof longitude !== "number" ||
-    typeof latitude !== "number" ||
-    (longitude === 0 && latitude === 0)
-  ) {
-    return null;
-  }
-
+  const extracted = extractNormalizedCoords(source);
+  if (!extracted) return null;
   return {
-    coordinates: [longitude, latitude],
-    longitude,
-    latitude,
-    lng: longitude,
-    lat: latitude,
-    updatedAt: source.updatedAt || source.locationUpdatedAt || null,
+    coordinates: extracted.coordinates,
+    longitude: extracted.longitude,
+    latitude: extracted.latitude,
+    lng: extracted.lng,
+    lat: extracted.lat,
+    updatedAt: extracted.updatedAt,
   };
 }
 
 function resolveLiveDriverCoords(ride) {
   const fromRide = coordsFromPoint(ride.liveLocation);
-  if (fromRide) {
-    return { ...fromRide, source: "ride" };
-  }
+  const fromDriver =
+    coordsFromPoint(ride.driver) || coordsFromPoint(ride.driver?.location);
 
-  const fromDriver = coordsFromPoint(ride.driver);
-  if (fromDriver) {
-    return {
-      ...fromDriver,
-      updatedAt: ride.driver?.locationUpdatedAt || fromDriver.updatedAt,
-      source: "driver",
-    };
-  }
+  const rideCandidate = fromRide ? { ...fromRide, source: "ride" } : null;
 
-  // Driver doc may nest GeoJSON under `.location`
-  const fromDriverLocation = coordsFromPoint(ride.driver?.location);
-  if (fromDriverLocation) {
-    return {
-      ...fromDriverLocation,
-      updatedAt: ride.driver?.locationUpdatedAt || null,
-      source: "driver",
-    };
-  }
+  const driverCandidate = fromDriver
+    ? {
+        ...fromDriver,
+        updatedAt: ride.driver?.locationUpdatedAt || fromDriver.updatedAt,
+        source: "driver",
+      }
+    : null;
 
-  return null;
+  if (!rideCandidate) return driverCandidate;
+  if (!driverCandidate) return rideCandidate;
+
+  // Prefer whichever GPS is newer so a frozen ride.liveLocation seed cannot
+  // mask fresher Driver.location when update-location omitted rideId.
+  const rideTs = rideCandidate.updatedAt
+    ? new Date(rideCandidate.updatedAt).getTime()
+    : 0;
+  const driverTs = driverCandidate.updatedAt
+    ? new Date(driverCandidate.updatedAt).getTime()
+    : 0;
+
+  return driverTs > rideTs ? driverCandidate : rideCandidate;
+}
+
+/**
+ * Overwrite raw liveLocation so passenger clients never see desynced dual fields.
+ */
+function normalizeLiveLocationForResponse(driverCoords, driverId) {
+  if (!driverCoords) return null;
+  return {
+    type: "Point",
+    coordinates: driverCoords.coordinates,
+    longitude: driverCoords.longitude,
+    latitude: driverCoords.latitude,
+    lat: driverCoords.latitude,
+    lng: driverCoords.longitude,
+    updatedAt: driverCoords.updatedAt,
+    driverId: driverId || null,
+  };
 }
 
 function mapPhase(status) {
   if (status === "accepted" || status === "driver_arrived") {
     return {
       phase: "to_pickup",
-      destination: null, // filled by caller with ride.pickup
       message: "Your driver is on the way to pickup",
     };
   }
   return {
     phase: "to_drop",
-    destination: null, // filled by caller with ride.drop
     message: "Your ride is in progress",
   };
 }
@@ -293,10 +289,10 @@ async function buildLiveTracking({ ride, driverCoords }) {
       drop: ride.drop || null,
       etaMinutes: null,
       distance: null,
-      // Full trip route (pickup → drop) for Google Maps polyline decode.
+      distanceKm: null,
+      distanceMeters: null,
       tripPolyline,
       polyline: tripPolyline,
-      // Remaining route origin for client Directions: driver → destination.
       remainingRouteOrigin: null,
       remainingRouteDestination: destination?.coordinates
         ? {
@@ -330,6 +326,21 @@ async function buildLiveTracking({ ride, driverCoords }) {
     }
   }
 
+  const distanceKm =
+    typeof distance?.km === "number"
+      ? distance.km
+      : typeof distance?.meters === "number"
+        ? Number((distance.meters / 1000).toFixed(2))
+        : typeof distance === "number"
+          ? distance
+          : null;
+  const distanceMeters =
+    typeof distance?.meters === "number"
+      ? distance.meters
+      : typeof distanceKm === "number"
+        ? Math.round(distanceKm * 1000)
+        : null;
+
   return {
     available: true,
     phase: phaseInfo.phase,
@@ -346,10 +357,12 @@ async function buildLiveTracking({ ride, driverCoords }) {
     drop: ride.drop || null,
     etaMinutes,
     distance,
+    distanceKm,
+    distanceMeters,
     tripPolyline,
     polyline: tripPolyline,
     // Passenger Google Maps SDK: animate marker to these coords;
-    // optionally request Directions from remainingRouteOrigin → remainingRouteDestination.
+    // optionally request Directions from remainingRouteOrigin → destination.
     remainingRouteOrigin: {
       lat: driverCoords.latitude,
       lng: driverCoords.longitude,
@@ -368,26 +381,24 @@ async function buildLiveTracking({ ride, driverCoords }) {
 function formatDriverForPassenger(driver, driverCoords) {
   if (!driver) return null;
 
+  const aliases = toPassengerCoordAliases(driverCoords);
+
   return {
     id: driver._id,
     name: driver.name,
     contactNumber: driver.contactNumber,
     vehicleNumber: driver.vehicleNumber,
     vehicleType: driver.vehicleType,
-    ...(driverCoords
+    ...(aliases
       ? {
-          coordinates: driverCoords.coordinates,
-          latitude: driverCoords.latitude,
-          longitude: driverCoords.longitude,
-          lat: driverCoords.lat,
-          lng: driverCoords.lng,
+          ...aliases,
           location: {
             type: "Point",
-            coordinates: driverCoords.coordinates,
-            latitude: driverCoords.latitude,
-            longitude: driverCoords.longitude,
-            lat: driverCoords.lat,
-            lng: driverCoords.lng,
+            coordinates: aliases.coordinates,
+            latitude: aliases.latitude,
+            longitude: aliases.longitude,
+            lat: aliases.lat,
+            lng: aliases.lng,
           },
           locationUpdatedAt: driverCoords.updatedAt,
         }
@@ -400,7 +411,7 @@ export async function getPassengerRideByIdService(rideId, passengerId) {
     .populate({
       path: "driver",
       select:
-        "name contactNumber vehicleNumber vehicleType location latitude longitude locationUpdatedAt",
+        "name contactNumber vehicleNumber vehicleType location latitude longitude locationUpdatedAt lastLocationUpdateTime",
     })
     .lean();
 
@@ -417,12 +428,18 @@ export async function getPassengerRideByIdService(rideId, passengerId) {
 
   const driverCoords = resolveLiveDriverCoords(ride);
   const liveTracking = await buildLiveTracking({ ride, driverCoords });
+  const normalizedLiveLocation = normalizeLiveLocationForResponse(
+    driverCoords,
+    ride.driver?._id || ride.driver,
+  );
 
   // Avoid leaking full locationHistory trail to passenger clients.
   const { locationHistory: _locationHistory, ...rideWithoutHistory } = ride;
 
   return {
     ...rideWithoutHistory,
+    // Always overwrite raw dual-storage with one reconciled object.
+    liveLocation: normalizedLiveLocation,
     driver: formatDriverForPassenger(ride.driver, driverCoords),
     liveTracking,
     // Top-level aliases for map clients that expect flat lat/lng on the ride payload.
@@ -441,4 +458,3 @@ export async function getPassengerRideByIdService(rideId, passengerId) {
         }),
   };
 }
- 

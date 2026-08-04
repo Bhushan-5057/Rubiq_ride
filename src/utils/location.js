@@ -1,7 +1,3 @@
-/**
- * Canonical location helpers for GeoJSON Point storage.
- * Coordinate order is always [longitude, latitude].
- */
 
 export const LOCATION_MAX_DISTANCE_METERS = 5000;
 export const LOCATION_THROTTLE_SECONDS = 5;
@@ -211,5 +207,105 @@ export function deriveScalarAliasesFromLocation(location) {
     longitude: location.coordinates[0],
     latitude: location.coordinates[1],
     coordinates: [...location.coordinates],
+  };
+}
+
+export function extractNormalizedCoords(source) {
+  if (!source || typeof source !== "object") return null;
+
+  let fromScalars = null;
+  let fromCoordinates = null;
+  let fromLocation = null;
+
+  const lat = source.latitude ?? source.lat;
+  const lng = source.longitude ?? source.lng;
+  if (isValidCoordinatePair(Number(lng), Number(lat))) {
+    fromScalars = {
+      longitude: Number(lng),
+      latitude: Number(lat),
+    };
+  }
+
+  if (isValidCoordinatesArray(source.coordinates)) {
+    fromCoordinates = {
+      longitude: source.coordinates[0],
+      latitude: source.coordinates[1],
+    };
+  }
+
+  if (isValidGeoPoint(source.location)) {
+    fromLocation = {
+      longitude: source.location.coordinates[0],
+      latitude: source.location.coordinates[1],
+    };
+  } else if (isValidCoordinatesArray(source.location?.coordinates)) {
+    fromLocation = {
+      longitude: source.location.coordinates[0],
+      latitude: source.location.coordinates[1],
+    };
+  }
+
+  const chosen = fromScalars || fromCoordinates || fromLocation;
+  if (!chosen) return null;
+  if (chosen.latitude === 0 && chosen.longitude === 0) return null;
+
+  const updatedAt =
+    source.updatedAt ||
+    source.locationUpdatedAt ||
+    source.lastLocationUpdateTime ||
+    null;
+
+  return {
+    longitude: chosen.longitude,
+    latitude: chosen.latitude,
+    coordinates: [chosen.longitude, chosen.latitude],
+    location: buildGeoPoint(chosen.longitude, chosen.latitude),
+    lat: chosen.latitude,
+    lng: chosen.longitude,
+    updatedAt,
+  };
+}
+
+export function buildLiveLocationPoint({
+  longitude,
+  latitude,
+  updatedAt = new Date(),
+  driverId = null,
+}) {
+  if (!isValidCoordinatePair(longitude, latitude)) {
+    throw new Error(
+      "Invalid coordinates. Expected longitude [-180,180] and latitude [-90,90]",
+    );
+  }
+
+  const point = {
+    type: "Point",
+    coordinates: [longitude, latitude],
+    longitude,
+    latitude,
+    lat: latitude,
+    lng: longitude,
+    updatedAt,
+  };
+
+  if (driverId) {
+    point.driverId = driverId;
+  }
+
+  return point;
+}
+
+export function toPassengerCoordAliases(coords) {
+  if (!coords) return null;
+  const longitude = coords.longitude ?? coords.lng;
+  const latitude = coords.latitude ?? coords.lat;
+  if (!isValidCoordinatePair(longitude, latitude)) return null;
+
+  return {
+    coordinates: [longitude, latitude],
+    longitude,
+    latitude,
+    lng: longitude,
+    lat: latitude,
   };
 }

@@ -52,7 +52,6 @@ const driverSchema = new mongoose.Schema(
       missedRides: { type: Number, default: 0 },
       capturedAt: { type: Date, default: null },
     },
-    // Durable counters for Driver app profile / history (avoid live aggregations).
     rideStats: {
       completed: { type: Number, default: 0 },
       cancelled: { type: Number, default: 0 },
@@ -68,8 +67,6 @@ const driverSchema = new mongoose.Schema(
         default: undefined,
       },
     },
-    // Legacy scalar aliases kept for dual-write / API compatibility.
-    // Canonical query field is `location` (GeoJSON Point, [lng, lat]).
     longitude: Number,
     latitude: Number,
     locationUpdatedAt: { type: Date, default: null },

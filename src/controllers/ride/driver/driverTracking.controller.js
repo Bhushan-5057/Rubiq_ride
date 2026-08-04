@@ -16,89 +16,81 @@ import { refundPayment } from "../../../services/payment/payment.service.js";
 import { DRIVER_CANCELLATION_REASONS } from "../../../common/cancellationReasons.js";
 import { notifyRideParticipant } from "../../../helpers/rideNotify.helper.js";
 import {
+  extractNormalizedCoords,
   isValidCoordinatePair,
-  isValidCoordinatesArray,
-  isValidGeoPoint,
   normalizeLocationInput,
+  toPassengerCoordAliases,
 } from "../../../utils/location.js";
 
-/**
- * Resolve usable driver lat/lng without inventing placeholders.
- * Accepts scalar fields, GeoJSON Point, or [lng, lat] coordinates.
- */
 function resolveDriverLatLng(source) {
-  if (!source || typeof source !== "object") return null;
-
-  let latitude = source.latitude ?? source.lat;
-  let longitude = source.longitude ?? source.lng;
-
-  if (
-    !isValidCoordinatePair(longitude, latitude) &&
-    isValidCoordinatesArray(source.coordinates)
-  ) {
-    longitude = source.coordinates[0];
-    latitude = source.coordinates[1];
-  }
-
-  if (
-    !isValidCoordinatePair(longitude, latitude) &&
-    isValidGeoPoint(source.location)
-  ) {
-    longitude = source.location.coordinates[0];
-    latitude = source.location.coordinates[1];
-  }
-
-  if (!isValidCoordinatePair(longitude, latitude)) return null;
-  // Treat null-island as missing so passenger never seeds a fake marker.
-  if (latitude === 0 && longitude === 0) return null;
-
-  return { latitude, longitude };
+  const extracted = extractNormalizedCoords(source);
+  if (!extracted) return null;
+  return { latitude: extracted.latitude, longitude: extracted.longitude };
 }
 
-/**
- * Additive passenger-friendly coords. Keeps existing nested driver / GeoJSON fields.
- */
 function withPassengerFriendlyCoords(payload, coords) {
   if (!coords) return payload;
 
-  const { latitude, longitude } = coords;
-  const aliases = {
+  const aliases = toPassengerCoordAliases(coords);
+  if (!aliases) return payload;
+
+  const { latitude, longitude, lat, lng, coordinates } = aliases;
+
+  const locationObj = {
+    type: "Point",
+    coordinates,
     latitude,
     longitude,
-    lat: latitude,
-    lng: longitude,
+    lat,
+    lng,
   };
 
   const driver = payload.driver
     ? {
         ...payload.driver,
         ...aliases,
-        location:
-          payload.driver.location && typeof payload.driver.location === "object"
-            ? {
-                ...payload.driver.location,
-                ...aliases,
-              }
-            : {
-                lat: latitude,
-                lng: longitude,
-                latitude,
-                longitude,
-              },
+        location: {
+          ...(typeof payload.driver.location === "object"
+            ? payload.driver.location
+            : {}),
+          ...locationObj,
+        },
+        locationUpdatedAt:
+          payload.driver.locationUpdatedAt ||
+          payload.locationUpdatedAt ||
+          null,
       }
     : payload.driver;
 
   return {
     ...payload,
     ...aliases,
-    location: {
+    remainingRouteOrigin: {
       lat: latitude,
       lng: longitude,
-      latitude,
-      longitude,
     },
+    location: locationObj,
+    liveLocation: payload.liveLocation
+      ? {
+          ...payload.liveLocation,
+          ...locationObj,
+          updatedAt:
+            payload.liveLocation.updatedAt ||
+            payload.locationUpdatedAt ||
+            new Date(),
+        }
+      : {
+          ...locationObj,
+          updatedAt: payload.locationUpdatedAt || new Date(),
+        },
     ...(driver !== undefined ? { driver } : {}),
   };
+}
+
+function trackingPhase(status) {
+  if (status === "accepted" || status === "driver_arrived") return "to_pickup";
+  if (status === "started" || status === "ongoing") return "to_drop";
+  return null;
 }
 
 async function emitLiveLocationToPassenger({
@@ -114,7 +106,6 @@ async function emitLiveLocationToPassenger({
     event,
     payload,
   });
-  // Additive: clients that joined ride_<id> for chat/tracking also get GPS.
   emitToRideRoom(ride._id, event, payload);
 }
 
@@ -134,7 +125,9 @@ export const acceptRide = async (req, res, next) => {
 
     const ride = await acceptRideService({ rideId, driverId });
 
-    const initialCoords = resolveDriverLatLng(req.driver);
+    const initialCoords =
+      resolveDriverLatLng(ride.liveLocation) ||
+      resolveDriverLatLng(req.driver);
 
     const payload = withPassengerFriendlyCoords(
       {
@@ -146,6 +139,29 @@ export const acceptRide = async (req, res, next) => {
           vehicleNumber: req.driver.vehicleNumber,
           vehicleType: req.driver.vehicleType,
         },
+        liveLocation: ride.liveLocation || null,
+        liveTracking: initialCoords
+          ? {
+              available: true,
+              phase: "to_pickup",
+              status: ride.status,
+              ...toPassengerCoordAliases(initialCoords),
+              remainingRouteOrigin: {
+                lat: initialCoords.latitude,
+                lng: initialCoords.longitude,
+              },
+              remainingRouteDestination: ride.pickup?.coordinates
+                ? {
+                    lat: ride.pickup.coordinates[1],
+                    lng: ride.pickup.coordinates[0],
+                  }
+                : null,
+              locationUpdatedAt: ride.liveLocation?.updatedAt || new Date(),
+              tripPolyline: ride.routeDetails?.polyline || null,
+              polyline: ride.routeDetails?.polyline || null,
+              message: "Your driver is on the way to pickup",
+            }
+          : null,
         status: ride.status,
         pickup: ride.pickup,
         drop: ride.drop,
@@ -154,7 +170,6 @@ export const acceptRide = async (req, res, next) => {
       initialCoords,
     );
 
-    // Ride-scoped: only the booking passenger (online → socket, offline → push)
     await notifyRideParticipant({
       ride,
       userId: ride.passenger,
@@ -169,7 +184,6 @@ export const acceptRide = async (req, res, next) => {
     });
     emitToRideRoom(ride._id, SOCKET_EVENTS.RIDE_DRIVER_ASSIGNED, payload);
 
-    // Seed live tracking immediately when last-known GPS exists (additive).
     if (initialCoords && ride.passenger) {
       const onTheWaySeed = withPassengerFriendlyCoords(
         {
@@ -222,7 +236,7 @@ export const driverArrived = async (req, res, next) => {
           longitude: normalized.longitude,
         };
       } catch {
-        // Keep last-known driver coords if body coords cannot be normalized.
+        // Do nothing
       }
     }
 
@@ -244,7 +258,6 @@ export const driverArrived = async (req, res, next) => {
       arrivedCoords,
     );
 
-    // Ride-scoped: passenger only (canonical + legacy event names)
     await notifyRideParticipant({
       ride,
       userId: ride.passenger,
@@ -309,7 +322,6 @@ export const completeRide = async (req, res, next) => {
     const driverId = req.driver._id;
     const { rideId, driverLocationCoordinates } = req.body;
 
-    // Complete the ride
     const ride = await completeRideService({
       rideId,
       driverId,
@@ -337,7 +349,6 @@ export const completeRide = async (req, res, next) => {
       },
     });
 
-    // If payment is cash, mark as paid immediately
     if (ride.paymentMethod === 'cash') {
       ride.paymentStatus = 'paid';
       ride.transactionDate = new Date();
@@ -384,14 +395,12 @@ export const cancelRide = async (req, res, next) => {
       });
     }
 
-    // Get the ride first to check payment status
     const ride = await Ride.findOne({ _id: rideId, driver: driverId });
 
     if (!ride) {
       return res.status(404).json({ success: false, message: 'Ride not found' });
     }
 
-    // If payment was captured in advance, process refund.
     if (ride.paymentStatus === 'paid') {
       if (ride.razorpayPaymentId) {
         try {
@@ -401,11 +410,9 @@ export const cancelRide = async (req, res, next) => {
           });
         } catch (error) {
           console.error('Error processing refund:', error);
-          // Continue with rejection even if refund fails
         }
       }
 
-      // Update payment status
       ride.paymentStatus = 'refunded';
       await ride.save();
     } else if (ride.paymentStatus === 'pending') {
@@ -456,69 +463,109 @@ export const cancelRide = async (req, res, next) => {
 
 export const updateDriverLocation = async (req, res, next) => {
   try {
-    const { lng, lat, rideId } = req.body;
+    const body = req.body || {};
+    const lngRaw = body.lng ?? body.longitude ?? body.long;
+    const latRaw = body.lat ?? body.latitude;
+    const rideId = body.rideId ?? body.ride_id ?? body.rideID ?? null;
 
-    if (typeof lng !== "number" || typeof lat !== "number") {
+    const longitude = Number(lngRaw);
+    const latitude = Number(latRaw);
+
+    if (!Number.isFinite(longitude) || !Number.isFinite(latitude)) {
       throw new Error("Latitude and longitude must be valid numbers");
+    }
+
+    if (!isValidCoordinatePair(longitude, latitude)) {
+      throw new Error(
+        "Invalid coordinates. Expected longitude [-180,180] and latitude [-90,90]",
+      );
     }
 
     const updatedDriver = await updateDriverLocationService(
       req.driver,
-      lng,
-      lat,
-      rideId
+      longitude,
+      latitude,
+      rideId,
     );
 
-    const { ride, ...driverLocation } = updatedDriver;
+    const { ride, trackingRideId, liveLocation, ...driverLocation } =
+      updatedDriver;
+    const effectiveRideId = trackingRideId || rideId || ride?._id || null;
 
     if (ride?.passenger) {
       const passengerId = ride.passenger.toString();
-      const liveCoords = resolveDriverLatLng(driverLocation) || {
-        latitude: lat,
-        longitude: lng,
+      const liveCoords = {
+        latitude,
+        longitude,
       };
+      const phase = trackingPhase(ride.status);
+      const destination =
+        phase === "to_pickup"
+          ? ride.pickup
+          : phase === "to_drop"
+            ? ride.drop
+            : null;
 
       const locationPayload = withPassengerFriendlyCoords(
         {
-          rideId,
-          driver: driverLocation,
-          liveLocation: ride.liveLocation || {
-            coordinates: driverLocation.coordinates,
-            latitude: liveCoords.latitude,
-            longitude: liveCoords.longitude,
-            updatedAt: driverLocation.updatedAt,
+          rideId: effectiveRideId,
+          driver: {
+            id: driverLocation.id,
+            name: driverLocation.name,
+            vehicleType: driverLocation.vehicleType,
+            vehicleNumber: driverLocation.vehicleNumber,
+            contactNumber: driverLocation.contactNumber,
+            ...toPassengerCoordAliases(liveCoords),
+            location: driverLocation.location,
+            locationUpdatedAt: driverLocation.updatedAt,
+          },
+          liveLocation:
+            liveLocation ||
+            ride.liveLocation || {
+              type: "Point",
+              coordinates: [longitude, latitude],
+              longitude,
+              latitude,
+              lat: latitude,
+              lng: longitude,
+              updatedAt: driverLocation.updatedAt,
+            },
+          liveTracking: {
+            available: true,
+            phase,
+            status: ride.status,
+            ...toPassengerCoordAliases(liveCoords),
+            locationUpdatedAt: driverLocation.updatedAt,
+            source: "update",
+            remainingRouteOrigin: { lat: latitude, lng: longitude },
+            remainingRouteDestination: destination?.coordinates
+              ? {
+                  lat: destination.coordinates[1],
+                  lng: destination.coordinates[0],
+                }
+              : null,
+            pickup: ride.pickup || null,
+            drop: ride.drop || null,
+            tripPolyline: ride.routeDetails?.polyline || null,
+            polyline: ride.routeDetails?.polyline || null,
+            etaMinutes: null,
+            message:
+              phase === "to_pickup"
+                ? "Your driver is on the way to pickup"
+                : "Your ride is in progress",
           },
           status: ride.status,
-          timestamp: new Date().getTime(),
+          phase,
+          locationUpdatedAt: driverLocation.updatedAt,
+          timestamp: Date.now(),
+          message:
+            phase === "to_pickup"
+              ? "Your driver is on the way to pickup"
+              : "Your ride is in progress",
         },
         liveCoords,
       );
 
-      if (
-        (ride.status === "started" || ride.status === "ongoing") &&
-        driverLocation.dbSaved &&
-        ride.drop?.coordinates?.length === 2 &&
-        driverLocation?.coordinates
-      ) {
-        try {
-          const matrix = await getDistanceMatrix({
-            origins: [driverLocation.coordinates],
-            destinations: [ride.drop.coordinates],
-          });
-          const element = matrix.rows[0]?.elements[0];
-          locationPayload.dropLocation = ride.drop;
-          locationPayload.etaToDropMinutes =
-            element?.durationInTraffic?.minutes ||
-            element?.duration?.minutes ||
-            null;
-          locationPayload.distanceToDrop = element?.distance || null;
-          locationPayload.message = "Your ride is in progress";
-        } catch {
-          locationPayload.message = "Your ride is in progress";
-        }
-      }
-
-      // High-frequency: socket only to ride passenger (no push / no nearby fan-out)
       await emitLiveLocationToPassenger({
         ride,
         passengerId,
@@ -526,59 +573,105 @@ export const updateDriverLocation = async (req, res, next) => {
         payload: locationPayload,
       });
 
-      // Keep live GPS on driver_on_the_way through accepted + arrived (pickup phase).
-      // Event name unchanged; started/ongoing continue via driver_location_updated.
       if (ride.status === "accepted" || ride.status === "driver_arrived") {
-        let etaMinutes = null;
-        let distanceToPickup = null;
-        try {
-          if (
-            driverLocation.dbSaved &&
-            ride.pickup?.coordinates?.length === 2 &&
-            driverLocation?.coordinates
-          ) {
-            const matrix = await getDistanceMatrix({
-              origins: [driverLocation.coordinates],
-              destinations: [ride.pickup.coordinates],
-            });
-            const element = matrix.rows[0]?.elements[0];
-            etaMinutes =
-              element?.durationInTraffic?.minutes ||
-              element?.duration?.minutes ||
-              null;
-            distanceToPickup = element?.distance || null;
-          }
-        } catch {
-          etaMinutes = null;
-        }
-
-        const onTheWayPayload = withPassengerFriendlyCoords(
-          {
-            rideId,
-            driver: driverLocation,
-            pickupLocation: ride.pickup,
-            etaMinutes,
-            distanceToPickup,
-            // Additive aliases for passenger map parsers (existing keys unchanged).
-            eta: etaMinutes,
-            distance:
-              typeof distanceToPickup?.value === "number"
-                ? distanceToPickup.value / 1000
-                : typeof distanceToPickup === "number"
-                  ? distanceToPickup
-                  : null,
-            message: "Your driver is on the way",
-            status: ride.status,
-          },
-          liveCoords,
-        );
-
         await emitLiveLocationToPassenger({
           ride,
           passengerId,
           event: SOCKET_EVENTS.DRIVER_ON_ROUTE,
-          payload: onTheWayPayload,
+          payload: withPassengerFriendlyCoords(
+            {
+              rideId: effectiveRideId,
+              driver: locationPayload.driver,
+              liveLocation: locationPayload.liveLocation,
+              liveTracking: locationPayload.liveTracking,
+              pickupLocation: ride.pickup,
+              etaMinutes: null,
+              distanceToPickup: null,
+              eta: null,
+              distance: null,
+              message: "Your driver is on the way",
+              status: ride.status,
+              phase: "to_pickup",
+              locationUpdatedAt: driverLocation.updatedAt,
+              timestamp: Date.now(),
+            },
+            liveCoords,
+          ),
         });
+      }
+
+      if (
+        destination?.coordinates?.length === 2 &&
+        isValidCoordinatePair(longitude, latitude)
+      ) {
+        void (async () => {
+          try {
+            const matrix = await getDistanceMatrix({
+              origins: [[longitude, latitude]],
+              destinations: [destination.coordinates],
+            });
+            const element = matrix.rows[0]?.elements[0];
+            const etaMinutes =
+              element?.durationInTraffic?.minutes ||
+              element?.duration?.minutes ||
+              null;
+            const distanceObj = element?.distance || null;
+            if (etaMinutes == null && !distanceObj) return;
+
+            const etaPayload = withPassengerFriendlyCoords(
+              {
+                rideId: effectiveRideId,
+                driver: locationPayload.driver,
+                liveLocation: locationPayload.liveLocation,
+                liveTracking: {
+                  ...locationPayload.liveTracking,
+                  etaMinutes,
+                  distance: distanceObj,
+                  distanceKm:
+                    typeof distanceObj?.km === "number" ? distanceObj.km : null,
+                  distanceMeters:
+                    typeof distanceObj?.meters === "number"
+                      ? distanceObj.meters
+                      : null,
+                },
+                status: ride.status,
+                phase,
+                etaMinutes,
+                eta: etaMinutes,
+                locationUpdatedAt: driverLocation.updatedAt,
+                timestamp: Date.now(),
+                message: locationPayload.message,
+                ...(phase === "to_drop"
+                  ? {
+                      dropLocation: ride.drop,
+                      etaToDropMinutes: etaMinutes,
+                      distanceToDrop: distanceObj,
+                    }
+                  : {
+                      pickupLocation: ride.pickup,
+                      etaToPickupMinutes: etaMinutes,
+                      distanceToPickup: distanceObj,
+                      distance:
+                        typeof distanceObj?.km === "number"
+                          ? distanceObj.km
+                          : typeof distanceObj?.meters === "number"
+                            ? distanceObj.meters / 1000
+                            : null,
+                    }),
+              },
+              liveCoords,
+            );
+
+            await emitLiveLocationToPassenger({
+              ride,
+              passengerId,
+              event: SOCKET_EVENTS.DRIVER_LOCATION_UPDATED,
+              payload: etaPayload,
+            });
+          } catch {
+            // Do nothing
+          }
+        })();
       }
     }
 
@@ -587,6 +680,9 @@ export const updateDriverLocation = async (req, res, next) => {
       message: "Location updated",
       driver: driverLocation,
       dbSaved: driverLocation.dbSaved,
+      tracking: Boolean(ride),
+      trackingRideId: trackingRideId || null,
+      liveLocation: liveLocation || null,
     });
   } catch (error) {
     next(error);

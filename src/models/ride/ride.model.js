@@ -64,7 +64,6 @@ const rideSchema = new mongoose.Schema(
         "accepted",
         "driver_arrived",
         "started",
-        // Legacy: previously written on OTP start; retained for in-flight docs.
         "ongoing",
         "completed",
         "cancelled",
@@ -81,7 +80,6 @@ const rideSchema = new mongoose.Schema(
 
     completedAt: { type: Date },
 
-    // Latest assigned-driver GPS for passenger live tracking (updated ~every 5s).
     liveLocation: {
       type: {
         type: String,
@@ -100,7 +98,6 @@ const rideSchema = new mongoose.Schema(
       },
     },
 
-    // Capped movement trail for analytics / debugging (newest last).
     locationHistory: [
       {
         coordinates: { type: [Number] },
@@ -110,16 +107,12 @@ const rideSchema = new mongoose.Schema(
       },
     ],
 
-    // Driver currently holding the pending offer (sequential rotation).
     currentOfferedDriver: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Driver",
       default: null,
       index: true,
     },
-
-    // Drivers who missed/ignored the offer in the current rotation cycle.
-    // Cleared when the cycle resets so they become eligible again.
     skippedDrivers: [
       {
         type: mongoose.Schema.Types.ObjectId,
@@ -134,7 +127,6 @@ const rideSchema = new mongoose.Schema(
       },
     ],
 
-    // Drivers who rejected the ride
     rejectedDrivers: [
       {
         type: mongoose.Schema.Types.ObjectId,
@@ -157,7 +149,6 @@ const rideSchema = new mongoose.Schema(
       cancelledAt: { type: Date },
     },
 
-    // Payment information
     paymentMethod: {
       type: String,
       enum: ["cash", "card", "online"],
