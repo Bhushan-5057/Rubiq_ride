@@ -26,8 +26,6 @@ const ACTIVE_TRACKING_STATUSES = [
   "ongoing",
 ];
 
-const LOCATION_HISTORY_MAX = 50;
-
 function buildRideLiveLocationPayload({
   driverId,
   longitude,
@@ -40,6 +38,16 @@ function buildRideLiveLocationPayload({
     latitude,
     updatedAt,
   });
+}
+
+/** Single latest GPS snapshot — never append (avoids ride doc bloat). */
+function buildLocationHistoryEntry({ longitude, latitude, updatedAt }) {
+  return {
+    coordinates: [longitude, latitude],
+    longitude,
+    latitude,
+    updatedAt,
+  };
 }
 
 function resolveDriverSeedCoords(driver) {
@@ -60,6 +68,8 @@ async function persistRideLiveLocation({
     updatedAt,
   });
 
+  // Always $set liveLocation + overwrite locationHistory with one entry.
+  // Do not $push — long trails bloated rides and risked stuck live updates.
   return Ride.findOneAndUpdate(
     {
       _id: rideId,
@@ -67,19 +77,11 @@ async function persistRideLiveLocation({
       status: { $in: ACTIVE_TRACKING_STATUSES },
     },
     {
-      $set: { liveLocation },
-      $push: {
-        locationHistory: {
-          $each: [
-            {
-              coordinates: [longitude, latitude],
-              longitude,
-              latitude,
-              updatedAt,
-            },
-          ],
-          $slice: -LOCATION_HISTORY_MAX,
-        },
+      $set: {
+        liveLocation,
+        locationHistory: [
+          buildLocationHistoryEntry({ longitude, latitude, updatedAt }),
+        ],
       },
     },
     {
@@ -154,12 +156,11 @@ export async function acceptRideService({ rideId, driverId }) {
       updatedAt: acceptedAt,
     });
     update.locationHistory = [
-      {
-        coordinates: seed.coordinates,
+      buildLocationHistoryEntry({
         longitude: seed.longitude,
         latitude: seed.latitude,
         updatedAt: acceptedAt,
-      },
+      }),
     ];
   }
 

@@ -64,13 +64,23 @@ const passengerSchema = new mongoose.Schema(
     longitude: Number,
     latitude: Number,
     locationUpdatedAt: { type: Date, default: null },
-    fcmTokens: [
-      {
-        token: { type: String },
-        platform: { type: String },
-        lastActiveAt: { type: Date, default: Date.now }
-      }
-    ],
+    // Single active device: app/backend always replace this array with one token.
+    fcmTokens: {
+      type: [
+        {
+          token: { type: String },
+          platform: { type: String },
+          lastActiveAt: { type: Date, default: Date.now },
+        },
+      ],
+      default: [],
+      validate: {
+        validator(arr) {
+          return !Array.isArray(arr) || arr.length <= 1;
+        },
+        message: "Only one FCM token is allowed per passenger",
+      },
+    },
 
     rating: {
       average: { type: Number, default: 0 },
@@ -80,6 +90,14 @@ const passengerSchema = new mongoose.Schema(
 
   { timestamps: true }
 );
+
+// Legacy docs may have many tokens; keep only the newest one on save.
+passengerSchema.pre("validate", function (next) {
+  if (Array.isArray(this.fcmTokens) && this.fcmTokens.length > 1) {
+    this.fcmTokens = this.fcmTokens.slice(-1);
+  }
+  next();
+});
 
 passengerSchema.pre(
   "save",

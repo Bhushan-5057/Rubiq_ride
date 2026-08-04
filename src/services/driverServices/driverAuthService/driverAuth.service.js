@@ -6,6 +6,10 @@ import { sendEmail, renderTemplate } from "../../../utils/mailer.js";
 import { normalizeDriverMediaUrls } from "../../../utils/mediaUrl.js";
 import { USER_STATUS } from "../../../constants/userStatus.constants.js";
 import { canDriverLogin } from "../../../helpers/driverStatus.helper.js";
+import {
+  applyFcmTokenToDocument,
+  fcmTokensReplacePayload,
+} from "../../../helpers/fcmToken.helper.js";
 import jwt from "jsonwebtoken";
 
 
@@ -45,7 +49,7 @@ export async function otpLogin(payload) {
       gender,
       vehicleType,
       city,
-      fcmToken: fcmToken || null,
+      fcmTokens: fcmTokensReplacePayload(fcmToken),
       otpVerified: true,
       status: USER_STATUS.PENDING,
       profileCompleted: false,
@@ -67,13 +71,13 @@ export async function otpLogin(payload) {
       gender,
       vehicleType,
       city,
-      fcmToken: fcmToken || driver.fcmToken,
     };
 
     for (const key in fields) {
-      if (fields[key] && key !== 'fcmToken') driver[key] = fields[key];
-      else if (key === 'fcmToken') driver[key] = fields[key];
+      if (fields[key]) driver[key] = fields[key];
     }
+
+    applyFcmTokenToDocument(driver, fcmToken);
 
     await driver.save();
   }
@@ -129,7 +133,7 @@ export async function googleLogin(payload) {
       dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : null,
       googleId,
       profileImage,
-      fcmToken: fcmToken || null,
+      fcmTokens: fcmTokensReplacePayload(fcmToken),
       otpVerified: true,
       gender,
       vehicleType,
@@ -149,7 +153,7 @@ export async function googleLogin(payload) {
     driver.googleId = googleId;
     driver.profileImage = profileImage || driver.profileImage;
     driver.name = name || driver.name;
-    driver.fcmToken = fcmToken || driver.fcmToken;
+    applyFcmTokenToDocument(driver, fcmToken);
     driver.otpVerified = true;
     await driver.save();
   }

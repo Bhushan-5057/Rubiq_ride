@@ -6,6 +6,10 @@ import { USER_STATUS } from "../../../constants/userStatus.constants.js";
 import { normalizePassengerMediaUrls } from "../../../utils/mediaUrl.js";
 import { isPassengerProfileComplete } from "../../../common/utils.js";
 import { canPassengerLogin } from "../../../helpers/passengerStatus.helper.js";
+import {
+  applyFcmTokenToDocument,
+  fcmTokensReplacePayload,
+} from "../../../helpers/fcmToken.helper.js";
 import jwt from "jsonwebtoken";
 
 
@@ -23,7 +27,7 @@ export async function googleLogin(payload) {
       name,
       googleId,
       profileImage,
-      fcmToken: fcmToken || null,
+      fcmTokens: fcmTokensReplacePayload(fcmToken),
       otpVerified: true,
       status: USER_STATUS.ACTIVE,
       contactNumber: null,
@@ -40,7 +44,7 @@ export async function googleLogin(payload) {
     passenger.googleId = googleId;
     passenger.profileImage = profileImage || passenger.profileImage;
     passenger.name = name || passenger.name;
-    passenger.fcmToken = fcmToken || passenger.fcmToken;
+    applyFcmTokenToDocument(passenger, fcmToken);
     passenger.otpVerified = true;
     await passenger.save();
   }
@@ -77,7 +81,7 @@ export async function otpLogin({ contactNumber, otp, name, email, gender, fcmTok
       name: name || "",
       email: email || null,
       gender: gender || "",
-      fcmToken: fcmToken || null,
+      fcmTokens: fcmTokensReplacePayload(fcmToken),
       status: USER_STATUS.ACTIVE,
       profileCompleted: false,
     });
@@ -93,7 +97,7 @@ export async function otpLogin({ contactNumber, otp, name, email, gender, fcmTok
     if (name && !passenger.name) passenger.name = name;
     if (email && !passenger.email) passenger.email = email;
     if (gender && !passenger.gender) passenger.gender = gender;
-    if (fcmToken) passenger.fcmToken = fcmToken;
+    applyFcmTokenToDocument(passenger, fcmToken);
 
     await passenger.save();
   }

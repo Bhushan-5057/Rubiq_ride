@@ -80,13 +80,23 @@ const driverSchema = new mongoose.Schema(
       average: { type: Number, default: 0 },
       count: { type: Number, default: 0 }
     },
-    fcmTokens: [
-      {
-        token: { type: String },
-        platform: { type: String },
-        lastActiveAt: { type: Date, default: Date.now }
-      }
-    ],
+    // Single active device: app/backend always replace this array with one token.
+    fcmTokens: {
+      type: [
+        {
+          token: { type: String },
+          platform: { type: String },
+          lastActiveAt: { type: Date, default: Date.now },
+        },
+      ],
+      default: [],
+      validate: {
+        validator(arr) {
+          return !Array.isArray(arr) || arr.length <= 1;
+        },
+        message: "Only one FCM token is allowed per driver",
+      },
+    },
 
     isOnline: { type: Boolean, default: false },
     lastOnline: { type: Date },
@@ -105,6 +115,14 @@ const driverSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
+// Legacy docs may have many tokens; keep only the newest one on save.
+driverSchema.pre("validate", function (next) {
+  if (Array.isArray(this.fcmTokens) && this.fcmTokens.length > 1) {
+    this.fcmTokens = this.fcmTokens.slice(-1);
+  }
+  next();
+});
 
 driverSchema.pre(
   "save",

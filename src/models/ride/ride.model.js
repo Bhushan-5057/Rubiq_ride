@@ -98,14 +98,24 @@ const rideSchema = new mongoose.Schema(
       },
     },
 
-    locationHistory: [
-      {
-        coordinates: { type: [Number] },
-        latitude: { type: Number },
-        longitude: { type: Number },
-        updatedAt: { type: Date },
+    // Latest GPS only (array length 0–1). liveLocation is the source of truth for passengers.
+    locationHistory: {
+      type: [
+        {
+          coordinates: { type: [Number] },
+          latitude: { type: Number },
+          longitude: { type: Number },
+          updatedAt: { type: Date },
+        },
+      ],
+      default: [],
+      validate: {
+        validator(arr) {
+          return !Array.isArray(arr) || arr.length <= 1;
+        },
+        message: "Only the latest location history entry is stored per ride",
       },
-    ],
+    },
 
     currentOfferedDriver: {
       type: mongoose.Schema.Types.ObjectId,
@@ -192,6 +202,11 @@ rideSchema.index({ driver: 1, createdAt: -1 });
 rideSchema.index({ status: 1, currentOfferedDriver: 1 });
 
 rideSchema.pre("validate", function (next) {
+  // Keep only latest GPS snapshot in history.
+  if (Array.isArray(this.locationHistory) && this.locationHistory.length > 1) {
+    this.locationHistory = this.locationHistory.slice(-1);
+  }
+
   if (this.status === "cancelled") {
     const { reasonCode, reasonText, cancelledBy, cancelledAt } =
       this.cancellation || {};
